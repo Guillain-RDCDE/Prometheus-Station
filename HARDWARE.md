@@ -6,6 +6,67 @@ This isn't just a shopping list. Each component is explained so you understand i
 
 ---
 
+## 🎯 Content Strategy First
+
+**Before buying hardware, decide your mission:**
+
+### 🏥 Strategy 1: Emergency Medical Pack (~5.5 GB)
+**Best for:** Disaster response, humanitarian missions, field clinics
+
+**Hardware needs:**
+- 64GB SD card (minimum)
+- 8GB RAM Pi (medical databases benefit from RAM)
+- Standard power system
+
+**What you get:**
+- Post-disaster medical protocols
+- Emergency medicine wiki
+- Complete medical encyclopedia
+- Water & food safety guides
+- Wikipedia medicine (EN + FR)
+
+**Total cost:** ~555€
+
+---
+
+### 📚 Strategy 2: Full Knowledge Base (~120-150 GB)
+**Best for:** Permanent installations, educational centers, remote communities
+
+**Hardware needs:**
+- 256GB SD card (required)
+- 8GB RAM Pi (Wikipedia searches are RAM-intensive)
+- Standard power system
+
+**What you get:**
+- Complete Wikipedia (EN + FR)
+- All medical content from Strategy 1
+- Comprehensive educational resources
+
+**Total cost:** ~570€
+
+---
+
+### 🎒 Strategy 3: Minimal Emergency Kit (~750 MB)
+**Best for:** Rapid deployment, testing, ultra-portable
+
+**Hardware needs:**
+- 32GB SD card (sufficient)
+- 4GB RAM Pi acceptable (saves €25)
+- Lighter power system possible
+
+**What you get:**
+- Core disaster medicine
+- Emergency procedures
+- Water safety guide
+
+**Total cost:** ~430€ (budget optimized)
+
+---
+
+**This guide assumes Strategy 1 (Emergency Medical) for humanitarian missions.** You can scale up or down based on your needs.
+
+---
+
 ## 💡 Understanding the System Architecture
 
 Before diving into components, let's understand how Prometheus Station works:
@@ -96,26 +157,59 @@ Now let's look at each component and understand WHY it's needed.
 
 **Why we need it:**
 - Stores the operating system (Raspberry Pi OS)
-- Stores Wikipedia files (~171GB for EN+FR Wikipedia + Wikimed)
+- Stores medical/educational content (size depends on strategy)
 - Stores all software and configurations
 
-**Why 256GB specifically:**
-- Wikipedia EN: ~90GB
-- Wikipedia FR: ~25GB
-- Wikimed EN: ~50GB
-- Wikimed FR: ~6GB
-- Operating system + software: ~10GB
-- **Total: ~181GB minimum**
-- 256GB gives breathing room
+**Size Requirements by Strategy:**
+
+**Strategy 1: Emergency Medical Pack (Recommended)**
+- Post-disaster protocols + Medical encyclopedia: ~5.5 GB
+- Operating system + software: ~10 GB
+- **Minimum SD card:** 32GB
+- **Recommended:** 64GB (room for growth)
+
+**Strategy 2: Full Knowledge Base**
+- Complete Wikipedia (EN + FR): ~115 GB
+- Medical content: ~5.5 GB
+- Operating system + software: ~10 GB
+- **Minimum SD card:** 256GB ⭐
+
+**Strategy 3: Minimal Emergency Kit**
+- Core medical guides: ~750 MB
+- Operating system + software: ~10 GB
+- **Minimum SD card:** 16GB
+- **Recommended:** 32GB
+
+**Why 256GB recommended:**
+- Accommodates ANY strategy
+- Room for future content additions
+- Handles system logs and cache
+- Can store full Wikipedia if needed later
 
 **Why "A2 Class" specifically:**
-- A2 = faster random read/write (important for database searches)
-- A1 or lower = Wikipedia searches will be painfully slow
+- A2 = faster random read/write (critical for medical database searches)
+- A1 or lower = Searches will be painfully slow
 - This isn't about megabytes per second, it's about how fast it can find random pieces of data
 
-**Cost:** ~35€
+**Cost:** ~35€ (256GB) or ~20€ (64GB)
 
-**Don't cheap out here:** A slow SD card makes the ENTIRE system frustrating to use.
+**Don't cheap out here:** A slow SD card makes the ENTIRE system frustrating to use, especially in emergency situations where every second counts.
+
+---
+
+### 📦 Content Strategy Decision
+
+**Which SD card size should you buy?**
+
+| Your Mission | SD Card Size | Cost | Strategy |
+|--------------|--------------|------|----------|
+| 🏥 **Humanitarian/Disaster Response** | 64GB | ~20€ | Emergency Medical Pack |
+| 🎒 **Rapid Deployment/Testing** | 32GB | ~15€ | Minimal Emergency Kit |
+| 🏫 **Educational/Permanent Install** | 256GB | ~35€ | Full Knowledge Base |
+| 💾 **Flexible/Future-Proof** | 256GB | ~35€ | Can do any strategy |
+| 💰 **Budget-Conscious** | 64GB | ~20€ | Best value for field use |
+
+**Recommendation:** Start with **64GB for medical missions** or **256GB if budget allows** (gives you flexibility to add full Wikipedia later).
 
 ---
 
@@ -375,7 +469,8 @@ For a portable station, 2-7dBi is ideal.
 | Category | Item | Price | Why This Matters |
 |----------|------|-------|------------------|
 | **Computing** | Raspberry Pi 4 (8GB) | ~75€ | The brain—no compromise here |
-| | MicroSD 256GB A2 | ~35€ | Stores everything, A2 = fast searches |
+| | MicroSD 256GB A2 | ~35€ | Full capacity for any strategy |
+| | *OR MicroSD 64GB A2* | *~20€* | *For medical pack only (saves 15€)* |
 | | E-Ink Display | ~17€ | Monitor without WiFi, minimal power |
 | **Communication** | T-Beam 868MHz | ~47€ | LoRa gateway, GPS included |
 | | Omnidirectional Antenna | ~30€ | Critical for range, weatherproof |
@@ -386,14 +481,17 @@ For a portable station, 2-7dBi is ideal.
 | | Xtar MC2 Charger | ~20€ | Safe battery charging |
 | **Infrastructure** | 7m Fiberglass Mast | ~55€ | Height = range multiplier |
 | | USB Cables (various) | ~34€ | Quality cables prevent failures |
-| **TOTAL** | | **~570€** | |
+| **TOTAL (Full)** | | **~570€** | Full Wikipedia capacity |
+| **TOTAL (Medical)** | | **~555€** | With 64GB SD (medical pack only) |
 
 **Budget optimization options:**
-- Use 4GB Pi instead of 8GB: **-25€**
+- **Use 64GB SD instead of 256GB: -15€** (medical pack only)
+- Use 4GB Pi instead of 8GB: **-25€** (slower but functional)
 - Skip E-Ink display initially: **-17€**
 - Single T-Echo instead of two: **-48€**
 - Smaller solar panel (20W): **-20€**
-- **Minimum viable build: ~460€**
+- **Minimum viable medical build: ~430€** (64GB SD, 4GB Pi, no display, 1 T-Echo)
+- **Minimum viable full Wikipedia build: ~445€** (256GB SD, 4GB Pi, no display, 1 T-Echo)
 
 ---
 
@@ -489,5 +587,7 @@ Now that you understand the hardware, you're ready to:
 
 ---
 
-**Last updated:** December 2025
+**Last updated:** December 2025  
 **Hardware list verified by:** Guillain d'Erceville (actual purchased components)
+
+

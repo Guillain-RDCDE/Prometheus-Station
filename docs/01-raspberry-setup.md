@@ -613,7 +613,7 @@ sudo raspi-config
 
 **What is this?** A text-based menu for configuring Pi-specific settings.
 
-**You'll see a blue screen with options:**
+You'll see a blue screen with options:
 
 ```
 ┌─────────────┤ Raspberry Pi Software Configuration Tool ├──────────────┐
@@ -634,18 +634,18 @@ sudo raspi-config
 **Navigation:**
 - Use **arrow keys** to move up/down
 - Press **Enter** to select
-- Press **Tab** to move between buttons (<Select> / <Finish>)
+- Press **Tab** to move between buttons (`<Select>` / `<Finish>`)
 - Press **Esc** twice to exit
 
 ---
 
 #### Setting 1: Expand Filesystem
 
-**Path:** `6 Advanced Options` → `A1 Expand Filesystem`
+Path: `6 Advanced Options` → `A1 Expand Filesystem`
 
-**What it does:** Makes the entire SD card available (by default, only 2GB is used)
+What it does: Makes the entire SD card available (by default, only 2GB is used)
 
-**Why:** We need all 256GB for Wikipedia files
+Why: We need all 256GB for Wikipedia files
 
 **Action:**
 1. Select `6 Advanced Options`
@@ -657,11 +657,11 @@ sudo raspi-config
 
 #### Setting 2: Set Memory Split (Headless Optimization)
 
-**Path:** `4 Performance Options` → `P2 GPU Memory`
+Path: `4 Performance Options` → `P2 GPU Memory`
 
-**What it does:** Allocates RAM between CPU and GPU
+What it does: Allocates RAM between CPU and GPU
 
-**Why:** We're headless (no monitor), so GPU doesn't need much RAM
+Why: We're headless (no monitor), so GPU doesn't need much RAM
 
 **Action:**
 1. Select `4 Performance Options`
@@ -676,11 +676,11 @@ sudo raspi-config
 
 #### Setting 3: Enable SSH (Verify)
 
-**Path:** `3 Interface Options` → `I2 SSH`
+Path: `3 Interface Options` → `I2 SSH`
 
-**What it does:** Ensures SSH is enabled (should already be from Imager settings)
+What it does: Ensures SSH is enabled (should already be from Imager settings)
 
-**Why:** Double-check it's on
+Why: Double-check it's on
 
 **Action:**
 1. Select `3 Interface Options`
@@ -693,11 +693,11 @@ sudo raspi-config
 
 #### Setting 4: Configure Hostname (Optional)
 
-**Path:** `1 System Options` → `S4 Hostname`
+Path: `1 System Options` → `S4 Hostname`
 
-**What it does:** Change the network name
+What it does: Change the network name
 
-**Why:** If you didn't set it in Imager, or want to change it
+Why: If you didn't set it in Imager, or want to change it
 
 **Action:**
 1. Select `1 System Options`

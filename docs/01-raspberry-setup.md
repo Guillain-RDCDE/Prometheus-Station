@@ -218,101 +218,115 @@ Click your microSD card to select it.
 
 ---
 
-### Step 1.5: Configure Advanced Settings ⚙️
+### Step 1.5: Configure Settings (Raspberry Pi Imager v2.0+)
 
-This is the MAGIC step that makes headless setup work.
+After choosing your OS and storage, you'll see a button **"NEXT"** at the bottom right.
 
-Click the **gear icon ⚙️** (bottom right corner, or use keyboard: `Ctrl+Shift+X`)
+**Click "NEXT"**
 
-A new window opens: "Advanced Options"
+A popup appears asking: **"Would you like to apply OS customisation settings?"**
+
+**Click "EDIT SETTINGS"** (or "MODIFIER LES RÉGLAGES" in French)
 
 ---
 
-#### 📝 Configure Each Setting:
+#### Now you'll see a customization window with several tabs on the left:
 
-**1. Set hostname**
-- ✅ Enable this
-- Hostname: `prometheus-station`
+**📝 Configure Each Tab:**
+
+---
+
+#### Tab 1: "Hostname"
+
+- ✅ Hostname: `prometheus-station`
 - What it does: This is your Pi's name on the network
 - Why: Easier to remember than an IP address
 
-**2. Enable SSH**
-- ✅ Enable this (CRITICAL!)
-- Choose: "Use password authentication"
-- What it does: Allows remote terminal access
-- Why: Without this, you'd need a monitor forever
+**Example:** Your input should look like the image - `Prometheus-Station`
 
-**3. Set username and password**
-- ✅ Enable this
-- Username: `prometheus` (or your choice, but remember it!)
-- Password: Choose something STRONG (you'll type it a lot)
+---
+
+#### Tab 2: "User"
+
+- ✅ Username: `prometheus` (or your choice, but remember it!)
+- ✅ Password: Choose something STRONG (you'll type it a lot)
   - Good: `Pr0m3th3us!Station`
   - Bad: `password123`
-  
-**Why a new username?**
+
+**Why a custom username?**
 - Old default was `pi` (everyone knew this)
 - Security best practice: unique username
 - Makes brute-force attacks harder
 
-**4. Configure wireless LAN**
-- ✅ Enable this (unless using Ethernet only)
-- SSID: **Exactly** as your WiFi network name appears
+---
+
+#### Tab 3: "Wi-Fi"
+
+- ✅ SSID: **Exactly** as your WiFi network name appears
   - Case-sensitive! "MyWiFi" ≠ "mywifi"
   - Include spaces if your network has them
-- Password: Your WiFi password (also case-sensitive)
-- Wireless LAN country: Select your country
+- ✅ Password: Your WiFi password (also case-sensitive)
+- ✅ Wireless LAN country: Select your country
   - France = FR
   - USA = US
   - Critical for legal radio frequencies
 
 **Why this matters:** The Pi will connect to WiFi on first boot, automatically.
 
-**5. Set locale settings**
-- ✅ Enable this
-- Time zone: Your timezone (e.g., `Europe/Paris`)
-- Keyboard layout: Your keyboard type (e.g., `fr` or `us`)
+---
+
+#### Tab 4: "Localisation"
+
+- ✅ Time zone: Your timezone (e.g., `Europe/Paris`)
+- ✅ Keyboard layout: Your keyboard type (e.g., `fr` or `us`)
 
 **Why:** Makes dates/logs readable, typing behaves correctly
 
-**6. Other settings (optional)**
-- Skip first-run wizard: ✅ Check this
-- Enable telemetry: ❌ Uncheck (privacy)
-- Eject media when finished: ✅ Check (convenience)
+---
+
+#### Tab 5: "Remote access"
+
+**This is CRITICAL for headless setup!**
+
+- ✅ Enable SSH: **CHECK THIS BOX**
+- Choose: **"Use password authentication"**
+
+**What it does:** Allows you to control the Pi remotely from your laptop
+
+**Without this:** You'd need to connect a monitor and keyboard every time
 
 ---
 
-#### 🧠 Understanding What Just Happened
+#### Tab 6: "Raspberry Pi Connect" (optional)
 
-**Here's the beautiful part:** You just configured the ENTIRE operating system BEFORE it even booted. 
+- Leave unchecked for now (we're using Tailscale instead)
 
-Without this:
-- You'd need to connect monitor
-- Type WiFi password on tiny keyboard
-- Enable SSH manually
-- Disconnect monitor, reconnect via SSH
+---
 
-With this:
-- Pi boots
-- Connects to WiFi
-- SSH ready
-- You connect remotely
+### After Configuring All Tabs:
 
-**This is why headless setup is genius.** ✨
+1. **Click "SAVE"** (bottom right)
+2. You're back to the main screen
+3. **Click "YES"** when asked "Would you like to apply OS customisation settings?"
+4. **Confirm the warning:** "All existing data will be erased"
+5. **Click "YES"** to start writing
 
 ---
 
 ### Step 1.6: Write the OS to SD Card
 
-1. **Review your settings:**
+Now that all settings are configured:
+
+1. **Review the summary:**
    - OS: Raspberry Pi OS Lite (64-bit) ✅
    - Storage: Your 256GB microSD ✅
-   - Advanced settings configured ✅
+   - Customisation applied ✅
 
-2. **Click "WRITE"**
+2. **Click "YES"** to proceed with writing
 
-3. **Confirm the warning:**
-   - "All existing data will be erased"
-   - Click "Yes" (you backed up anything important, right?)
+3. **Final confirmation:**
+   - "All existing data on [your SD card] will be erased"
+   - Click "YES" (you backed up anything important, right?)
 
 4. **Wait for the magic:**
    

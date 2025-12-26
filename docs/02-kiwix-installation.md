@@ -181,20 +181,21 @@ If they're already installed (like above), that's perfect! ✅
 
 ### Step 1.3: Download and Install Kiwix Server
 
-**Important:** There are two architectures for Raspberry Pi. We need the ARM version.
+**Important:** Raspberry Pi 4 uses ARM64 architecture. We need the `aarch64` version for optimal performance.
 
 ```bash
 # Go to home directory
 cd ~
 
-# Download kiwix-tools (ARM version for Raspberry Pi)
-curl -L https://download.kiwix.org/release/kiwix-tools/kiwix-tools_linux-armhf.tar.gz -o kiwix-tools.tar.gz
+# Download kiwix-tools (ARM64/aarch64 version for Raspberry Pi 4)
+curl -L https://download.kiwix.org/release/kiwix-tools/kiwix-tools_linux-aarch64.tar.gz -o kiwix-tools.tar.gz
 ```
 
 **What's happening:**
 - `-L` flag follows redirects (Kiwix might redirect to a mirror)
 - `-o` specifies output filename
 - Download size: ~10MB (quick download)
+- **aarch64** = ARM 64-bit architecture (optimal for Pi 4)
 
 **While downloading, you'll see:**
 ```
@@ -217,14 +218,29 @@ ls -la
 
 **You should see:**
 ```
-drwxr-xr-x 2 prometheus prometheus  4096 Dec 26 10:30 kiwix-tools_linux-armhf-3.x.x/
--rw-r--r-- 1 prometheus prometheus 10.2M Dec 26 10:28 kiwix-tools.tar.gz
+drwxrwxr-x 2 prometheus prometheus  4096 Dec 26 16:01 kiwix-tools_linux-aarch64-3.8.1/
+-rw-r--r-- 1 prometheus prometheus 10.2M Dec 26 16:00 kiwix-tools.tar.gz
+```
+
+**Check what's inside the extracted folder:**
+```bash
+ls -la kiwix-tools_linux-aarch64-*/
+```
+
+**You should see:**
+```
+-rwxr-xr-x 1 prometheus prometheus 17029904 Dec  2 07:11 kiwix-manage
+-rwxr-xr-x 1 prometheus prometheus 16139928 Dec  2 07:11 kiwix-search
+-rwxr-xr-x 1 prometheus prometheus 17407016 Dec  2 07:11 kiwix-serve
 ```
 
 **Understanding the extraction:**
 - `tar -xzf` = eXtract, using gZip compression, from File
-- Creates a directory like `kiwix-tools_linux-armhf-3.x.x`
-- Contains several programs (kiwix-serve, kiwix-manage, etc.)
+- Creates a directory like `kiwix-tools_linux-aarch64-3.8.1`
+- Contains three programs **directly in the folder** (not in a bin/ subdirectory):
+  - `kiwix-serve` - The web server we'll use
+  - `kiwix-manage` - Tool to manage the library catalog
+  - `kiwix-search` - Command-line search tool
 
 ---
 
@@ -234,10 +250,10 @@ Now we need to move Kiwix to a location where the system can find it:
 
 ```bash
 # Move kiwix-serve to system path
-sudo mv kiwix-tools_linux-armhf-*/kiwix-serve /usr/local/bin/
+sudo mv kiwix-tools_linux-aarch64-*/kiwix-serve /usr/local/bin/
 
 # Move kiwix-manage (we'll need this later)
-sudo mv kiwix-tools_linux-armhf-*/kiwix-manage /usr/local/bin/
+sudo mv kiwix-tools_linux-aarch64-*/kiwix-manage /usr/local/bin/
 
 # Make both executable
 sudo chmod +x /usr/local/bin/kiwix-serve
@@ -245,13 +261,18 @@ sudo chmod +x /usr/local/bin/kiwix-manage
 
 # Clean up downloaded files
 rm kiwix-tools.tar.gz
-rm -rf kiwix-tools_linux-armhf-*/
+rm -rf kiwix-tools_linux-aarch64-*/
 ```
 
 **Why /usr/local/bin?**
 - System-wide programs go here
 - Automatically in PATH (accessible from anywhere)
 - Standard Unix convention
+
+**What the wildcard `*` does:**
+- `kiwix-tools_linux-aarch64-*/` matches any version number
+- Works with `kiwix-tools_linux-aarch64-3.8.1/` or future versions
+- Saves you from typing exact version number
 
 ---
 
@@ -371,69 +392,140 @@ ls -la /var/kiwix/library/
 3. **Can be resumed:** If interrupted, wget can continue where it left off
 4. **Check data caps:** 165GB total - make sure your ISP allows this!
 5. **SD card wear:** Lots of writes - use quality A2 card
+6. **Filenames change monthly:** ZIM files are updated every month with new dates
 
 **Strategy options:**
 
 - **Option A:** Download directly on Pi (easiest, but slow)
 - **Option B:** Download on fast PC, transfer via USB (faster, more complex)
-- **Option C:** Start with smaller files to test (recommended for first-timers)
+- **Option C:** Start with French Wikipedia (smaller, 25GB vs 90GB)
 
-We'll use **Option A** in this guide, with **Option C** for testing.
+We'll use **Option A** in this guide, starting with **Option C** (French first).
 
 ---
 
-### Step 3.1: Test Download (Small File First)
+### Step 3.1: Find Current ZIM File URLs
 
-**Before committing to 90GB downloads, let's test with a small file:**
+**Important:** ZIM files are updated monthly and filenames include dates (like `wikipedia_en_all_maxi_2024-12.zim`). The URLs in this guide will become outdated!
+
+**Method 1: Browse the Kiwix Download Directory (Recommended)**
+
+1. **On your laptop**, open a web browser
+2. Go to: **https://download.kiwix.org/zim/wikipedia/**
+3. You'll see a directory listing of ALL Wikipedia ZIM files
+
+**What you're looking for:**
+
+| Content | Filename Pattern | Typical Size |
+|---------|------------------|--------------|
+| Wikipedia English (full) | `wikipedia_en_all_maxi_YYYY-MM.zim` | ~90GB |
+| Wikipedia English (no pics) | `wikipedia_en_all_nopic_YYYY-MM.zim` | ~50GB |
+| Wikipedia French (full) | `wikipedia_fr_all_maxi_YYYY-MM.zim` | ~25GB |
+| Wikipedia French (no pics) | `wikipedia_fr_all_nopic_YYYY-MM.zim` | ~15GB |
+
+**Example from December 2024:**
+- `wikipedia_en_all_maxi_2024-12.zim` (90.2 GB)
+- `wikipedia_fr_all_maxi_2024-12.zim` (25.8 GB)
+
+**How to identify the latest version:**
+- Look for the **most recent date** (YYYY-MM format)
+- Files are usually updated around the 15th of each month
+- Bigger file size often indicates newer dumps (more content)
+
+**4. Right-click on the filename → Copy link address**
+
+---
+
+**Method 2: Use the Kiwix Library (Alternative)**
+
+1. Go to: **https://library.kiwix.org/**
+2. Search for "Wikipedia"
+3. Filter by language (EN, FR, etc.)
+4. Click "Download" → This gives you the direct `.zim` link
+5. Copy the URL
+
+---
+
+**Method 3: Command Line Search (Advanced)**
+
+From your Pi, you can search directly:
+
+```bash
+# List all Wikipedia English files with dates
+curl -s https://download.kiwix.org/zim/wikipedia/ | grep "wikipedia_en_all_maxi" | grep -o 'href="[^"]*' | cut -d'"' -f2
+
+# List all Wikipedia French files
+curl -s https://download.kiwix.org/zim/wikipedia/ | grep "wikipedia_fr_all_maxi" | grep -o 'href="[^"]*' | cut -d'"' -f2
+```
+
+This shows all available files - pick the one with the latest date.
+
+---
+
+### Step 3.2: Download Your First ZIM File
+
+**Now that you have the correct URL, let's download!**
+
+**For this guide, we'll start with Wikipedia French (smaller, faster to test):**
 
 ```bash
 # Navigate to data directory
 cd /var/kiwix/data
 
-# Download Wikipedia Simple English (smaller test file ~500MB)
-wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_en_simple_all_maxi_latest.zim
+# Download Wikipedia French (REPLACE URL WITH CURRENT ONE FROM STEP 3.1)
+# Example with December 2024 version:
+wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_fr_all_maxi_2024-12.zim
 ```
 
+**⚠️ IMPORTANT:** Replace `2024-12` with the **current month's version** you found in Step 3.1!
+
 **Understanding wget flags:**
-- `-c` = Continue interrupted downloads (critical for large files!)
-- URL = Direct download link from Kiwix servers
+- `-c` = Continue interrupted downloads (CRITICAL for large files!)
+- If download stops, just run the SAME command again - it resumes!
 
 **While downloading, you'll see:**
 ```
---2025-12-26 10:40:15--  https://download.kiwix.org/zim/wikipedia/...
-Resolving download.kiwix.org (download.kiwix.org)... 185.82.117.53
-Connecting to download.kiwix.org|185.82.117.53|:443... connected.
+--2025-12-26 16:10:15--  https://download.kiwix.org/zim/wikipedia/...
+Resolving download.kiwix.org (download.kiwix.org)... 51.159.101.162
+Connecting to download.kiwix.org|51.159.101.162|:443... connected.
 HTTP request sent, awaiting response... 200 OK
-Length: 523741824 (499M) [application/octet-stream]
-Saving to: 'wikipedia_en_simple_all_maxi_latest.zim'
+Length: 27726458912 (25.8G) [application/octet-stream]
+Saving to: 'wikipedia_fr_all_maxi_2024-12.zim'
 
-wikipedia_en_simple  10%[=>                  ] 50.2M  5.23MB/s    eta 1m 25s
+wikipedia_fr_all_ma  2%[>                   ] 523M  5.23MB/s    eta 1h 25m
 ```
 
 **Progress indicators:**
-- `10%` = Percentage complete
-- `50.2M` = Amount downloaded so far
+- `2%` = Percentage complete
+- `523M` = Amount downloaded so far
 - `5.23MB/s` = Current download speed
-- `eta 1m 25s` = Estimated time remaining
+- `eta 1h 25m` = Estimated time remaining
 
-**This test download takes ~10-20 minutes on decent connection.**
+**This download takes 1-3 hours on decent connection (25GB file).**
 
-**If it fails or is too slow:**
+**☕ Perfect time for:**
+- Coffee break
+- Lunch
+- Read ahead in the guide
+- Learn about systemd services
+- Browse the Prometheus Station documentation
+
+**If download fails:**
 - Check internet: `ping 8.8.8.8`
-- Try different mirror: Check [download.kiwix.org](https://download.kiwix.org) for alternatives
-- Consider downloading on PC and transferring
+- Check disk space: `df -h` (need 30GB+ free)
+- Run the SAME wget command again (it resumes automatically!)
 
 ---
 
-### Step 3.2: Monitor Download Progress (Optional)
+### Step 3.3: Monitor Download Progress (Optional)
 
 **Open a SECOND SSH session** (keep first one running wget):
 
 ```bash
-# From your laptop, open new terminal
-ssh prometheus@prometheus-station
+# From your laptop, open new terminal window
+ssh guillain@prometheus-station
 
-# Watch file size grow in real-time
+# Watch file size grow in real-time (updates every 10 seconds)
 watch -n 10 'du -h /var/kiwix/data/*'
 ```
 
@@ -441,75 +533,118 @@ watch -n 10 'du -h /var/kiwix/data/*'
 ```
 Every 10.0s: du -h /var/kiwix/data/*
 
-54M     /var/kiwix/data/wikipedia_en_simple_all_maxi_latest.zim
+2.1G    /var/kiwix/data/wikipedia_fr_all_maxi_2024-12.zim
 ```
 
 The number increases every 10 seconds as download progresses!
 
 **To stop watching:** Press `Ctrl + C`
 
----
-
-### Step 3.3: Download Full Wikipedia Files
-
-**Once your test file completes successfully**, proceed with full downloads:
-
-**⚠️ Time warning:** Each of these takes HOURS. Start before bed or when you won't need your internet.
-
+**Alternative monitoring:**
 ```bash
-# Make sure you're in the data directory
-cd /var/kiwix/data
+# Show percentage complete
+ls -lh /var/kiwix/data/
 
-# Download Wikipedia English (LARGE - ~90GB, 4-8 hours)
-wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_maxi_latest.zim
-
-# When English completes, download French (~25GB, 1-3 hours)
-wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_fr_all_maxi_latest.zim
-
-# Finally, download Wikimed English (~50GB, 2-4 hours)
-wget -c https://download.kiwix.org/zim/wikimed/wikimed_en_all_maxi_latest.zim
+# Compare to expected final size (25.8G for French Wikipedia)
 ```
 
-**CRITICAL: Do NOT download all three at once!** 
-- Downloads one at a time
+---
+
+### Step 3.4: Download Additional ZIM Files
+
+**Once French Wikipedia completes successfully**, you can add more content:
+
+**Wikipedia English (Full - LARGE):**
+```bash
+cd /var/kiwix/data
+
+# Find current URL at https://download.kiwix.org/zim/wikipedia/
+# Look for: wikipedia_en_all_maxi_YYYY-MM.zim (~90GB)
+
+# Download (REPLACE with current URL!)
+wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_maxi_2024-12.zim
+```
+
+**⏱️ Time estimate:** 4-8 hours on 50Mbps connection
+
+---
+
+**Wikimed English (Medical Encyclopedia):**
+```bash
+cd /var/kiwix/data
+
+# Find current URL at https://download.kiwix.org/zim/wikimed/
+# Look for: wikimed_en_all_YYYY-MM.zim (~50GB)
+
+# Download (REPLACE with current URL!)
+wget -c https://download.kiwix.org/zim/wikimed/wikimed_en_all_2024-12.zim
+```
+
+**⏱️ Time estimate:** 2-4 hours on 50Mbps connection
+
+---
+
+**Wikimed French (Medical Encyclopedia):**
+```bash
+cd /var/kiwix/data
+
+# Download (REPLACE with current URL!)
+wget -c https://download.kiwix.org/zim/wikimed/wikimed_fr_all_2024-12.zim
+```
+
+**⏱️ Time estimate:** 30-60 minutes (~6GB)
+
+---
+
+**CRITICAL: Download ONE at a time!** 
 - Prevents connection saturation
 - Easier to troubleshoot if issues arise
+- Better use of bandwidth
 
 **If download is interrupted:**
-- Don't panic!
+- Don't panic! ✅
 - Run the SAME wget command again
 - The `-c` flag resumes from where it stopped
 - Example: 50GB downloaded, connection drops → Resume gets remaining 40GB
 
 ---
 
-### Step 3.4: Alternative: Smaller Downloads (Save Space)
+### Step 3.5: Alternative - Smaller Downloads (Save Space)
 
-**If 165GB is too much, consider these alternatives:**
+**If 165GB is too much, consider these space-saving alternatives:**
 
+**Wikipedia WITHOUT images (saves ~40% space):**
 ```bash
-# Wikipedia English WITHOUT images (~50GB instead of 90GB)
-wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_nopic_latest.zim
+# English without images (~50GB instead of 90GB)
+wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_nopic_2024-12.zim
 
-# Wikipedia French WITHOUT images (~15GB instead of 25GB)
-wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_fr_all_nopic_latest.zim
-
-# Just French Wikipedia and Wikimed (~31GB total)
-wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_fr_all_maxi_latest.zim
-wget -c https://download.kiwix.org/zim/wikimed/wikimed_fr_all_maxi_latest.zim
+# French without images (~15GB instead of 25GB)
+wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_fr_all_nopic_2024-12.zim
 ```
 
-**Trade-off:**
-- ✅ Saves significant space
-- ✅ Faster downloads
-- ❌ No images in articles (text-only)
-- ❌ Less impressive demonstration
+**Just one language:**
+```bash
+# Only French Wikipedia + Wikimed (~31GB total)
+wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_fr_all_maxi_2024-12.zim
+wget -c https://download.kiwix.org/zim/wikimed/wikimed_fr_all_2024-12.zim
+```
 
-**My recommendation:** Start with "nopic" versions, upgrade to full later if space allows.
+**Trade-offs:**
+- ✅ Saves significant space (40-60% reduction)
+- ✅ Faster downloads (less data)
+- ✅ Faster searches (smaller index)
+- ❌ No images in articles (text-only for "nopic" versions)
+- ❌ Less impressive demonstration
+- ❌ Medical diagrams missing in Wikimed "nopic"
+
+**My recommendation:** 
+- **Start with:** French Wikipedia (full with images) - 25GB
+- **Test everything works** before committing to 90GB English download
+- **Upgrade later** if you have space and time
 
 ---
 
-### Step 3.5: Verify Downloaded Files
+### Step 3.6: Verify Downloaded Files
 
 **After EACH download completes:**
 
@@ -518,12 +653,11 @@ wget -c https://download.kiwix.org/zim/wikimed/wikimed_fr_all_maxi_latest.zim
 ls -lh /var/kiwix/data/
 ```
 
-**Expected output (after all downloads):**
+**Expected output (example with December 2024 versions):**
 ```
--rw-r--r-- 1 prometheus prometheus  90G Dec 26 18:42 wikipedia_en_all_maxi_latest.zim
--rw-r--r-- 1 prometheus prometheus  25G Dec 26 20:15 wikipedia_fr_all_maxi_latest.zim
--rw-r--r-- 1 prometheus prometheus  50G Dec 26 23:47 wikimed_en_all_maxi_latest.zim
--rw-r--r-- 1 prometheus prometheus 499M Dec 26 10:55 wikipedia_en_simple_all_maxi_latest.zim
+-rw-r--r-- 1 guillain guillain  90G Dec 26 22:42 wikipedia_en_all_maxi_2024-12.zim
+-rw-r--r-- 1 guillain guillain  25G Dec 26 18:15 wikipedia_fr_all_maxi_2024-12.zim
+-rw-r--r-- 1 guillain guillain  50G Dec 27 02:47 wikimed_en_all_2024-12.zim
 ```
 
 **Verification checklist:**
@@ -531,23 +665,34 @@ ls -lh /var/kiwix/data/
 - [ ] Filenames end in `.zim` (correct format)
 - [ ] File sizes roughly match expected values above
 - [ ] No error messages during download
+- [ ] Filenames include year-month (like `2024-12`)
 
 **Optional: Verify file integrity (takes 10-30 minutes per file):**
 
-```bash
-# Download checksums from Kiwix
-wget https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_maxi_latest.zim.md5
+**Most ZIM files include MD5 checksums.** To verify:
 
-# Verify checksum
-md5sum -c wikipedia_en_all_maxi_latest.zim.md5
+```bash
+# Check if .md5 file exists for your download
+ls -la /var/kiwix/data/*.md5
+
+# If checksum file exists, verify integrity
+md5sum -c wikipedia_fr_all_maxi_2024-12.zim.md5
 ```
 
 **Expected output:**
 ```
-wikipedia_en_all_maxi_latest.zim: OK
+wikipedia_fr_all_maxi_2024-12.zim: OK
 ```
 
-If says "FAILED", the file is corrupted - re-download it.
+**If no .md5 file exists:**
+- This is normal - not all ZIM files have checksums
+- If file downloaded without errors and is the right size, it's probably fine
+- You'll know for sure when Kiwix tries to open it
+
+**If checksum says "FAILED":**
+- File is corrupted during download
+- Delete it: `rm wikipedia_fr_all_maxi_2024-12.zim`
+- Re-download with wget (it should start fresh)
 
 ---
 
@@ -963,36 +1108,50 @@ This shows: Someone from 192.168.1.50 accessed "Raspberry Pi" article successful
 
 ### Step 7.2: Update ZIM Files (Future Maintenance)
 
-**Wikipedia is updated monthly.** To get latest content:
+**Wikipedia is updated monthly.** New versions are released around the 15th of each month with updated article content.
+
+**To get latest content:**
 
 ```bash
-# Navigate to data directory
+# 1. Find the newest version
+# Browse to https://download.kiwix.org/zim/wikipedia/
+# Look for the latest date (e.g., 2025-01 if you currently have 2024-12)
+
+# 2. Navigate to data directory
 cd /var/kiwix/data
 
-# Download newer version (when available)
-wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_maxi_latest.zim -O wikipedia_en_all_maxi_NEW.zim
+# 3. Download newer version (REPLACE with actual current URL)
+wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_fr_all_maxi_2025-01.zim
 
-# Stop Kiwix service
+# 4. Stop Kiwix service
 sudo systemctl stop kiwix-serve
 
-# Backup old file (optional)
-mv wikipedia_en_all_maxi_latest.zim wikipedia_en_all_maxi_OLD.zim
+# 5. Remove old file from library
+kiwix-manage /var/kiwix/library/library.xml remove wikipedia_fr_all_maxi
 
-# Rename new file
-mv wikipedia_en_all_maxi_NEW.zim wikipedia_en_all_maxi_latest.zim
+# 6. Add new file to library
+kiwix-manage /var/kiwix/library/library.xml add /var/kiwix/data/wikipedia_fr_all_maxi_2025-01.zim
 
-# Rebuild library
-kiwix-manage /var/kiwix/library/library.xml remove wikipedia_en_all_maxi
-kiwix-manage /var/kiwix/library/library.xml add /var/kiwix/data/wikipedia_en_all_maxi_latest.zim
-
-# Start Kiwix
+# 7. Start Kiwix
 sudo systemctl start kiwix-serve
 
-# Delete old backup (once verified)
-rm wikipedia_en_all_maxi_OLD.zim
+# 8. Verify it's working
+# Browse to http://prometheus-station.local and check French Wikipedia loads
+
+# 9. Delete old file (once verified new one works)
+rm wikipedia_fr_all_maxi_2024-12.zim
 ```
 
-**Recommendation:** Update every 3-6 months for fresh content.
+**Recommendation:** 
+- Update every 3-6 months for fresh content
+- Don't need to update monthly unless you want bleeding-edge articles
+- Medical content (Wikimed) updates less frequently - check twice a year
+
+**Smart updating strategy:**
+- Keep both old and new until verified (safety!)
+- Update during low-usage times
+- Check disk space before downloading new version
+- Always update library.xml after file changes
 
 ---
 

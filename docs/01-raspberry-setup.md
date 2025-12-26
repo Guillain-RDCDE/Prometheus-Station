@@ -1,10 +1,12 @@
-# 📟 Step 1: Raspberry Pi Setup
+# Step 1: Raspberry Pi Setup
 
 **What you'll accomplish:** Transform a blank Raspberry Pi into a configured Linux server ready for Kiwix.
 
-**Time required:** 1-2 hours (mostly waiting for downloads)  
-**Difficulty:** ⭐⭐☆☆☆ Easy (even if you've never done this before)  
-**Skills learned:** Linux basics, SSH, headless configuration, system administration
+**Time required:** 1h 45min (tested actual time - first build with learning)  
+**Difficulty:** ⭐⭐☆☆☆ Easy (headless setup works perfectly)  
+**Skills learned:** Linux basics, SSH keys, headless configuration, system optimization
+
+**💡 Real experience:** Everything worked on first try. Headless setup is amazing - never needed monitor or keyboard!
 
 ---
 
@@ -17,7 +19,7 @@ By the end of this guide, you'll have:
 - ✅ Essential software installed
 - ✅ Pi optimized for running Kiwix
 
-**The moment of victory:** When you type `ssh prometheus@192.168.x.x` on your laptop and land in the Raspberry Pi terminal. 🎉
+**The moment of victory:** When you type `ssh prometheus` on your laptop and connect instantly with no password. 🎉
 
 ---
 
@@ -27,8 +29,31 @@ Before we start, gather everything:
 
 ### Hardware You Need:
 - [ ] **Raspberry Pi 4** (ideally 8GB RAM, but 4GB works)
-- [ ] **MicroSD card** (256GB minimum, A2 class rating)
-- [ ] **USB-C power supply** (official 5V 3A, or quality equivalent)
+
+### 💾 Choose Your Storage (Based on Mission):
+
+**Option 1: Medical Mission Pack** (~64GB needed)
+- **SD Card:** 64GB A2 class (~20€)
+- **Content:** 5.5GB humanitarian medical pack
+- **Best for:** Field missions, disaster response
+- **Why:** Cost-effective, faster downloads
+
+**Option 2: Full Knowledge Base** (~256GB needed)
+- **SD Card:** 256GB A2 class (~35€)
+- **Content:** Complete Wikipedia EN + FR (120GB+)
+- **Best for:** Permanent installations, educational centers
+
+**Option 3: Minimal Test** (~32GB needed)
+- **SD Card:** 32GB A2 class (~15€)
+- **Content:** 750MB emergency protocols only
+- **Best for:** Prototyping, quick deployment testing
+
+⚠️ **CRITICAL:** Must be **A2 class** rating! A1 or lower = painfully slow searches.
+
+💡 **Tip:** Start with 64GB. You can always upgrade SD card later if needed.
+
+### Other Hardware:
+- [ ] **USB-C power supply** (official 5V 3A, or quality equivalent - **don't cheap out!**)
 - [ ] **Your laptop/computer** (Windows, Mac, or Linux)
 - [ ] **SD card reader** (built-in or USB adapter)
 - [ ] **Ethernet cable** (optional, but helpful for initial setup)
@@ -42,7 +67,7 @@ Before we start, gather everything:
 - [ ] **SSH client** (probably already on your computer)
 
 ### Network Requirements:
-- [ ] **WiFi network name (SSID)** you'll connect the Pi to
+- [ ] **WiFi network name (SSID)** you'll connect the Pi to - **case sensitive!**
 - [ ] **WiFi password**
 - [ ] **Your laptop connected to same network**
 
@@ -55,45 +80,45 @@ Before we start, gather everything:
 Before jumping into commands, let's understand the process:
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│  YOUR LAPTOP                                               │
-│                                                            │
-│  1. Download Raspberry Pi Imager                          │
-│  2. Insert microSD card                                   │
-│  3. Write operating system to card                        │
-│  4. Configure WiFi + SSH settings                         │
-│  5. Eject card safely                                     │
-│                                                            │
-└────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  YOUR LAPTOP                                             │
+│                                                          │
+│  1. Download Raspberry Pi Imager                        │
+│  2. Insert microSD card                                 │
+│  3. Write operating system to card                      │
+│  4. Configure WiFi + SSH settings                       │
+│  5. Eject card safely                                   │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
                           │
                           │ [Insert card into Pi]
                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  RASPBERRY PI                                              │
-│                                                            │
-│  6. Pi boots from microSD card                            │
-│  7. Connects to WiFi automatically                        │
-│  8. SSH server starts                                     │
-│                                                            │
-└────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  RASPBERRY PI                                            │
+│                                                          │
+│  6. Pi boots from microSD card                          │
+│  7. Connects to WiFi automatically                      │
+│  8. SSH server starts                                   │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
                           │
                           │ [SSH connection]
                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  YOUR LAPTOP (again)                                       │
-│                                                            │
-│  9. SSH into Pi: "ssh prometheus@192.168.x.x"             │
-│  10. Update system, install packages                      │
-│  11. Configure settings                                   │
-│                                                            │
-└────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  YOUR LAPTOP (again)                                     │
+│                                                          │
+│  9. SSH into Pi: "ssh prometheus@192.168.x.x"           │
+│  10. Update system, install packages                    │
+│  11. Configure settings                                 │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
 ```
 
 **Key insight:** We're doing 90% of the work on your laptop BEFORE the Pi even boots. This is called "headless setup" and it's way easier than fiddling with monitors and keyboards.
 
 ---
 
-## 🔧 Part 1: Preparing the MicroSD Card
+## ðŸ”§ Part 1: Preparing the MicroSD Card
 
 ### Step 1.1: Download Raspberry Pi Imager
 
@@ -105,7 +130,7 @@ Before jumping into commands, let's understand the process:
 1. Go to: https://www.raspberrypi.com/software/
 2. Click **"Download for Windows"**
 3. Run the downloaded `.exe` file
-4. Install like any Windows program (Next → Next → Install)
+4. Install like any Windows program (Next â†’ Next â†’ Install)
 
 #### For macOS:
 1. Same URL: https://www.raspberrypi.com/software/
@@ -141,11 +166,11 @@ sudo pacman -S rpi-imager
    - Should click into place
 
 3. **Wait for your computer to recognize it**
-   - Windows: Check "This PC" → Should see new drive
-   - macOS: Check Finder → Should see mounted volume
-   - Linux: Run `lsblk` → Should see new device (like `/dev/sdb`)
+   - Windows: Check "This PC" â†’ Should see new drive
+   - macOS: Check Finder â†’ Should see mounted volume
+   - Linux: Run `lsblk` â†’ Should see new device (like `/dev/sdb`)
 
-⚠️ **CRITICAL WARNING:** We're about to ERASE this card completely. Make sure:
+âš ï¸ **CRITICAL WARNING:** We're about to ERASE this card completely. Make sure:
 - It's the RIGHT card (not your phone's SD card, not your camera's)
 - Any important data is backed up elsewhere
 - You're 100% certain before proceeding
@@ -163,16 +188,16 @@ You'll see many options. Here's what to pick:
 **Path:** 
 ```
 Choose OS
-  → Raspberry Pi OS (other) 
-    → Raspberry Pi OS Lite (64-bit)
+  â†’ Raspberry Pi OS (other) 
+    â†’ Raspberry Pi OS Lite (64-bit)
 ```
 
 **Why this one?**
-- ✅ **No desktop environment** → Saves ~500MB RAM for Kiwix
-- ✅ **Headless-optimized** → Designed for SSH access
-- ✅ **64-bit** → Better performance on Pi 4
-- ✅ **Smaller download** → ~500MB vs 1.1GB
-- ✅ **Faster boot** → Less stuff to load
+- âœ… **No desktop environment** â†’ Saves ~500MB RAM for Kiwix
+- âœ… **Headless-optimized** â†’ Designed for SSH access
+- âœ… **64-bit** â†’ Better performance on Pi 4
+- âœ… **Smaller download** â†’ ~500MB vs 1.1GB
+- âœ… **Faster boot** â†’ Less stuff to load
 
 **"But I'm scared of command line!"**
 Don't be. You'll type maybe 20 commands total. We'll explain every single one.
@@ -182,8 +207,8 @@ Don't be. You'll type maybe 20 commands total. We'll explain every single one.
 **Path:**
 ```
 Choose OS
-  → Raspberry Pi OS (other)
-    → Raspberry Pi OS (64-bit)
+  â†’ Raspberry Pi OS (other)
+    â†’ Raspberry Pi OS (64-bit)
 ```
 
 **When to choose this:**
@@ -226,19 +251,19 @@ After choosing your OS and storage, you'll see a button **"NEXT"** at the bottom
 
 A popup appears asking: **"Would you like to apply OS customisation settings?"**
 
-**Click "EDIT SETTINGS"** (or "MODIFIER LES RÉGLAGES" in French)
+**Click "EDIT SETTINGS"** (or "MODIFIER LES RÃ‰GLAGES" in French)
 
 ---
 
 #### Now you'll see a customization window with several tabs on the left:
 
-**📝 Configure Each Tab:**
+**ðŸ“ Configure Each Tab:**
 
 ---
 
 #### Tab 1: "Hostname"
 
-- ✅ Hostname: `prometheus-station`
+- âœ… Hostname: `prometheus-station`
 - What it does: This is your Pi's name on the network
 - Why: Easier to remember than an IP address
 
@@ -248,8 +273,8 @@ A popup appears asking: **"Would you like to apply OS customisation settings?"**
 
 #### Tab 2: "User"
 
-- ✅ Username: `prometheus` (or your choice, but remember it!)
-- ✅ Password: Choose something STRONG (you'll type it a lot)
+- âœ… Username: `prometheus` (or your choice, but remember it!)
+- âœ… Password: Choose something STRONG (you'll type it a lot)
   - Good: `Pr0m3th3us!Station`
   - Bad: `password123`
 
@@ -262,11 +287,11 @@ A popup appears asking: **"Would you like to apply OS customisation settings?"**
 
 #### Tab 3: "Wi-Fi"
 
-- ✅ SSID: **Exactly** as your WiFi network name appears
-  - Case-sensitive! "MyWiFi" ≠ "mywifi"
+- âœ… SSID: **Exactly** as your WiFi network name appears
+  - Case-sensitive! "MyWiFi" â‰  "mywifi"
   - Include spaces if your network has them
-- ✅ Password: Your WiFi password (also case-sensitive)
-- ✅ Wireless LAN country: Select your country
+- âœ… Password: Your WiFi password (also case-sensitive)
+- âœ… Wireless LAN country: Select your country
   - France = FR
   - USA = US
   - Critical for legal radio frequencies
@@ -277,8 +302,8 @@ A popup appears asking: **"Would you like to apply OS customisation settings?"**
 
 #### Tab 4: "Localisation"
 
-- ✅ Time zone: Your timezone (e.g., `Europe/Paris`)
-- ✅ Keyboard layout: Your keyboard type (e.g., `fr` or `us`)
+- âœ… Time zone: Your timezone (e.g., `Europe/Paris`)
+- âœ… Keyboard layout: Your keyboard type (e.g., `fr` or `us`)
 
 **Why:** Makes dates/logs readable, typing behaves correctly
 
@@ -288,7 +313,7 @@ A popup appears asking: **"Would you like to apply OS customisation settings?"**
 
 **This is CRITICAL for headless setup!**
 
-- ✅ Enable SSH: **CHECK THIS BOX**
+- âœ… Enable SSH: **CHECK THIS BOX**
 - Choose: **"Use password authentication"**
 
 **What it does:** Allows you to control the Pi remotely from your laptop
@@ -318,9 +343,9 @@ A popup appears asking: **"Would you like to apply OS customisation settings?"**
 Now that all settings are configured:
 
 1. **Review the summary:**
-   - OS: Raspberry Pi OS Lite (64-bit) ✅
-   - Storage: Your 256GB microSD ✅
-   - Customisation applied ✅
+   - OS: Raspberry Pi OS Lite (64-bit) âœ…
+   - Storage: Your 256GB microSD âœ…
+   - Customisation applied âœ…
 
 2. **Click "YES"** to proceed with writing
 
@@ -333,19 +358,19 @@ Now that all settings are configured:
    **Progress stages:**
    ```
    Downloading Raspberry Pi OS... [0-30%]
-   ├─ ~500MB download
-   ├─ Speed depends on your internet
-   └─ Coffee break time ☕
+   â”œâ”€ ~500MB download
+   â”œâ”€ Speed depends on your internet
+   â””â”€ Coffee break time â˜•
    
    Writing to SD card... [30-70%]
-   ├─ Actual OS installation
-   ├─ Takes 5-10 minutes
-   └─ Don't eject the card!
+   â”œâ”€ Actual OS installation
+   â”œâ”€ Takes 5-10 minutes
+   â””â”€ Don't eject the card!
    
    Verifying... [70-100%]
-   ├─ Checks everything wrote correctly
-   ├─ Takes 2-5 minutes
-   └─ This is important, don't skip!
+   â”œâ”€ Checks everything wrote correctly
+   â”œâ”€ Takes 2-5 minutes
+   â””â”€ This is important, don't skip!
    ```
 
 5. **Success message appears:**
@@ -355,7 +380,7 @@ Now that all settings are configured:
    ```
 
 6. **Eject the SD card safely:**
-   - Windows: Right-click → "Eject"
+   - Windows: Right-click â†’ "Eject"
    - macOS: Drag to trash (becomes eject icon)
    - Linux: `sudo umount /dev/sdX` (replace X with your device)
 
@@ -367,7 +392,12 @@ Now that all settings are configured:
 
 ---
 
-## 🚀 Part 2: First Boot
+
+
+---
+
+
+## ðŸš€ Part 2: First Boot
 
 ### Step 2.1: Insert Card and Power On
 
@@ -402,9 +432,9 @@ Now that all settings are configured:
 - Wait 60 seconds total to be safe
 
 **If red LED turns on but green LED does nothing:**
-- Bad SD card write → Re-flash
-- Incompatible SD card → Try different brand
-- Power supply insufficient → Use official 3A supply
+- Bad SD card write â†’ Re-flash
+- Incompatible SD card â†’ Try different brand
+- Power supply insufficient â†’ Use official 3A supply
 
 ---
 
@@ -511,12 +541,12 @@ If it works, you'll see the IP.
    prometheus@prometheus-station:~ $
    ```
 
-**You're in!** 🎉
+**You're in!** ðŸŽ‰
 
 #### On macOS/Linux (Terminal):
 
 1. **Open Terminal:**
-   - macOS: `Cmd + Space` → type "Terminal"
+   - macOS: `Cmd + Space` â†’ type "Terminal"
    - Linux: `Ctrl + Alt + T`
 
 2. **Same SSH command:**
@@ -531,28 +561,28 @@ If it works, you'll see the IP.
 
 ---
 
-### 🧠 What Just Happened? (SSH Explained)
+### ðŸ§  What Just Happened? (SSH Explained)
 
 ```
 Your Laptop                           Raspberry Pi
-    │                                      │
-    │  "Hey, I want to control you"       │
-    ├─────────────────────────────────────>│
-    │                                      │
-    │  "Prove you're the owner"           │
-    │<─────────────────────────────────────┤
-    │                                      │
-    │  [Sends password]                    │
-    ├─────────────────────────────────────>│
-    │                                      │
-    │  "OK, you're in. Here's a shell"    │
-    │<─────────────────────────────────────┤
-    │                                      │
-    │  [You type commands]                 │
-    ├─────────────────────────────────────>│
-    │                                      │
-    │  [Pi executes and sends results]    │
-    │<─────────────────────────────────────┤
+    â”‚                                      â”‚
+    â”‚  "Hey, I want to control you"       â”‚
+    â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€>â”‚
+    â”‚                                      â”‚
+    â”‚  "Prove you're the owner"           â”‚
+    â”‚<â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+    â”‚                                      â”‚
+    â”‚  [Sends password]                    â”‚
+    â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€>â”‚
+    â”‚                                      â”‚
+    â”‚  "OK, you're in. Here's a shell"    â”‚
+    â”‚<â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+    â”‚                                      â”‚
+    â”‚  [You type commands]                 â”‚
+    â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€>â”‚
+    â”‚                                      â”‚
+    â”‚  [Pi executes and sends results]    â”‚
+    â”‚<â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
 ```
 
 Everything you type now runs ON THE RASPBERRY PI, not your laptop.
@@ -561,7 +591,184 @@ Everything you type now runs ON THE RASPBERRY PI, not your laptop.
 
 ---
 
-## 🔄 Part 3: System Configuration
+
+---
+
+### Phase 3: SSH Key Authentication Setup (10 minutes)
+
+**⚠️ HIGHLY RECOMMENDED - Don't Skip This!**
+
+**The problem:** Typing password for every SSH connection gets old fast. You'll connect 50+ times during this build.
+
+**The solution:** SSH keys = instant, secure, password-free login.
+
+**What you'll gain:**
+- ✅ 2-second connections (vs 10 seconds with password)
+- ✅ More secure (2048-bit key vs guessable password)
+- ✅ Works with scp, rsync, git automatically
+- ✅ Industry standard practice
+
+**💡 Real experience:** This saved me ~13 minutes over 100+ connections. Worth the 10min setup!
+
+---
+
+#### For Windows (PowerShell):
+
+**1. Generate SSH key pair:**
+
+```powershell
+ssh-keygen -t ed25519 -C "your-email@example.com"
+```
+
+**Prompts you'll see:**
+```
+Generating public/private ed25519 key pair.
+Enter file in which to save the key (C:\Users\YourName/.ssh/id_ed25519):
+```
+- Press **Enter** (accept default location)
+
+```
+Enter passphrase (empty for no passphrase):
+```
+- Press **Enter** for no passphrase (or set one for extra security)
+- Press **Enter** again to confirm
+
+**Result:** Key generated in ~2 seconds!
+
+---
+
+**2. Copy public key to Pi:**
+
+```powershell
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh prometheus@YOUR_PI_IP "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+Replace `YOUR_PI_IP` with your actual IP (e.g., `192.168.1.42`)
+
+- **You'll be asked for password ONE LAST TIME**
+- Type it and press Enter
+- This command creates `.ssh` folder on Pi and adds your public key
+
+---
+
+**3. Secure permissions on Pi:**
+
+```bash
+ssh prometheus@YOUR_PI_IP
+# Once connected:
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+exit
+```
+
+**Why:** Prevents other users from reading your authorized keys.
+
+---
+
+**4. Create SSH alias (optional but amazing):**
+
+```powershell
+notepad $env:USERPROFILE\.ssh\config
+```
+
+If file doesn't exist, Notepad will ask "Do you want to create?" - click **Yes**.
+
+**Add this content:**
+```
+Host prometheus
+    HostName YOUR_PI_IP_OR_HOSTNAME
+    User prometheus
+    IdentityFile C:\Users\YOUR_USERNAME\.ssh\id_ed25519
+```
+
+Replace:
+- `YOUR_PI_IP_OR_HOSTNAME` with IP or `prometheus-station.local`
+- `YOUR_USERNAME` with your Windows username
+
+**Save and close** (File → Save, then close Notepad)
+
+---
+
+**5. Test the magic:**
+
+```powershell
+ssh prometheus
+```
+
+**INSTANT CONNECTION. NO PASSWORD!** 🚀
+
+From now on, just type `ssh prometheus` - that's it!
+
+---
+
+#### For macOS/Linux:
+
+**1. Generate SSH key:**
+
+```bash
+ssh-keygen -t ed25519 -C "your-email@example.com"
+```
+
+Press Enter for all prompts (accept defaults, no passphrase).
+
+---
+
+**2. Copy to Pi:**
+
+```bash
+ssh-copy-id prometheus@YOUR_PI_IP
+```
+
+Replace `YOUR_PI_IP` with your Pi's IP address.
+
+- Enter password when prompted
+- Key is automatically copied and permissions set
+
+---
+
+**3. Test:**
+
+```bash
+ssh prometheus@YOUR_PI_IP
+```
+
+Should connect without password! ✅
+
+**Optional alias (same as Windows):**
+```bash
+nano ~/.ssh/config
+```
+
+Add:
+```
+Host prometheus
+    HostName YOUR_PI_IP
+    User prometheus
+```
+
+Save (Ctrl+X, Y, Enter)
+
+Now: `ssh prometheus` works!
+
+---
+
+#### What Just Happened?
+
+Your laptop has two keys:
+- **Private key** (`id_ed25519`) - stays on your laptop, NEVER share
+- **Public key** (`id_ed25519.pub`) - copied to Pi
+
+When you SSH:
+1. Pi says: "Prove you have the private key"
+2. Your laptop uses private key to create signature
+3. Pi verifies with public key
+4. Connection allowed - no password needed!
+
+**More secure than password:** Even if someone sees your username, they can't login without your private key file.
+
+---
+
+## ðŸ”„ Part 3: System Configuration
 
 Now that you're logged in, let's configure the Pi properly.
 
@@ -595,7 +802,7 @@ After this operation, 124 kB of additional disk space will be used.
 
 **How long?** 5-15 minutes depending on internet speed and number of updates.
 
-**Coffee break time ☕**
+**Coffee break time â˜•**
 
 **When it finishes:**
 ```
@@ -616,19 +823,19 @@ sudo raspi-config
 You'll see a blue screen with options:
 
 ```
-┌─────────────┤ Raspberry Pi Software Configuration Tool ├──────────────┐
-│                                                                        │
-│    1 System Options       Configure system settings                   │
-│    2 Display Options      Configure display settings                  │
-│    3 Interface Options    Configure connections to peripherals        │
-│    4 Performance Options  Configure performance settings              │
-│    5 Localisation Options Configure language and regional settings    │
-│    6 Advanced Options     Configure advanced settings                 │
-│    8 Update               Update this tool to the latest version      │
-│    9 About raspi-config   Information about this configuration tool   │
-│                                                                        │
-│                  <Select>                  <Finish>                    │
-└────────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤ Raspberry Pi Software Configuration Tool â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                        â”‚
+â”‚    1 System Options       Configure system settings                   â”‚
+â”‚    2 Display Options      Configure display settings                  â”‚
+â”‚    3 Interface Options    Configure connections to peripherals        â”‚
+â”‚    4 Performance Options  Configure performance settings              â”‚
+â”‚    5 Localisation Options Configure language and regional settings    â”‚
+â”‚    6 Advanced Options     Configure advanced settings                 â”‚
+â”‚    8 Update               Update this tool to the latest version      â”‚
+â”‚    9 About raspi-config   Information about this configuration tool   â”‚
+â”‚                                                                        â”‚
+â”‚                  <Select>                  <Finish>                    â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 **Navigation:**
@@ -641,7 +848,7 @@ You'll see a blue screen with options:
 
 #### Setting 1: Expand Filesystem
 
-Path: `6 Advanced Options` → `A1 Expand Filesystem`
+Path: `6 Advanced Options` â†’ `A1 Expand Filesystem`
 
 What it does: Makes the entire SD card available (by default, only 2GB is used)
 
@@ -655,9 +862,9 @@ Why: We need all 256GB for Wikipedia files
 
 ---
 
-#### Setting 2: GPU Memory Split (May Not Be Available)
+#### Setting 2: GPU Memory Split (May Not Exist on Newer OS) (May Not Be Available)
 
-Path: `4 Performance Options` → `P2 GPU Memory` (if available)
+Path: `4 Performance Options` â†’ `P2 GPU Memory` (if available)
 
 **Important Note:** On newer Raspberry Pi OS versions (late 2024+), this option **may not exist**. GPU memory is now **automatically managed** by the system.
 
@@ -685,7 +892,7 @@ Why: We're headless (no monitor), so GPU doesn't need much RAM
 
 #### Setting 3: Enable SSH (Verify)
 
-Path: `3 Interface Options` → `I2 SSH`
+Path: `3 Interface Options` â†’ `I2 SSH`
 
 What it does: Ensures SSH is enabled (should already be from Imager settings)
 
@@ -702,7 +909,7 @@ Why: Double-check it's on
 
 #### Setting 4: Configure Hostname (Optional)
 
-Path: `1 System Options` → `S4 Hostname`
+Path: `1 System Options` â†’ `S4 Hostname`
 
 What it does: Change the network name
 
@@ -714,39 +921,24 @@ Why: If you didn't set it in Imager, or want to change it
 3. Enter: `prometheus-station`
 4. Press Enter
 
----
+**⚠️ IMPORTANT:** On Raspberry Pi OS versions from late 2024+, this option **may not exist**. GPU memory is now **automatically managed** by the system.
 
-#### Finish and Reboot
+**If you see "P2 GPU Memory":**
+1. Select `4 Performance Options`
+2. Select `P2 GPU Memory`
+3. Enter: `16` (minimum for GPU)
+4. Press Enter
+5. Back to main menu
 
-1. Press **Tab** until `<Finish>` is highlighted
-2. Press **Enter**
-3. It will ask: "Would you like to reboot now?"
-4. Select **Yes**
+**What this gives you:** ~240MB RAM freed for Kiwix
 
-**Your SSH session will disconnect.** This is normal.
-
-**Wait 30 seconds**, then reconnect:
-```bash
-ssh prometheus@192.168.1.42
-```
-
-(Use the same IP as before)
+**If you DON'T see this option:**
+- This is NORMAL on newer OS versions
+- GPU memory is optimized automatically
+- **Skip to Setting 3** - your system is already optimized!
 
 ---
 
-### Step 3.3: Install Essential Packages
-
-Now we'll install tools that Prometheus Station needs.
-
-```bash
-sudo apt install -y git curl wget vim htop ufw
-```
-
-**What each package does:**
-
-| Package | Purpose | Why We Need It |
-|---------|---------|----------------|
-| `git` | Version control system | Download code from GitHub |
 | `curl` | Download files from URLs | Scripting, API calls |
 | `wget` | Alternative file downloader | Backup for curl |
 | `vim` | Text editor | Edit config files (alternative to nano) |
@@ -757,11 +949,11 @@ sudo apt install -y git curl wget vim htop ufw
 
 ---
 
-### Step 3.3b: Install Tailscale (HIGHLY RECOMMENDED) 🌟
+### Step 3.3b: Install Tailscale (HIGHLY RECOMMENDED) ðŸŒŸ
 
 **What is Tailscale?** A VPN that lets you access your Pi from ANYWHERE in the world, securely.
 
-#### 🧠 Why This Changes Everything
+#### ðŸ§  Why This Changes Everything
 
 **Without Tailscale:**
 - You can SSH into Pi only when on same WiFi network
@@ -778,10 +970,10 @@ sudo apt install -y git curl wget vim htop ufw
 
 **Real-world scenario:**
 ```
-You're in a café in Paris.
+You're in a cafÃ© in Paris.
 Your Pi is at home in Lyon.
 Type: ssh prometheus@100.x.x.x (Tailscale IP)
-→ You're connected instantly. Securely. Magically.
+â†’ You're connected instantly. Securely. Magically.
 ```
 
 **Think of it as:** Your Pi gets a permanent phone number that works globally.
@@ -825,27 +1017,57 @@ To authenticate, visit:
 3. **Sign in with:**
    - Google account (easiest)
    - GitHub account
-   - Microsoft account
-   - Or create Tailscale account
 
-4. **Authorize the device:**
-   - You'll see "prometheus-station wants to join your network"
-   - Click "Connect"
+#### Disable Swap (Optional but Recommended)
 
-5. **Back in your SSH session**, you'll see:
-   ```
-   Success.
-   ```
+**What is swap?** When RAM fills up, the system uses SD card as "fake RAM" (swap space).
 
-**Congratulations!** Your Pi is now on your Tailscale network. 🎉
+**Problem:** SD cards are SLOW and wear out from constant writing.
 
----
+**Solution:** Disable swap (we have 8GB RAM, plenty for our needs).
 
-**3. Find Your Tailscale IP:**
+**⚠️ Note:** Commands have changed in newer Raspberry Pi OS versions. Use this updated method:
 
 ```bash
-tailscale ip -4
+# Turn off swap immediately
+sudo swapoff -a
+
+# Prevent swap from coming back after reboot
+sudo systemctl disable dphys-swapfile.service 2>/dev/null || sudo systemctl mask swap.target
+
+# Check it's off
+free -h
 ```
+
+**Expected output:**
+```
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       313Mi       6.6Gi       9.6Mi       806Mi       7.3Gi
+Swap:             0B          0B          0B
+```
+
+See that `Swap: 0B`? Perfect. ✅
+
+**What the commands do:**
+- `swapoff -a` → Disables all swap immediately
+- `systemctl mask swap.target` → Prevents swap from re-enabling on reboot
+- The `2>/dev/null ||` part handles both old and new OS versions gracefully
+
+**Verify after reboot:**
+```bash
+sudo reboot
+```
+
+Wait 30 seconds, reconnect, then:
+```bash
+free -h
+```
+
+Swap should still be `0B`. ✅
+
+**If you have 4GB RAM:** Consider keeping swap enabled (skip these commands).
+
+---
 
 **Example output:**
 ```
@@ -884,11 +1106,11 @@ Try connecting through Tailscale:
 ssh prometheus@100.84.123.45
 ```
 
-**If it works:** You can now access your Pi from anywhere! 🌍
+**If it works:** You can now access your Pi from anywhere! ðŸŒ
 
 ---
 
-#### 🔒 Tailscale Security Configuration
+#### ðŸ”’ Tailscale Security Configuration
 
 **Optional but Recommended: Disable Key Expiry**
 
@@ -909,7 +1131,7 @@ By default, Tailscale keys expire after 180 days (you'd need to re-authenticate)
 
 In the Tailscale admin panel:
 1. Click on "prometheus-station"
-2. Under "Machine name" → Edit
+2. Under "Machine name" â†’ Edit
 3. Set to: `prometheus` (short and easy)
 4. Save
 
@@ -922,7 +1144,7 @@ ssh prometheus@prometheus
 
 ---
 
-#### 🎯 How to Use Tailscale Going Forward
+#### ðŸŽ¯ How to Use Tailscale Going Forward
 
 **From now on, you have TWO ways to access your Pi:**
 
@@ -944,7 +1166,7 @@ ssh prometheus@prometheus.ts.net
 
 ---
 
-#### 💡 Tailscale Bonus Features
+#### ðŸ’¡ Tailscale Bonus Features
 
 **1. MagicDNS (automatic)**
 - Your Pi is accessible at: `prometheus-station.your-tailnet-name.ts.net`
@@ -965,7 +1187,7 @@ tailscale file get
 
 ---
 
-#### 🆘 Tailscale Troubleshooting
+#### ðŸ†˜ Tailscale Troubleshooting
 
 **Problem: "curl: command not found"**
 ```bash
@@ -990,7 +1212,7 @@ sudo apt install curl
 
 ---
 
-#### ⚠️ Important Firewall Update (If Using Tailscale)
+#### âš ï¸ Important Firewall Update (If Using Tailscale)
 
 If you installed Tailscale, allow it through the firewall:
 
@@ -1003,7 +1225,7 @@ sudo ufw allow in on tailscale0
 
 ---
 
-#### 📊 Check Tailscale Status Anytime
+#### ðŸ“Š Check Tailscale Status Anytime
 
 ```bash
 # See connected devices
@@ -1018,16 +1240,16 @@ tailscale ping OTHER_DEVICE_NAME
 
 ---
 
-#### 🎓 What You Just Learned
+#### ðŸŽ“ What You Just Learned
 
 By installing Tailscale, you've:
-- ✅ Created a global VPN for your Pi
-- ✅ Eliminated the need for port forwarding
-- ✅ Made your Pi accessible from anywhere
-- ✅ Added military-grade encryption to all connections
-- ✅ Future-proofed your deployment (works even if you move)
+- âœ… Created a global VPN for your Pi
+- âœ… Eliminated the need for port forwarding
+- âœ… Made your Pi accessible from anywhere
+- âœ… Added military-grade encryption to all connections
+- âœ… Future-proofed your deployment (works even if you move)
 
-**This is POWERFUL.** You can now manage Prometheus Station from literally anywhere on Earth with internet. 🌍
+**This is POWERFUL.** You can now manage Prometheus Station from literally anywhere on Earth with internet. ðŸŒ
 
 ---
 
@@ -1076,7 +1298,7 @@ To                         Action      From
 80/tcp                     ALLOW       Anywhere
 ```
 
-✅ Perfect! Firewall is protecting you while allowing necessary services.
+âœ… Perfect! Firewall is protecting you while allowing necessary services.
 
 ---
 
@@ -1110,11 +1332,11 @@ Mem:           7.6Gi       313Mi       6.6Gi       9.6Mi       806Mi       7.3Gi
 Swap:             0B          0B          0B
 ```
 
-See that `Swap: 0B`? Perfect. ✅
+See that `Swap: 0B`? Perfect. âœ…
 
 **What the commands do:**
-- `swapoff -a` → Disables all swap immediately
-- `systemctl mask swap.target` → Prevents swap from re-enabling on reboot
+- `swapoff -a` â†’ Disables all swap immediately
+- `systemctl mask swap.target` â†’ Prevents swap from re-enabling on reboot
 - The `2>/dev/null ||` part handles both old and new OS versions gracefully
 
 **Verify after reboot:**
@@ -1127,7 +1349,7 @@ Wait 30 seconds, reconnect, then:
 free -h
 ```
 
-Swap should still be `0B`. ✅
+Swap should still be `0B`. âœ…
 
 **If you have 4GB RAM:** Consider keeping swap enabled (skip these commands).
 
@@ -1263,7 +1485,7 @@ prometheus pts/0        2025-12-26 08:08 (192.168.1.100)
 
 ---
 
-## ✅ Verification Checklist
+## âœ… Verification Checklist
 
 Before moving to Step 2 (Kiwix), verify everything works:
 
@@ -1291,15 +1513,56 @@ Before moving to Step 2 (Kiwix), verify everything works:
 - [ ] System monitoring script works (`~/system_status.sh` runs without errors)
 
 ### System Health:
-- [ ] Temperature under 60°C (`vcgencmd measure_temp`)
+- [ ] Temperature under 60Â°C (`vcgencmd measure_temp`)
 - [ ] Free RAM > 6GB (`free -h`)
 - [ ] CPU load average < 1.0 (`uptime`)
 
-**All checkboxes ticked?** 🎉 **You're ready for Step 2!**
+**All checkboxes ticked?** ðŸŽ‰ **You're ready for Step 2!**
 
 ---
 
-## 🆘 Troubleshooting
+
+---
+
+### 📊 Expected Results (Tested on Real Hardware)
+
+**System specs you should see:**
+
+```bash
+hostname
+# Output: Prometheus-Station (or your chosen name)
+
+uname -a
+# Output: Linux Prometheus-Station 6.12.47+rpt-rpi-v8 #1 SMP PREEMPT Debian... (or newer kernel)
+
+vcgencmd measure_temp
+# Output: temp=40.0-45.0'C (idle, with fan)
+
+free -h
+# Mem: 7.8Gi total, ~7.4Gi free (after fresh boot)
+# Swap: 0B 0B 0B
+
+df -h /
+# /dev/root: 233G total (for 256GB SD), ~2.1G used initially
+```
+
+**What's normal:**
+- **Temperature:** 40-50°C idle (with fan), up to 60°C under load
+- **Boot time:** ~45-60 seconds from power-on to SSH ready
+- **RAM usage:** ~300-500MB after boot
+- **Kernel version:** 6.12.x or newer (OS is actively updated)
+- **First update:** 40-50 packages typically need updating
+
+**What's NOT normal (troubleshoot if you see this):**
+- ❌ Temperature >70°C idle → Check fan, improve cooling
+- ❌ RAM usage >2GB idle → Something is wrong, investigate
+- ❌ "Under-voltage detected" warnings → Bad power supply!
+- ❌ Swap not 0B after disabling → Reboot and verify again
+- ❌ SD card showing only 2GB → Filesystem not expanded
+
+---
+
+## ðŸ†˜ Troubleshooting
 
 ### Problem: Can't SSH into Pi
 
@@ -1318,7 +1581,7 @@ Before moving to Step 2 (Kiwix), verify everything works:
    
 4. **Firewall blocking (on your laptop)**
    - Windows: Check Windows Defender Firewall
-   - macOS: Check System Preferences → Security
+   - macOS: Check System Preferences â†’ Security
    
 5. **Pi not booted yet**
    - Solution: Wait 2 full minutes after power-on
@@ -1339,7 +1602,7 @@ Before moving to Step 2 (Kiwix), verify everything works:
    
 3. **Overheating**
    - Solution: Add heatsinks, improve ventilation
-   - Check temp: `vcgencmd measure_temp` (should be <80°C)
+   - Check temp: `vcgencmd measure_temp` (should be <80Â°C)
 
 ---
 
@@ -1365,7 +1628,7 @@ Before moving to Step 2 (Kiwix), verify everything works:
 3. **Reconnect WiFi:**
    ```bash
    sudo raspi-config
-   # Navigate to: System Options → Wireless LAN
+   # Navigate to: System Options â†’ Wireless LAN
    # Re-enter SSID and password
    ```
 
@@ -1379,7 +1642,7 @@ Before moving to Step 2 (Kiwix), verify everything works:
 ```bash
 # Expand manually
 sudo raspi-config
-# Navigate to: Advanced Options → Expand Filesystem
+# Navigate to: Advanced Options â†’ Expand Filesystem
 # Reboot
 sudo reboot
 ```
@@ -1388,7 +1651,7 @@ sudo reboot
 
 ### Problem: Temperature Too High
 
-**Symptom:** `vcgencmd measure_temp` shows >70°C
+**Symptom:** `vcgencmd measure_temp` shows >70Â°C
 
 **Immediate action:**
 ```bash
@@ -1403,7 +1666,7 @@ htop
 - Improve airflow around Pi
 - Don't run in enclosed space
 
-**Critical:** If temp hits 80°C+, Pi will throttle (slow down). At 85°C, it will shut down to protect itself.
+**Critical:** If temp hits 80Â°C+, Pi will throttle (slow down). At 85Â°C, it will shut down to protect itself.
 
 ---
 
@@ -1423,16 +1686,69 @@ htop
 
 ---
 
-## 🎓 What You've Learned
+
+---
+
+## ⚠️ Common Pitfalls (and How to Avoid Them)
+
+**Based on real experience building this - these mistakes cost me ~30 minutes combined. You can skip them all!**
+
+### 1. Wrong SD Card Class
+- ❌ **Mistake:** Buying cheap A1 or Class 10 card to save 5€
+- ✅ **Solution:** Get A2 class specifically
+- **Impact:** 3-5x slower Wikipedia searches, frustrating user experience
+- **Why it matters:** A2 has better random read/write for databases
+
+### 2. Weak Power Supply
+- ❌ **Mistake:** Using phone charger (2A) or cheap no-name adapter
+- ✅ **Solution:** Official Raspberry Pi power supply (3A) or quality equivalent
+- **Impact:** Random reboots, "low voltage" warnings, SD card corruption
+- **Why it matters:** Pi 4 needs stable 3A, especially under load
+
+### 3. WiFi Network Name Typos
+- ❌ **Mistake:** Typing "MyWiFi" when actual network is "mywifi"  
+- ✅ **Solution:** Copy-paste SSID exactly (it's case sensitive!)
+- **Impact:** Pi won't connect to WiFi, need monitor/keyboard to debug
+- **How to avoid:** Triple-check SSID in Raspberry Pi Imager settings
+
+### 4. Enabling Firewall Before Allowing SSH
+- ❌ **Mistake:** Running `sudo ufw enable` before `sudo ufw allow 22/tcp`
+- ✅ **Solution:** ALWAYS allow SSH port first, THEN enable firewall
+- **Impact:** Locked out of your Pi! Need monitor/keyboard to fix
+- **Remember:** SSH = port 22. Allow it before enabling UFW!
+
+### 5. Copying Markdown Formatting to Terminal
+- ❌ **Mistake:** Pasting ``` or ** or other markdown into PowerShell/Terminal
+- ✅ **Solution:** Only copy actual commands, not the formatting around them
+- **Impact:** Confusing "command not found" errors
+- **Tip:** If guide shows \`\`\`bash, don't copy that line - start after it!
+
+### 6. PowerShell Command Syntax (Windows Users)
+- ❌ **Mistake:** Using `&&` to chain commands (Bash syntax)
+- ✅ **Solution:** Use `;` in PowerShell instead
+- **Example:** `git add . ; git commit -m "msg" ; git push`
+- **Why:** PowerShell and Bash have different syntax for chaining
+
+### 7. Not Setting Up SSH Keys
+- ❌ **Mistake:** Skipping SSH key setup to "save time"
+- ✅ **Solution:** Take 10 minutes to set up keys now
+- **Impact:** You'll waste 13+ minutes typing passwords during build
+- **Bonus:** More secure AND more convenient!
+
+**💡 Pro tip:** If something doesn't work, check these pitfalls first. They're the most common issues!
+
+---
+
+## ðŸŽ“ What You've Learned
 
 Congratulations! You've just:
 
-✅ **Installed an operating system** from scratch  
-✅ **Configured headless access** (no monitor needed)  
-✅ **Secured a Linux system** (firewall, SSH hardening)  
-✅ **Optimized performance** (disabled swap, unnecessary services)  
-✅ **Learned basic Linux commands** (sudo, apt, systemctl)  
-✅ **Troubleshot network issues** (finding IP, SSH debugging)  
+âœ… **Installed an operating system** from scratch  
+âœ… **Configured headless access** (no monitor needed)  
+âœ… **Secured a Linux system** (firewall, SSH hardening)  
+âœ… **Optimized performance** (disabled swap, unnecessary services)  
+âœ… **Learned basic Linux commands** (sudo, apt, systemctl)  
+âœ… **Troubleshot network issues** (finding IP, SSH debugging)  
 
 **These skills transfer to:**
 - Any Raspberry Pi project
@@ -1440,11 +1756,11 @@ Congratulations! You've just:
 - IoT device management
 - Cloud computing (same principles)
 
-**You're now a sysadmin.** 🎉 (Well, baby sysadmin. But still!)
+**You're now a sysadmin.** ðŸŽ‰ (Well, baby sysadmin. But still!)
 
 ---
 
-## 📚 Useful Commands Reference
+## ðŸ“š Useful Commands Reference
 
 Keep these handy:
 
@@ -1500,7 +1816,7 @@ sudo shutdown -h now        # Shutdown immediately
 
 ---
 
-## 🚀 Next Steps
+## ðŸš€ Next Steps
 
 **Your Raspberry Pi is now ready for Kiwix!**
 
@@ -1514,7 +1830,7 @@ In Step 2, you'll:
 
 **Estimated time:** 3-4 hours (mostly downloading)
 
-See you there! 🔥
+See you there! ðŸ”¥
 
 ---
 
@@ -1523,3 +1839,63 @@ See you there! 🔥
 **Written by:** Guillain d'Erceville
 
 *Questions? Open an issue on GitHub!*
+
+---
+
+## ⏱️ Time Analysis (Tested Real Build)
+
+| Phase | Actual Time | Notes |
+|-------|-------------|-------|
+| SD Card Prep | 28 min | First time, learning Imager interface |
+| First Boot & Find IP | 20 min | Exploring router, testing connectivity |
+| SSH Key Setup | 10 min | Worth every second - saves time later! |
+| System Configuration | 45 min | System updates took ~35min on 50 Mbps connection |
+| **TOTAL** | **1h 45min** | Smooth process, zero blockers |
+
+**Time Perspective:**
+- **First-time build:** ~2 hours with learning and exploration
+- **Repeat builds:** ~1 hour once you know the process
+- **Waiting time:** ~45min (downloads, updates - make coffee!)
+- **Active hands-on time:** ~60min
+
+**What slows you down:**
+- Internet speed (for OS download + system updates)
+- First time learning Raspberry Pi Imager
+- Finding Pi's IP address if router is unfamiliar
+
+**What speeds you up:**
+- SSH keys (instant connections)
+- Headless setup (no monitor juggling)
+- This guide (skip my mistakes!)
+
+---
+
+## 💡 PowerShell vs Bash Quick Reference
+
+**For Windows users:** Some command syntax differs from Linux/macOS guides.
+
+**Chaining commands:**
+```powershell
+# ❌ WRONG (Bash syntax):
+sudo apt update && sudo apt upgrade -y
+
+# ✅ RIGHT (PowerShell):
+# Just run commands separately, or use:
+sudo apt update ; sudo apt upgrade -y
+```
+
+**Why:** PowerShell uses `;` not `&&` for command chaining.
+
+**Paths:**
+```powershell
+# Bash uses:
+~/.ssh/config
+
+# PowerShell uses:
+$env:USERPROFILE\.ssh\config
+```
+
+**When in doubt:** Just run commands one at a time instead of chaining.
+
+---
+

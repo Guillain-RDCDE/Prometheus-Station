@@ -162,8 +162,9 @@ You'll see many options. Here's what to pick:
 
 **Path:** 
 ```
-Raspberry Pi OS (other) 
-  → Raspberry Pi OS Lite (64-bit)
+Choose OS
+  → Raspberry Pi OS (other) 
+    → Raspberry Pi OS Lite (64-bit)
 ```
 
 **Why this one?**
@@ -180,8 +181,9 @@ Don't be. You'll type maybe 20 commands total. We'll explain every single one.
 
 **Path:**
 ```
-Raspberry Pi OS (other)
-  → Raspberry Pi OS (64-bit)
+Choose OS
+  → Raspberry Pi OS (other)
+    → Raspberry Pi OS (64-bit)
 ```
 
 **When to choose this:**

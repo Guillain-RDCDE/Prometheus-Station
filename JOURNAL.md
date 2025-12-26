@@ -96,9 +96,9 @@
 
 ## 🔗 Quick Links
 
-- [README.md](../README.md) - Project overview
-- [HARDWARE.md](../HARDWARE.md) - Complete parts list
-- [Installation Guides](../README.md#quick-start) - Step-by-step setup
+- [README.md](README.md) - Project overview
+- [HARDWARE.md](HARDWARE.md) - Complete parts list
+- [Installation Guides](README.md#quick-start) - Step-by-step setup
 
 ---
 

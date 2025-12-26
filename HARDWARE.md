@@ -580,7 +580,7 @@ Now that you understand the hardware, you're ready to:
 
 1. **Create a shopping list** based on your budget
 2. **Order components** (allow 2-4 weeks for everything to arrive)
-3. **While waiting:** Read the [installation guides](docs/)
+3. **While waiting:** Read the [installation guides](docs/README.md)
 4. **When parts arrive:** Start with [01 - Raspberry Pi Setup](docs/01-raspberry-setup.md)
 
 **Questions about component choices?** Open an issue on GitHub—I'm happy to explain trade-offs!

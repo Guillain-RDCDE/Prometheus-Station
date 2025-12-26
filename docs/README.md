@@ -603,7 +603,7 @@ Assumes you already have:
 ---
 
 ### Just Browsing?
-👉 **Check out [JOURNAL.md](../JOURNAL.md)**
+👉 **Check out [JOURNAL.md](../JOURNAL.md)** (build summary) or explore the [daily logs](../journal/)
 
 See the actual build log from the first Prometheus Station. All the mistakes, discoveries, and "aha!" moments documented in real-time.
 

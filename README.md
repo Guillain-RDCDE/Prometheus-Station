@@ -143,7 +143,7 @@ Prometheus Station offers **three deployment strategies** based on your mission:
 - Water safety guide
 - Essential medical reference
 
-See [02-kiwix-installation.md](02-kiwix-installation.md) for detailed download instructions.
+See [02-kiwix-installation.md](docs/02-kiwix-installation.md) for detailed download instructions.
 
 ---
 
@@ -168,11 +168,11 @@ Check [JOURNAL.md](JOURNAL.md) for real-time progress updates.
 ## 📖 Documentation
 
 ### Setup Guides:
-- **[01 - Raspberry Pi Setup](01-raspberry-setup.md)** - Headless Pi configuration ✅
-- **[02 - Kiwix Installation](02-kiwix-installation.md)** - Medical content deployment ⏳
-- **[03 - Meshtastic Setup](03-meshtastic-setup.md)** - LoRa mesh networking
-- **[04 - System Integration](04-integration.md)** - Bringing it all together
-- **[05 - Solar Power](05-solar-power.md)** - Autonomous operation
+- **[01 - Raspberry Pi Setup](docs/01-raspberry-setup.md)** - Headless Pi configuration ✅
+- **[02 - Kiwix Installation](docs/02-kiwix-installation.md)** - Medical content deployment ⏳
+- **[03 - Meshtastic Setup](docs/03-meshtastic-setup.md)** - LoRa mesh networking
+- **[04 - System Integration](docs/04-integration.md)** - Bringing it all together
+- **[05 - Solar Power](docs/05-solar-power.md)** - Autonomous operation
 
 ### Reference:
 - **[Hardware List](HARDWARE.md)** - Complete bill of materials

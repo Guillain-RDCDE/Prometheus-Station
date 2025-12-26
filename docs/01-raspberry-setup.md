@@ -655,9 +655,13 @@ Why: We need all 256GB for Wikipedia files
 
 ---
 
-#### Setting 2: Set Memory Split (Headless Optimization)
+#### Setting 2: GPU Memory Split (May Not Be Available)
 
-Path: `4 Performance Options` → `P2 GPU Memory`
+Path: `4 Performance Options` → `P2 GPU Memory` (if available)
+
+**Important Note:** On newer Raspberry Pi OS versions (late 2024+), this option **may not exist**. GPU memory is now **automatically managed** by the system.
+
+**If you see "P2 GPU Memory":**
 
 What it does: Allocates RAM between CPU and GPU
 
@@ -670,7 +674,12 @@ Why: We're headless (no monitor), so GPU doesn't need much RAM
 4. Press Enter
 5. Back to main menu
 
-**What this gives you:** 16MB saved for CPU/Kiwix = faster searches
+**What this gives you:** ~16MB saved for CPU/Kiwix = faster searches
+
+**If you DON'T see this option:**
+- Your system already manages GPU memory automatically
+- This is normal on newer OS versions
+- **Skip to Setting 3** - your system is already optimized!
 
 ---
 
@@ -1081,12 +1090,14 @@ To                         Action      From
 
 **Solution:** Disable swap (we have 8GB RAM, plenty for our needs).
 
-```bash
-# Turn off swap
-sudo dphys-swapfile swapoff
+**Note:** Commands have changed in newer Raspberry Pi OS versions. Use this updated method:
 
-# Disable swap service
-sudo systemctl disable dphys-swapfile
+```bash
+# Turn off swap immediately
+sudo swapoff -a
+
+# Prevent swap from coming back after reboot
+sudo systemctl disable dphys-swapfile.service 2>/dev/null || sudo systemctl mask swap.target
 
 # Check it's off
 free -h
@@ -1095,13 +1106,30 @@ free -h
 **Expected output:**
 ```
                total        used        free      shared  buff/cache   available
-Mem:           7.8Gi       124Mi       7.5Gi       8.0Mi       213Mi       7.6Gi
+Mem:           7.6Gi       313Mi       6.6Gi       9.6Mi       806Mi       7.3Gi
 Swap:             0B          0B          0B
 ```
 
 See that `Swap: 0B`? Perfect. ✅
 
-**If you have 4GB RAM:** Consider keeping swap enabled (comment out the commands above).
+**What the commands do:**
+- `swapoff -a` → Disables all swap immediately
+- `systemctl mask swap.target` → Prevents swap from re-enabling on reboot
+- The `2>/dev/null ||` part handles both old and new OS versions gracefully
+
+**Verify after reboot:**
+```bash
+sudo reboot
+```
+
+Wait 30 seconds, reconnect, then:
+```bash
+free -h
+```
+
+Swap should still be `0B`. ✅
+
+**If you have 4GB RAM:** Consider keeping swap enabled (skip these commands).
 
 ---
 

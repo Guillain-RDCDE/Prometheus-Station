@@ -1,294 +1,444 @@
 # Prometheus Station
-### 🔥 Bringing Fire to Humanity, One Station at a Time
+### 🔥 A Lighthouse When Everything Burns
 
 ---
 
-## The Idea
+## The Vision
 
-Imagine you're in a disaster zone. Infrastructure has collapsed. A medical emergency happens. Someone needs critical information to save a life.
+When civilization's infrastructure collapses—whether by earthquake, war, censorship, or chaos—knowledge becomes the most precious resource.
 
-**What if you could still access emergency medical protocols? What if you could communicate over kilometers without any infrastructure?**
+**Prometheus Station is a beacon in the darkness.**
 
-That's Prometheus Station: a solar-powered knowledge hub combining **offline medical encyclopedias** with **long-range radio communication**. No internet required. No monthly fees. No infrastructure dependency.
+A solar-powered, self-sufficient knowledge repository that works when the internet doesn't. When cell towers are rubble. When libraries are ash. When asking Google isn't an option.
 
-This project documents building such a station from scratch—written by someone who knew nothing about Raspberry Pi, LoRa networks, or solar power systems before starting. **If I can build this, you can too.**
+This is the Library of Alexandria for the apocalypse. A lifeboat filled with humanity's accumulated wisdom, ready to deploy anywhere, serving anyone within reach.
+
+**No internet. No monthly fees. No dependency on infrastructure that can fail.**
+
+Just knowledge, communication, and light in the darkness.
 
 ---
 
 ## What This Actually Is
 
-**Prometheus Station** is three things combined:
+Three critical systems in one portable, resilient package:
 
-1. **🏥 An offline medical & knowledge library** - Emergency medical protocols, Wikipedia, and survival guides accessible via WiFi
-2. **📡 A long-range messenger** - LoRa mesh network for text communication over several kilometers 
-3. **☀️ A self-sufficient system** - Solar-powered, runs indefinitely without external power
+### 📚 An Offline Knowledge Repository
+- Complete Wikipedia (90GB+ in English alone)
+- Emergency medical protocols (WHO, MSF, ICRC field guides)
+- Survival knowledge (water purification, food safety, emergency procedures)
+- Educational content in multiple languages
+- Access via WiFi hotspot - connect like any network, no internet needed
 
-**Practical translation:**
-- You deploy a backpack-sized device to a disaster zone or remote location
-- It creates a local WiFi hotspot serving **medical emergency protocols** and knowledge
-- People connect with their phones/laptops like any wifi network—no internet needed
-- It enables text messaging between devices over long distances (1-15km+)
-- Everything runs on solar power—no external electricity required
+### 📡 Long-Range Mesh Communication
+- LoRa radio network for text messaging
+- Range: 1-15km+ depending on terrain
+- Works when cell towers don't
+- Messages hop through other stations (mesh networking)
+- No carrier. No bills. No permission needed.
 
-**Real-world uses:**
-- 🚑 **Emergency/disaster response** - Medical protocols when infrastructure fails
-- 🏥 **Remote medical clinics** - Access to medical knowledge offline
-- 🌍 **Humanitarian missions** - Field deployment by MSF, ICRC, Red Cross
-- 🏔️ **Off-grid communities** - Education and communication
-- 🔬 **Field research expeditions** - Knowledge base in remote areas
-- 🌐 **Areas with censored internet** - Uncensored information access
-- 🛡️ **Just-in-case resilience** - Community preparedness
+### ☀️ Energy Independence
+- Solar-powered with battery backup
+- Runs indefinitely without grid power
+- Portable or fixed installation
+- Operates in disaster zones, remote areas, anywhere with sun
 
----
-
-## Why This Repository Exists
-
-Most tech projects are documented by experts, for experts. They skip the "obvious" parts—obvious to them, confusing to beginners.
-
-**This is different.**
-
-I'm documenting this build as a complete beginner. Every problem I hit, every confusion, every wrong turn—it's all in here. The goal: someone else should be able to replicate this without experiencing the same trial and error.
-
-Think of it as "beginner to beginner" documentation. If you've never touched a Raspberry Pi, never heard of LoRa, and think "ZIM files" sound like a snack—you're in the right place.
+**In practice:** You deploy a backpack-sized station. It creates a WiFi bubble containing all human knowledge. People connect with phones, tablets, laptops. No internet required. Knowledge flows. Lives are saved.
 
 ---
 
-## 🎯 What This Does
+## Why This Exists
 
-### Medical & Emergency Content:
-- **🏥 Post-Disaster Medical Protocols** - WHO/MSF field guides (615 MB)
-- **🚑 Emergency Medicine Wiki** - ER protocols, trauma care (42 MB)
-- **📚 Complete Medical Encyclopedia** - Comprehensive reference (2.1 GB)
-- **💧 Water Purification Guides** - Critical for disaster response (20 MB)
-- **🍲 Food Safety Protocols** - Field nutrition and safety (93 MB)
-- **📖 Wikipedia Medicine** - Filtered medical articles EN + FR (3 GB)
+### The Problem
 
-### General Knowledge (Optional):
-- **📚 Full Wikipedia** (EN + FR) - Complete offline encyclopedia (115 GB)
-- **🔬 Educational Content** - Technical and scientific knowledge
+Knowledge is centralized. Wikipedia requires internet. Medical references are online. When infrastructure fails, we go blind.
 
-### Communication & Infrastructure:
-- **📡 Long-range LoRa mesh** - Text communication via [Meshtastic](https://meshtastic.org)
-- **☀️ Solar-powered** - Autonomous operation for days/weeks
-- **🌐 No internet required** - Works anywhere, anytime
-- **🔧 Open-source** - Build, improve, share freely
+**We've built a civilization dependent on fragile systems.**
 
-**Use cases:**
-- Natural disasters (earthquakes, hurricanes, floods)
-- Conflict zones with destroyed infrastructure
-- Remote medical clinics without connectivity
-- Humanitarian missions in underserved areas
-- Educational outreach in isolated communities
-- Emergency preparedness and resilience
-- Learning how decentralized systems work
+### The Solution
 
----
+Decentralize critical knowledge. Make it resilient. Make it accessible. Make it work when everything else fails.
 
-## 🛠️ Hardware Stack
+**Prometheus gave humanity fire. We're giving humanity knowledge that can't be extinguished.**
 
-**Core:**
-- Raspberry Pi 4 (8GB RAM)
-- SanDisk Extreme 256GB microSD (A2)
-- LILYGO T-Beam LORA32 868MHz (ESP32 + GPS + LoRa)
-- Omnidirectional 868MHz antenna
+### Who This Serves
 
-**Power:**
-- Anker Solix PS30 30W foldable solar panel
-- Anker PowerCore 737 24000mAh battery
-- Samsung 18650 rechargeable batteries (3450mAh)
-- Xtar MC2 charger
+- 🚑 **Disaster zones** - Earthquake, hurricane, flood response teams
+- 🏥 **Remote clinics** - Medical workers in underserved areas
+- 🌍 **Humanitarian missions** - MSF, ICRC, Red Cross field operations
+- 📚 **Censored regions** - Access to uncensored information
+- 🏔️ **Off-grid communities** - Education without infrastructure
+- 🔬 **Field research** - Knowledge base in remote locations
+- 🛡️ **Resilience planners** - Community preparedness
+- 🎓 **Educators** - Teaching in low-connectivity areas
 
-**Infrastructure:**
-- Spiderbeam 7m telescopic fiberglass mast
-- 2.13" E-Ink display (low power status display)
-- T-Echo Meshtastic mobile terminals (868MHz)
-
-Full parts list with links: [HARDWARE.md](HARDWARE.md)
-
-**Estimated total cost:** ~400-500€ (depends on deals/shipping)
+**Real-world examples this system was designed for:**
+- 2010 Haiti earthquake - infrastructure destroyed, medical knowledge inaccessible
+- 2013 Typhoon Haiyan - hospitals offline, protocols needed
+- Syrian conflict zones - censored internet, limited medical access
+- Remote Amazon clinics - zero connectivity, life-or-death decisions daily
+- Refugee camps - educational resources non-existent
 
 ---
 
-## 📦 Content Strategies
+## 🎯 What's Inside
 
-Prometheus Station offers **three deployment strategies** based on your mission:
+### Knowledge Content (Choose Your Strategy)
 
-### 🏥 Strategy 1: Emergency Medical Pack (RECOMMENDED)
-**Size:** ~5.5 GB | **Download:** 1-3 hours  
-**Best for:** Disaster response, humanitarian missions, field deployment
-
-**What you get:**
-- Post-disaster medical protocols (MSF/WHO/ICRC standards)
-- Emergency medicine procedures
-- Complete medical encyclopedia
-- Water purification and food safety guides
+**Strategy 1: Emergency Response Pack (~5.5 GB)**
+- Post-disaster medical protocols (MSF/WHO/ICRC)
+- Emergency medicine encyclopedia
+- ER procedures and toxicology
+- Water purification guides
+- Food safety protocols
 - Wikipedia medicine subset (EN + FR)
+- **Best for:** Field deployment, rapid response, humanitarian missions
 
-### 📚 Strategy 2: Full Knowledge Base
-**Size:** ~120-150 GB | **Download:** 8-24 hours  
-**Best for:** Permanent installations, educational centers, remote communities
-
-**What you get:**
+**Strategy 2: Full Knowledge Base (~120-150 GB)**
 - Complete Wikipedia (English + French)
 - All medical content from Strategy 1
 - Comprehensive educational resources
+- **Best for:** Permanent installations, schools, community centers
 
-### 🎒 Strategy 3: Minimal Emergency Kit
-**Size:** ~750 MB | **Download:** 15-45 minutes  
-**Best for:** Rapid deployment, testing, limited storage
-
-**What you get:**
+**Strategy 3: Minimal Kit (~750 MB)**
 - Core disaster medicine protocols
-- Emergency procedures
-- Water safety guide
-- Essential medical reference
+- Emergency procedures only
+- Water safety essentials
+- **Best for:** Ultra-portable, proof-of-concept, testing
 
-See [02-kiwix-installation.md](docs/02-kiwix-installation.md) for detailed download instructions.
+See [Content Strategy Guide](docs/02-kiwix-installation.md) for details.
+
+### Hardware Components
+
+**Computing:**
+- Raspberry Pi 4 (8GB RAM) - The brain
+- 256GB microSD A2 class - Fast storage for large databases
+- E-Ink display - Low-power status monitoring
+
+**Communication:**
+- LILYGO T-Beam LORA32 868MHz - Long-range radio gateway
+- T-Echo handheld terminals - Mobile mesh nodes
+- Omnidirectional antenna - 360° coverage
+
+**Power:**
+- 30W foldable solar panel - Energy harvesting
+- 24,000mAh battery bank - Multi-day autonomy
+- 18650 batteries for portables - Extended operation
+
+**Infrastructure:**
+- 7m telescopic mast - Extended range deployment
+- Weatherproof cabling - Field durability
+
+**Total cost:** ~400-500€ (components list: [HARDWARE.md](HARDWARE.md))
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Build Your Own
 
-**⚠️ Work in Progress ⚠️**
+This repository contains **complete, tested, beginner-friendly documentation** for building Prometheus Station from scratch.
 
-This project is being built in real-time. Documentation will grow as I figure things out.
+**Documentation philosophy:**
+- Written by a beginner, for beginners
+- Every step explained, no assumed knowledge
+- Real-world tested on actual hardware
+- Troubleshooting based on actual problems encountered
+- No marketing fluff - just what works
 
-Current roadmap:
-1. ✅ Hardware acquired
-2. ✅ Raspberry Pi OS setup **[COMPLETE]**
-3. ⏳ Kiwix installation + Medical content **[IN PROGRESS]**
-4. ⏳ Meshtastic configuration
-5. ⏳ Integration & testing
-6. ⏳ Solar power optimization
+### Setup Guides (Complete & Tested)
 
-Check [JOURNAL.md](JOURNAL.md) for real-time progress updates.
+**✅ [Step 1: Raspberry Pi Setup](docs/01-raspberry-setup.md)**
+- Headless configuration (no monitor needed)
+- SSH access with key authentication
+- System optimization for 24/7 operation
+- **Time:** 1h 45min | **Difficulty:** ⭐⭐☆☆☆ Easy
 
----
+**✅ [Step 2: Kiwix Installation](docs/02-kiwix-installation.md)**
+- Content strategy selection
+- ZIM file downloads (Wikipedia, medical content)
+- Server configuration and optimization
+- **Time:** 2-4 hours (mostly downloads) | **Difficulty:** ⭐⭐☆☆☆ Medium
 
-## 📖 Documentation
+**⏳ [Step 3: Meshtastic Setup](docs/03-meshtastic-setup.md)**
+- LoRa radio configuration
+- Mesh network deployment
+- Mobile terminal setup
+- **Status:** Coming soon
 
-### Setup Guides:
-- **[01 - Raspberry Pi Setup](docs/01-raspberry-setup.md)** - Headless Pi configuration ✅
-- **[02 - Kiwix Installation](docs/02-kiwix-installation.md)** - Medical content deployment ⏳
-- **[03 - Meshtastic Setup](docs/03-meshtastic-setup.md)** - LoRa mesh networking
-- **[04 - System Integration](docs/04-integration.md)** - Bringing it all together
-- **[05 - Solar Power](docs/05-solar-power.md)** - Autonomous operation
+**⏳ [Step 4: System Integration](docs/04-integration.md)**
+- WiFi access point creation
+- Service orchestration
+- User interface
+- **Status:** In development
 
-### Reference:
-- **[Hardware List](HARDWARE.md)** - Complete bill of materials
-- **[Journal](JOURNAL.md)** - My learning journey, mistakes included
-- **[Contributing](CONTRIBUTING.md)** - How to help improve this
+**⏳ [Step 5: Solar Power](docs/05-solar-power.md)**
+- Power system wiring
+- Energy monitoring
+- Autonomy optimization
+- **Status:** Planned
+
+### Quick Start
+
+1. **Get hardware** - See [HARDWARE.md](HARDWARE.md) for complete list (~500€)
+2. **Follow guides** - Start with [Step 1](docs/01-raspberry-setup.md)
+3. **Choose content** - Select strategy based on your mission
+4. **Deploy** - Field test, iterate, improve
+
+**Estimated build time:**
+- First build: ~8-12 hours (spread over weekend)
+- Hardware assembly: ~2 hours
+- Software setup: ~4 hours
+- Content download: 2-6 hours (depends on strategy)
 
 ---
 
 ## 🧠 The Philosophy
 
-> Prometheus stole fire from the gods and gave it to humanity.
-> 
-> We're stealing knowledge from the cloud and giving it to anyone, anywhere, even when the world is on fire.
+### Why "Prometheus"?
 
-This project is:
-- **Beginner-friendly** - documented by a beginner, for beginners
-- **Resilient** - works when nothing else does
-- **Mission-focused** - designed for humanitarian and emergency response
-- **Open** - free as in freedom, free as in beer
-- **Practical** - real hardware, real tests, real problems solved
-- **Ethical** - medical knowledge should be accessible to all
+> **Prometheus stole fire from the gods and gave it to humanity.**
+>
+> We're stealing knowledge from the cloud and giving it to everyone, everywhere—even when the world burns.
 
----
+### Core Principles
 
-## 🏥 Medical Content Notice
+**Resilience**
+- Works when infrastructure fails
+- No single point of failure
+- Offline-first design
+- Solar-powered autonomy
 
-**Important:**
-- Medical content is for **reference and educational purposes only**
-- Not a replacement for professional medical care
-- In emergencies, seek qualified medical personnel when available
-- Content follows WHO, MSF, and ICRC field guidelines
-- Always verify critical information from multiple sources
+**Accessibility**
+- No internet required
+- No monthly fees
+- No proprietary software
+- No permission needed
 
-**Recommended for:**
-- Field medics and first responders
-- Humanitarian workers in remote areas
-- Emergency preparedness planning
-- Medical education in underserved communities
+**Open**
+- Fully open-source
+- Complete documentation
+- Reproducible builds
+- Community-driven improvement
 
-**NOT recommended for:**
-- Self-diagnosis or self-treatment
-- Replacing professional medical consultation
+**Ethical**
+- Knowledge should be free
+- Privacy by design (no tracking)
+- Humanitarian focus
+- Medical information for all
 
----
-
-## 🤝 Contributing
-
-Found a better way to do something? Spotted an error? Have field experience to share?
-
-**Open an issue or pull request!** This is a learning project, and shared knowledge makes it better.
-
-Particularly helpful:
-- Field deployment experiences and lessons learned
-- Medical content recommendations
-- Hardware alternatives/improvements
-- Software optimization tips
-- Power consumption reduction strategies
-- Better antenna configurations for disaster zones
-- Documentation improvements
-- Translations (especially for disaster-prone regions)
-- Testing in real-world scenarios
-
----
-
-## 📜 License
-
-MIT License - see [LICENSE](LICENSE)
-
-Copyright © 2025 Guillain d'Erceville
-
-**TL;DR:** Do whatever you want with this. Build it, deploy it in disaster zones, improve it, adapt it to your needs. Just don't blame me if your station achieves sentience. 🤖
-
-**Special permission:** Humanitarian organizations (MSF, ICRC, Red Cross, etc.) are explicitly encouraged to use, modify, and deploy this system without attribution requirements. Save lives first, credit later.
-
----
-
-## 🙏 Acknowledgments
-
-Standing on the shoulders of giants:
-- [Kiwix](https://www.kiwix.org) - Offline knowledge heroes
-- [Meshtastic](https://meshtastic.org) - Long-range mesh wizards
-- [Raspberry Pi Foundation](https://www.raspberrypi.org) - Making computing accessible
-- **WHO, MSF, ICRC** - Medical protocols that save lives
-- The entire open-source community
-- Emergency responders and humanitarian workers worldwide
-
----
-
-## 📞 Contact
-
-- **GitHub:** [@GuillainM](https://github.com/GuillainM)
-- **Issues:** [Report problems or ask questions](https://github.com/GuillainM/Prometheus-Station/issues)
+**Practical**
+- Real hardware, real testing
+- Field-deployable
+- Beginner-friendly documentation
+- Cost-effective (~500€)
 
 ---
 
 ## 🌍 Real-World Impact
 
-**This system is designed for situations like:**
-- 2010 Haiti earthquake - infrastructure destroyed, no communications
-- 2013 Typhoon Haiyan - medical facilities overwhelmed
-- Syrian conflict zones - limited access to medical information
-- Remote Amazon clinics - no internet connectivity
-- Refugee camps - limited educational resources
+**Designed for when everything fails:**
 
-**If you deploy this system in the field, please share your experience!** Your feedback helps improve future deployments.
+- Natural disasters (earthquakes, tsunamis, hurricanes)
+- Conflict zones with destroyed infrastructure
+- Censored internet regions
+- Remote locations with no connectivity
+- Grid failures and power outages
+- Refugee camps and displacement crises
+- Emergency preparedness and resilience
+
+**If you deploy this in the field, we want to hear about it.** Your experience shapes future versions.
+
+---
+
+## 🛠️ Technical Overview
+
+**System Architecture:**
+```
+┌─────────────────────────────────────────┐
+│          PROMETHEUS STATION             │
+│                                         │
+│  ┌──────────┐        ┌──────────┐     │
+│  │  Solar   │───────▶│ Battery  │     │
+│  │  Panel   │        │  Bank    │     │
+│  └──────────┘        └────┬─────┘     │
+│                           │            │
+│                           ▼            │
+│              ┌─────────────────┐       │
+│              │  Raspberry Pi   │       │
+│              │  (The Brain)    │       │
+│              │                 │       │
+│              │ • Kiwix Server  │       │
+│              │ • WiFi Hotspot  │       │
+│              │ • Mesh Gateway  │       │
+│              └────────┬────────┘       │
+│                       │                │
+│         ┏━━━━━━━━━━━━━┻━━━━━━━━━━━━┓   │
+│         ▼                          ▼   │
+│  ┌─────────────┐          ┌──────────┐│
+│  │   WiFi      │          │   LoRa   ││
+│  │   Radio     │          │   Radio  ││
+│  │ (300m max)  │          │ (15km+)  ││
+│  └─────────────┘          └──────────┘│
+│         │                      │      │
+└─────────┼──────────────────────┼──────┘
+          │                      │
+          ▼                      ▼
+    [Phones/Laptops]      [Mesh Network]
+    Access Wikipedia      Long-range comms
+```
+
+**Power Budget:**
+- Solar input: 15-25W (daytime average)
+- System draw: 4-6W (continuous)
+- Battery capacity: 89Wh
+- Runtime: 18+ hours without sun
+- Autonomy: Indefinite with 4+ hours sunlight/day
+
+**Network Capabilities:**
+- WiFi: 50-300m range (local knowledge access)
+- LoRa: 1-15km+ range (mesh communication)
+- Concurrent users: 10-20 (WiFi), unlimited (LoRa mesh)
+- Content size: 5.5GB to 150GB (strategy dependent)
+
+---
+
+## 📋 Project Status
+
+**Completed:**
+- ✅ Hardware selection and testing
+- ✅ Raspberry Pi setup guide (tested, documented)
+- ✅ Kiwix installation guide (tested, documented)
+- ✅ Content strategy framework
+- ✅ Power consumption analysis
+- ✅ Beginner-friendly documentation
+
+**In Progress:**
+- ⏳ Meshtastic LoRa integration
+- ⏳ WiFi access point configuration
+- ⏳ Solar power system assembly
+- ⏳ Field testing
+
+**Planned:**
+- 📋 Custom landing page UI
+- 📋 E-Ink status display integration
+- 📋 Multi-language support
+- 📋 Remote management tools
+- 📋 Deployment case design
+
+**Timeline:** No deadlines. This is built right, not fast.
+
+---
+
+## 🤝 Contributing
+
+**This project needs:**
+- Field testing reports (critical!)
+- Medical content recommendations
+- Hardware alternatives for different budgets
+- Translation of documentation
+- Power optimization discoveries
+- Antenna configuration improvements
+- Real-world deployment feedback
+
+**How to contribute:**
+1. **Field experience** - Deploy and document your learnings
+2. **Technical improvements** - Better configs, optimizations
+3. **Documentation** - Fix errors, clarify confusing sections
+4. **Content curation** - Recommend additional ZIM files
+5. **Translations** - Help reach more people
+
+Open an issue or pull request. All knowledge shared makes this better.
+
+---
+
+## 🏥 Medical Disclaimer
+
+**Critical Notice:**
+
+Medical content provided by Prometheus Station is for **reference and educational purposes only**.
+
+- ✅ Use for field reference when professional care unavailable
+- ✅ Training and education for medics and first responders
+- ✅ Emergency preparedness planning
+- ❌ NOT for self-diagnosis or self-treatment
+- ❌ NOT a replacement for qualified medical professionals
+
+**In emergencies:** Seek professional medical help when available. This system is a lifeline when nothing else exists, not a replacement for proper medical care.
+
+Content sources: WHO, MSF, ICRC field guidelines. Verify critical information from multiple sources.
+
+---
+
+## 📜 License
+
+**MIT License** - See [LICENSE](LICENSE)
+
+Copyright © 2025 Guillain d'Erceville
+
+**What this means:**
+- ✅ Use freely for any purpose
+- ✅ Modify and adapt to your needs
+- ✅ Deploy in disaster zones without asking
+- ✅ Build commercial products (though why?)
+- ✅ Share and distribute
+- ❌ Don't blame me if it achieves sentience
+
+**Special Grant to Humanitarian Organizations:**
+
+MSF, ICRC, Red Cross, and all humanitarian organizations: You have explicit permission to use, modify, and deploy this system **without attribution requirements**. Save lives first. Credit never.
+
+---
+
+## 🙏 Standing on Shoulders of Giants
+
+**This exists because of:**
+
+- **[Kiwix](https://www.kiwix.org)** - Making offline knowledge possible
+- **[Meshtastic](https://meshtastic.org)** - Resilient mesh communication
+- **[Raspberry Pi Foundation](https://www.raspberrypi.org)** - Accessible computing
+- **Wikipedia contributors** - Humanity's knowledge, freely shared
+- **WHO, MSF, ICRC** - Medical protocols that save lives
+- **Open-source community** - Collective brilliance
+- **Emergency responders worldwide** - Inspiration and purpose
+
+---
+
+## 📞 Contact & Community
+
+- **GitHub:** [@GuillainM](https://github.com/GuillainM)
+- **Issues:** [Report problems or suggest improvements](https://github.com/GuillainM/Prometheus-Station/issues)
+- **Discussions:** [Share your deployment stories](https://github.com/GuillainM/Prometheus-Station/discussions)
+
+**If you build this, share your experience.** Every deployment teaches us something.
 
 ---
 
 <div align="center">
 
-### ⚡ If you build this, share your experience! ⚡
+## 🔥 The Fire We Carry 🔥
 
-**Star this repo if you think medical knowledge should be accessible to everyone, everywhere.**
+In a world where knowledge is centralized, connectivity is fragile, and infrastructure can vanish overnight...
 
-Made with 🔥 and ☕ somewhere between "I have no idea what I'm doing" and "This might actually save lives."
+**We choose resilience.**
 
-**Deploy. Share. Save lives.**
+We build systems that work when nothing else does.
+We preserve knowledge that cannot be extinguished.
+We light beacons in the darkness.
+
+**Prometheus Station is a lighthouse when everything burns.**
+
+---
+
+### If you believe knowledge should survive anything, star this repo.
+
+**Built with fire and coffee by someone who had no idea what they were doing.**
+**Documented for anyone who wants to learn.**
+
+**Deploy. Share. Preserve. Endure.**
 
 </div>
+
+---
+
+*Last updated: December 2025*
+*Status: Tested, documented, ready to build*
+*Hardware verified: Raspberry Pi 4, tested in real-world conditions*

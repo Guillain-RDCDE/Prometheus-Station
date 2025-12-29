@@ -2,9 +2,9 @@
 
 This documentation guides you step-by-step through building your own autonomous and resilient knowledge station.
 
-## 📚 Setup Guides
+## 📚 Setup guides
 
-### ✅ Complete & Tested Guides
+### ✅ Complete & tested guides
 
 **[Step 1: Raspberry Pi Setup](01-raspberry-setup.md)**
 - Headless configuration (no monitor needed)
@@ -30,26 +30,26 @@ This documentation guides you step-by-step through building your own autonomous 
 - Network setup and optimization
 - **Time:** 1-2 hours | **Difficulty:** ⭐⭐⭐☆☆
 
-### ⏳ Coming Soon
+### ⏳ Coming soon
 
-**Step 5: Meshtastic Setup**
+**Step 5: Meshtastic setup**
 - LoRa radio configuration
 - Mesh network deployment
 - Mobile terminal setup
 
-**Step 6: Solar Power**
+**Step 6: Solar power**
 - Power system wiring
 - Energy monitoring
 - Autonomy optimization
 
-## 🎯 Where to Start?
+## 🎯 Where to start?
 
 1. **Get hardware** - See [HARDWARE.md](../HARDWARE.md) for complete list (~500€)
 2. **Follow guides** - Start with [Step 1](01-raspberry-setup.md)
 3. **Choose content** - Select strategy based on your mission
 4. **Deploy** - Field test, iterate, improve
 
-## 📖 Documentation Philosophy
+## 📖 Documentation philosophy
 
 - Written by a beginner, for beginners
 - Every step explained, no assumed knowledge

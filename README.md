@@ -9,7 +9,7 @@
 
 ---
 
-## The Vision
+## The vision
 
 When civilization's infrastructure collapses—whether by earthquake, war, censorship, or chaos—knowledge becomes the most precious resource.
 
@@ -25,25 +25,25 @@ Just knowledge, communication, and light in the darkness.
 
 ---
 
-## What This Actually Is
+## What this actually is
 
 Three critical systems in one portable, resilient package:
 
-### 📚 An Offline Knowledge Repository
+### 📚 An offline knowledge repository
 - Complete Wikipedia (90GB+ in English alone)
 - Emergency medical protocols (WHO, MSF, ICRC field guides)
 - Survival knowledge (water purification, food safety, emergency procedures)
 - Educational content in multiple languages
 - Access via WiFi hotspot - connect like any network, no internet needed
 
-### 📡 Long-Range Mesh Communication
+### 📡 Long-range mesh communication
 - LoRa radio network for text messaging
 - Range: 1-15km+ depending on terrain
 - Works when cell towers don't
 - Messages hop through other stations (mesh networking)
 - No carrier. No bills. No permission needed.
 
-### ☀️ Energy Independence
+### ☀️ Energy independence
 - Solar-powered with battery backup
 - Runs indefinitely without grid power
 - Portable or fixed installation
@@ -53,21 +53,21 @@ Three critical systems in one portable, resilient package:
 
 ---
 
-## Why This Exists
+## Why this exists
 
-### The Problem
+### The problem
 
 Knowledge is centralized. Wikipedia requires internet. Medical references are online. When infrastructure fails, we go blind.
 
 **We've built a civilization dependent on fragile systems.**
 
-### The Solution
+### The solution
 
 Decentralize critical knowledge. Make it resilient. Make it accessible. Make it work when everything else fails.
 
 **Prometheus gave humanity fire. We're giving humanity knowledge that can't be extinguished.**
 
-### Who This Serves
+### Who this serves
 
 - 🚑 **Disaster zones** - Earthquake, hurricane, flood response teams
 - 🏥 **Remote clinics** - Medical workers in underserved areas
@@ -87,9 +87,9 @@ Decentralize critical knowledge. Make it resilient. Make it accessible. Make it 
 
 ---
 
-## 🎯 What's Inside
+## 🎯 What's inside
 
-### Knowledge Content (Choose Your Strategy)
+### Knowledge content (choose your strategy)
 
 **Strategy 1: Emergency Response Pack (~5.5 GB)**
 - Post-disaster medical protocols (MSF/WHO/ICRC)
@@ -114,7 +114,7 @@ Decentralize critical knowledge. Make it resilient. Make it accessible. Make it 
 
 See [Content Strategy Guide](docs/02-kiwix-installation.md) for details.
 
-### Hardware Components
+### Hardware components
 
 **Computing:**
 - Raspberry Pi 4 (8GB RAM) - The brain
@@ -139,7 +139,7 @@ See [Content Strategy Guide](docs/02-kiwix-installation.md) for details.
 
 ---
 
-## 🚀 Build Your Own
+## 🚀 Build your own
 
 This repository contains **complete, tested, beginner-friendly documentation** for building Prometheus Station from scratch.
 
@@ -150,7 +150,7 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 - Troubleshooting based on actual problems encountered
 - No marketing fluff - just what works
 
-### Setup Guides (Complete & Tested)
+### Setup guides (complete & tested)
 
 **✅ [Step 1: Raspberry Pi Setup](docs/01-raspberry-setup.md)**
 - Headless configuration (no monitor needed)
@@ -188,7 +188,7 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 - Autonomy optimization
 - **Status:** Planned
 
-### Quick Start
+### Quick start
 
 1. **Get hardware** - See [HARDWARE.md](HARDWARE.md) for complete list (~500€)
 2. **Follow guides** - Start with [Step 1](docs/01-raspberry-setup.md)
@@ -203,7 +203,7 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 
 ---
 
-## 🧠 The Philosophy
+## 🧠 The philosophy
 
 ### Why "Prometheus"?
 
@@ -211,7 +211,7 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 >
 > We're stealing knowledge from the cloud and giving it to everyone, everywhere—even when the world burns.
 
-### Core Principles
+### Core principles
 
 **Resilience**
 - Works when infrastructure fails
@@ -245,7 +245,7 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 
 ---
 
-## 🌍 Real-World Impact
+## 🌍 Real-world impact
 
 **Designed for when everything fails:**
 
@@ -261,7 +261,7 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 
 ---
 
-## 🛠️ Technical Overview
+## 🛠️ Technical overview
 
 **System Architecture:**
 ```
@@ -313,7 +313,7 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 
 ---
 
-## 📋 Project Status
+## 📋 Project status
 
 **Completed:**
 - ✅ Hardware selection and testing
@@ -363,7 +363,7 @@ Open an issue or pull request. All knowledge shared makes this better.
 
 ---
 
-## 🏥 Medical Disclaimer
+## 🏥 Medical disclaimer
 
 **Critical Notice:**
 
@@ -401,7 +401,7 @@ MSF, ICRC, Red Cross, and all humanitarian organizations: You have explicit perm
 
 ---
 
-## 🙏 Standing on Shoulders of Giants
+## 🙏 Standing on shoulders of giants
 
 **This exists because of:**
 
@@ -415,7 +415,7 @@ MSF, ICRC, Red Cross, and all humanitarian organizations: You have explicit perm
 
 ---
 
-## 📞 Contact & Community
+## 📞 Contact & community
 
 - **GitHub:** [@GuillainM](https://github.com/GuillainM)
 - **Issues:** [Report problems or suggest improvements](https://github.com/GuillainM/Prometheus-Station/issues)
@@ -427,7 +427,7 @@ MSF, ICRC, Red Cross, and all humanitarian organizations: You have explicit perm
 
 <div align="center">
 
-## 🔥 The Fire We Carry 🔥
+## 🔥 The fire we carry 🔥
 
 In a world where knowledge is centralized, connectivity is fragile, and infrastructure can vanish overnight...
 

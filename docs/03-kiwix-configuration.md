@@ -910,7 +910,7 @@ sudo nano /var/www/html/connect.html
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connection Guide - Prometheus Station</title>
+    <title>Prometheus Station - Quick Connect</title>
     <style>
         * {
             margin: 0;
@@ -919,352 +919,271 @@ sudo nano /var/www/html/connect.html
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-            background: #f8f9fa;
-            color: #212529;
-            line-height: 1.6;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 900px;
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            padding: 15mm;
+            max-width: 170mm;
             margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            overflow: hidden;
         }
         
         .header {
-            background: linear-gradient(135deg, #0066cc 0%, #004999 100%);
-            color: white;
-            padding: 40px;
             text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #0066cc;
         }
         
         .header h1 {
-            font-size: 2.2em;
-            margin-bottom: 10px;
+            font-size: 22pt;
+            color: #0066cc;
+            margin-bottom: 3px;
         }
         
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.95;
+        .header .tagline {
+            font-size: 10pt;
+            color: #666;
+            font-style: italic;
         }
         
-        .content {
-            padding: 40px;
-        }
-        
-        .quick-start {
-            background: #d1ecf1;
-            border-left: 4px solid #0c5460;
-            padding: 25px;
-            margin-bottom: 35px;
-            border-radius: 4px;
-        }
-        
-        .quick-start h2 {
-            color: #0c5460;
+        .quick-box {
+            background: #e7f3ff;
+            border: 2px solid #0066cc;
+            border-radius: 6px;
+            padding: 12px;
             margin-bottom: 15px;
-            font-size: 1.5em;
         }
         
-        .quick-start ol {
-            margin-left: 20px;
-        }
-        
-        .quick-start li {
-            margin: 10px 0;
-            font-size: 1.05em;
+        .quick-box h2 {
+            font-size: 14pt;
+            color: #0066cc;
+            margin-bottom: 8px;
         }
         
         .credential {
-            background: #fff3cd;
-            padding: 8px 16px;
+            background: #fff;
+            padding: 6px 12px;
             border-radius: 4px;
-            font-family: monospace;
-            font-weight: 700;
-            color: #856404;
-            font-size: 1.1em;
-            border: 2px solid #ffc107;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 12pt;
+            display: inline-block;
+            border: 1px solid #0066cc;
+            margin: 3px 0;
+        }
+        
+        .steps {
+            margin: 12px 0;
         }
         
         .step {
-            margin: 35px 0;
-            padding: 25px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #0066cc;
-        }
-        
-        .step h3 {
-            color: #0066cc;
-            margin-bottom: 15px;
-            font-size: 1.4em;
-        }
-        
-        .step-number {
-            display: inline-block;
-            background: #0066cc;
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 32px;
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        
-        .step ol {
-            margin-left: 20px;
-            margin-top: 10px;
-        }
-        
-        .step li {
+            display: flex;
+            align-items: flex-start;
             margin: 8px 0;
         }
         
-        .note {
-            background: #e7f3ff;
-            border: 1px solid #0066cc;
-            padding: 15px;
+        .step-num {
+            background: #0066cc;
+            color: white;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 11pt;
+            flex-shrink: 0;
+            margin-right: 8px;
+        }
+        
+        .step-content {
+            flex: 1;
+            padding-top: 2px;
+        }
+        
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 12px 0;
+        }
+        
+        .content-box {
+            background: #f8f9fa;
+            padding: 10px;
             border-radius: 4px;
-            margin-top: 15px;
+            border-left: 3px solid #0066cc;
         }
         
-        .note strong {
+        .content-box h3 {
+            font-size: 11pt;
             color: #0066cc;
+            margin-bottom: 6px;
         }
         
-        .troubleshooting {
-            background: #fff3cd;
-            padding: 25px;
-            border-radius: 8px;
-            margin: 30px 0;
+        .content-box ul {
+            margin-left: 16px;
+            font-size: 9pt;
+            line-height: 1.3;
         }
         
-        .troubleshooting h3 {
+        .content-box li {
+            margin: 3px 0;
+        }
+        
+        .trouble {
+            background: #fff9e6;
+            border: 1px solid #ffc107;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 12px 0;
+        }
+        
+        .trouble h3 {
+            font-size: 11pt;
             color: #856404;
-            margin-bottom: 15px;
+            margin-bottom: 6px;
         }
         
-        .troubleshooting .issue {
-            margin: 15px 0;
+        .trouble-item {
+            margin: 5px 0;
+            font-size: 9pt;
         }
         
-        .troubleshooting .issue strong {
+        .trouble-item strong {
             color: #856404;
-            display: block;
-            margin-bottom: 5px;
-        }
-        
-        .resources {
-            background: white;
-            border: 1px solid #dee2e6;
-            padding: 25px;
-            border-radius: 8px;
-            margin-top: 30px;
-        }
-        
-        .resources h3 {
-            color: #0066cc;
-            margin-bottom: 15px;
-        }
-        
-        .resources ul {
-            list-style: none;
-            padding: 0;
-        }
-        
-        .resources li {
-            padding: 10px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .resources li:last-child {
-            border-bottom: none;
-        }
-        
-        .resources li strong {
-            color: #212529;
-            min-width: 180px;
-            display: inline-block;
         }
         
         .footer {
-            background: #f8f9fa;
-            padding: 25px;
             text-align: center;
+            margin-top: 15px;
+            padding-top: 10px;
             border-top: 1px solid #dee2e6;
+            font-size: 9pt;
+            color: #666;
         }
         
-        .footer a {
-            color: #0066cc;
-            text-decoration: none;
-            font-weight: 500;
-            margin: 0 15px;
-        }
-        
-        .footer a:hover {
-            text-decoration: underline;
+        /* Print optimization */
+        @media print {
+            body {
+                padding: 10mm;
+                font-size: 10pt;
+            }
+            
+            .header h1 {
+                font-size: 20pt;
+            }
+            
+            .quick-box h2 {
+                font-size: 13pt;
+            }
+            
+            .no-print {
+                display: none;
+            }
+            
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
         }
         
         .print-btn {
             background: #0066cc;
             color: white;
             border: none;
-            padding: 12px 30px;
-            border-radius: 6px;
-            font-size: 1em;
-            font-weight: 600;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-size: 11pt;
             cursor: pointer;
-            margin-top: 20px;
+            margin: 10px auto;
+            display: block;
         }
         
         .print-btn:hover {
             background: #0052a3;
         }
-        
-        @media print {
-            body {
-                background: white;
-            }
-            
-            .container {
-                box-shadow: none;
-            }
-            
-            .print-btn, .footer a {
-                display: none;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .content {
-                padding: 20px;
-            }
-            
-            .header h1 {
-                font-size: 1.6em;
-            }
-        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🔥 Prometheus Station</h1>
-            <p>Connection Guide</p>
-        </div>
-        
-        <div class="content">
-            
-            <div class="quick-start">
-                <h2>⚡ Quick Start (3 Steps)</h2>
-                <ol>
-                    <li>Connect to WiFi: <span class="credential">Prometheus-Station</span></li>
-                    <li>Password: <span class="credential">12345</span></li>
-                    <li>Open browser: <span class="credential">http://prometheus-station.local</span></li>
-                </ol>
-            </div>
-            
+    <div class="header">
+        <h1>🔥 PROMETHEUS STATION</h1>
+        <p class="tagline">Offline Knowledge Hub - Connection Guide</p>
+    </div>
+    
+    <div class="quick-box">
+        <h2>⚡ Quick Connect (3 Steps)</h2>
+        <div class="steps">
             <div class="step">
-                <h3><span class="step-number">1</span>Connect to WiFi Network</h3>
-                <p>On your device (phone, tablet, or computer):</p>
-                <ol>
-                    <li>Open WiFi settings</li>
-                    <li>Look for network: <span class="credential">Prometheus-Station</span></li>
-                    <li>Select and connect</li>
-                    <li>Enter password: <span class="credential">12345</span></li>
-                    <li>Wait for "Connected" confirmation</li>
-                </ol>
-                <div class="note">
-                    <strong>Note:</strong> You may see "No Internet Access" warning. This is normal - the station operates completely offline.
+                <div class="step-num">1</div>
+                <div class="step-content">
+                    <strong>WiFi:</strong> <span class="credential">Prometheus-Station</span>
                 </div>
             </div>
-            
             <div class="step">
-                <h3><span class="step-number">2</span>Open Web Browser</h3>
-                <p>Use any web browser:</p>
-                <ul>
-                    <li>Chrome, Firefox, Safari, Edge - all supported</li>
-                    <li>Works on phones, tablets, laptops, desktops</li>
-                    <li>No special software required</li>
-                </ul>
+                <div class="step-num">2</div>
+                <div class="step-content">
+                    <strong>Password:</strong> <span class="credential">12345</span>
+                </div>
             </div>
-            
             <div class="step">
-                <h3><span class="step-number">3</span>Access the Station</h3>
-                <p>In your browser address bar, type:</p>
-                <p style="text-align: center; font-size: 1.4em; background: #e7f3ff; padding: 20px; border-radius: 6px; margin: 20px 0;">
-                    <strong>http://prometheus-station.local</strong>
-                </p>
-                <p><strong>Alternative (if above doesn't work):</strong></p>
-                <p style="text-align: center; font-size: 1.2em; margin-top: 10px;">
-                    <span class="credential">http://192.168.42.1</span>
-                </p>
-            </div>
-            
-            <div class="troubleshooting">
-                <h3>🔧 Troubleshooting</h3>
-                
-                <div class="issue">
-                    <strong>Can't see Prometheus-Station WiFi</strong>
-                    <p>→ Check station is powered on</p>
-                    <p>→ Wait 60 seconds after boot</p>
-                    <p>→ Verify WiFi is enabled on your device</p>
-                </div>
-                
-                <div class="issue">
-                    <strong>Password doesn't work</strong>
-                    <p>→ Make sure you're typing: <span class="credential">12345</span></p>
-                    <p>→ No spaces before or after</p>
-                    <p>→ All numbers, no letters</p>
-                </div>
-                
-                <div class="issue">
-                    <strong>Website won't load</strong>
-                    <p>→ Verify connection to Prometheus-Station WiFi</p>
-                    <p>→ Try alternative IP: http://192.168.42.1</p>
-                    <p>→ Clear browser cache and retry</p>
-                    <p>→ Try different browser</p>
-                </div>
-                
-                <div class="issue">
-                    <strong>Slow performance</strong>
-                    <p>→ Too many users connected (max 10-20)</p>
-                    <p>→ Wait a moment and retry</p>
-                    <p>→ Move closer to station</p>
+                <div class="step-num">3</div>
+                <div class="step-content">
+                    <strong>Browser URL:</strong> <span class="credential">http://192.168.42.1:8080</span>
                 </div>
             </div>
-            
-            <div class="resources">
-                <h3>📚 Available Resources</h3>
-                <ul>
-                    <li><strong>Post-Disaster Protocols:</strong> WHO emergency response guidelines (615 MB)</li>
-                    <li><strong>Emergency Medicine:</strong> ER procedures and trauma care (42 MB)</li>
-                    <li><strong>Medical Encyclopedia:</strong> Complete clinical reference (2.1 GB)</li>
-                    <li><strong>Wikipedia English:</strong> Full encyclopedia (90 GB)</li>
-                    <li><strong>Wikipédia Français:</strong> Encyclopédie complète (25 GB)</li>
-                    <li><strong>Water Treatment:</strong> Purification protocols (20 MB)</li>
-                    <li><strong>Food Safety:</strong> Safe handling procedures (93 MB)</li>
-                </ul>
-            </div>
-            
-            <div style="text-align: center; margin-top: 30px;">
-                <button onclick="window.print()" class="print-btn">🖨️ Print Instructions</button>
-            </div>
-            
-        </div>
-        
-        <div class="footer">
-            <p><strong>Prometheus Station v1.0</strong></p>
-            <a href="/">← Back to Home</a>
-            <a href="/status.php">System Status</a>
         </div>
     </div>
+    
+    <div class="two-col">
+        <div class="content-box">
+            <h3>📚 Available Content</h3>
+            <ul>
+                <li>🚑 Disaster Medicine (615MB)</li>
+                <li>⚕️ Emergency Medicine (43MB)</li>
+                <li>📖 Medical Encyclopedia (2.1GB)</li>
+                <li>🌍 Wikipedia EN (112GB)</li>
+                <li>🇫🇷 Wikipedia FR (52GB)</li>
+                <li>💧 Water Treatment (20MB)</li>
+                <li>🍽️ Food Safety (94MB)</li>
+            </ul>
+        </div>
+        
+        <div class="content-box">
+            <h3>ℹ️ Alternative Access</h3>
+            <ul>
+                <li><strong>mDNS:</strong> http://prometheus-station.local:8080</li>
+                <li><strong>Tailscale:</strong> Ask admin for VPN address</li>
+                <li><strong>Works offline:</strong> No internet needed</li>
+                <li><strong>Devices:</strong> Phone, tablet, laptop</li>
+                <li><strong>Browsers:</strong> Chrome, Firefox, Safari, Edge</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="trouble">
+        <h3>🔧 Quick Troubleshooting</h3>
+        <div class="trouble-item">
+            <strong>Can't see WiFi?</strong> Wait 60s after boot, check WiFi is enabled on device
+        </div>
+        <div class="trouble-item">
+            <strong>Wrong password?</strong> Use exactly: <code>12345</code> (no spaces)
+        </div>
+        <div class="trouble-item">
+            <strong>Page won't load?</strong> Try IP: <code>http://192.168.42.1:8080</code> (with port!)
+        </div>
+        <div class="trouble-item">
+            <strong>Slow loading?</strong> Too many users (max 10-20), move closer to station
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p><strong>Prometheus Station v1.0</strong> | Powered by Kiwix | MIT License</p>
+        <p>No internet required • Works completely offline • Free knowledge for all</p>
+    </div>
+    
+    <button onclick="window.print()" class="print-btn no-print">🖨️ Print This Page</button>
 </body>
 </html>
 ```

@@ -1,65 +1,65 @@
-# Documentation Prometheus Station
+# Prometheus Station Documentation
 
-Cette documentation vous guide pas à pas dans la construction de votre propre station de connaissances autonome et résiliente.
+This documentation guides you step-by-step through building your own autonomous and resilient knowledge station.
 
-## 📚 Guides de Configuration
+## 📚 Setup Guides
 
-### ✅ Étapes Complètes et Testées
+### ✅ Complete & Tested Guides
 
-**[Étape 1 : Configuration du Raspberry Pi](01-raspberry-setup.md)**
-- Configuration headless (sans écran)
-- Accès SSH avec authentification par clé
-- Optimisation système pour fonctionnement 24/7
-- **Durée :** 1h45 | **Difficulté :** ⭐⭐☆☆☆
+**[Step 1: Raspberry Pi Setup](01-raspberry-setup.md)**
+- Headless configuration (no monitor needed)
+- SSH access with key authentication
+- System optimization for 24/7 operation
+- **Time:** 1h 45min | **Difficulty:** ⭐⭐☆☆☆
 
-**[Étape 2 : Installation de Kiwix](02-kiwix-installation.md)**
-- Choix de stratégie de contenu
-- Téléchargement des fichiers ZIM (Wikipedia, contenu médical)
-- Configuration et optimisation du serveur
-- **Durée :** 2-4 heures (principalement des téléchargements) | **Difficulté :** ⭐⭐☆☆☆
+**[Step 2: Kiwix Installation](02-kiwix-installation.md)**
+- Content strategy selection
+- ZIM file downloads (Wikipedia, medical content)
+- Server configuration and optimization
+- **Time:** 2-4 hours (mostly downloads) | **Difficulty:** ⭐⭐☆☆☆
 
-**[Configuration de Kiwix](03-kiwix-configuration.md)**
-- Configuration avancée du serveur
-- Optimisation des performances
-- Gestion du contenu
+**[Kiwix Configuration](03-kiwix-configuration.md)**
+- Advanced server configuration
+- Performance optimization
+- Content management
 
-### ⏳ À Venir
+### ⏳ Coming Soon
 
-**Étape 3 : Configuration Meshtastic**
-- Configuration radio LoRa
-- Déploiement réseau mesh
-- Configuration terminaux mobiles
+**Step 3: Meshtastic Setup**
+- LoRa radio configuration
+- Mesh network deployment
+- Mobile terminal setup
 
-**Étape 4 : Intégration Système**
-- Création point d'accès WiFi
-- Orchestration des services
-- Interface utilisateur
+**Step 4: System Integration**
+- WiFi access point creation
+- Service orchestration
+- User interface
 
-**Étape 5 : Alimentation Solaire**
-- Câblage système d'alimentation
-- Surveillance énergétique
-- Optimisation autonomie
+**Step 5: Solar Power**
+- Power system wiring
+- Energy monitoring
+- Autonomy optimization
 
-## 🎯 Par Où Commencer ?
+## 🎯 Where to Start?
 
-1. **Matériel** - Consultez [HARDWARE.md](../HARDWARE.md) pour la liste complète (~500€)
-2. **Suivez les guides** - Commencez par l'[Étape 1](01-raspberry-setup.md)
-3. **Choisissez le contenu** - Sélectionnez votre stratégie selon votre mission
-4. **Déployez** - Testez sur le terrain, itérez, améliorez
+1. **Get hardware** - See [HARDWARE.md](../HARDWARE.md) for complete list (~500€)
+2. **Follow guides** - Start with [Step 1](01-raspberry-setup.md)
+3. **Choose content** - Select strategy based on your mission
+4. **Deploy** - Field test, iterate, improve
 
-## 📖 Philosophy de Documentation
+## 📖 Documentation Philosophy
 
-- Écrite par un débutant, pour des débutants
-- Chaque étape expliquée, aucune connaissance préalable supposée
-- Testée en conditions réelles sur du matériel réel
-- Dépannage basé sur de vrais problèmes rencontrés
-- Pas de marketing - juste ce qui fonctionne
+- Written by a beginner, for beginners
+- Every step explained, no assumed knowledge
+- Real-world tested on actual hardware
+- Troubleshooting based on actual problems encountered
+- No marketing fluff - just what works
 
-## 🤝 Contribuer
+## 🤝 Contributing
 
-Trouvé une erreur ? Une meilleure façon de faire ?
-Ouvrez une issue ou une pull request sur le [repo principal](https://github.com/GuillainM/Prometheus-Station).
+Found an error? A better way to do things?
+Open an issue or pull request on the [main repo](https://github.com/GuillainM/Prometheus-Station).
 
 ---
 
-**Retour au [README principal](../README.md)**
+**Back to [Main README](../README.md)**

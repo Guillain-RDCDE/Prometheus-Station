@@ -318,25 +318,14 @@ sudo nano /var/www/html/index.html
         .logo-section {
             display: flex;
             align-items: center;
-            gap: 20px;
         }
         
         .logo-img {
-            height: 210px !important;
-            width: auto !important;
-            object-fit: none;
-        }
-        
-        .logo-text h1 {
-            color: #0066cc;
-            font-size: 2em;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-        
-        .logo-text .subtitle {
-            color: #6c757d;
-            font-size: 0.95em;
+            max-width: 100%;
+            height: auto;
+            /* On limite la hauteur max sur grand écran pour éviter qu'il prenne trop de place */
+            max-height: 180px;
+            object-fit: contain; /* Affiche l'image entière sans recadrage */
         }
         
         .status-indicator {
@@ -604,28 +593,16 @@ sudo nano /var/www/html/index.html
             
             .top-bar-content {
                 flex-direction: column;
-                gap: 15px;
-            }
-            
-            .logo-section {
-                flex-direction: column;
+                gap: 20px;
                 text-align: center;
             }
             
+            .logo-section {
+                justify-content: center;
+            }
+            
             .logo-img {
-                height: 150px !important;
-            }
-            
-            .logo-text h1 {
-                font-size: 1.5em;
-            }
-            
-            .cards-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .quick-grid {
-                grid-template-columns: 1fr;
+                max-height: 140px; /* Un peu plus petit sur mobile, mais toujours entier */
             }
         }
     </style>
@@ -636,10 +613,6 @@ sudo nano /var/www/html/index.html
         <div class="top-bar-content">
             <div class="logo-section">
                 <img src="/logo.png" alt="Prometheus Station Logo" class="logo-img">
-                <div class="logo-text">
-                    <h1>Prometheus Station</h1>
-                    <p class="subtitle">Emergency Medical Knowledge Repository</p>
-                </div>
             </div>
             <div class="status-indicator">
                 <span class="status-dot"></span>

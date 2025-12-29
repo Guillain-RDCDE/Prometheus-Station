@@ -2,8 +2,8 @@
 
 ![Prometheus Station Logo](logo.png)
 
-# Prometheus Station
-### 🔥 A Lighthouse When Everything Burns
+# 
+### 🔥 A lighthouse when everything burns
 
 </div>
 

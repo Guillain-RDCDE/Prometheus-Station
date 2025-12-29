@@ -1,5 +1,11 @@
+<div align="center">
+
+![Prometheus Station Logo](logo.png)
+
 # Prometheus Station
 ### 🔥 A Lighthouse When Everything Burns
+
+</div>
 
 ---
 

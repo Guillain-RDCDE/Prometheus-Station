@@ -164,19 +164,25 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 - Server configuration and optimization
 - **Time:** 2-4 hours (mostly downloads) | **Difficulty:** ⭐⭐☆☆☆ Medium
 
-**⏳ [Step 3: Meshtastic Setup](docs/03-meshtastic-setup.md)**
+**✅ [Step 3: Kiwix Configuration](docs/03-kiwix-configuration.md)**
+- Advanced server configuration
+- Performance optimization
+- Content management
+- **Time:** 1-2 hours | **Difficulty:** ⭐⭐☆☆☆ Medium
+
+**✅ [Step 4: WiFi Access Point](docs/04-wifi-access-point.md)**
+- Transform Pi into wireless hotspot
+- Captive portal configuration
+- Network setup and optimization
+- **Time:** 1-2 hours | **Difficulty:** ⭐⭐⭐☆☆ Medium
+
+**⏳ [Step 5: Meshtastic Setup](docs/05-meshtastic-setup.md)**
 - LoRa radio configuration
 - Mesh network deployment
 - Mobile terminal setup
 - **Status:** Coming soon
 
-**⏳ [Step 4: System Integration](docs/04-integration.md)**
-- WiFi access point creation
-- Service orchestration
-- User interface
-- **Status:** In development
-
-**⏳ [Step 5: Solar Power](docs/05-solar-power.md)**
+**⏳ [Step 6: Solar Power](docs/06-solar-power.md)**
 - Power system wiring
 - Energy monitoring
 - Autonomy optimization
@@ -313,13 +319,14 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 - ✅ Hardware selection and testing
 - ✅ Raspberry Pi setup guide (tested, documented)
 - ✅ Kiwix installation guide (tested, documented)
+- ✅ Kiwix configuration guide (tested, documented)
+- ✅ WiFi access point configuration (tested, documented)
 - ✅ Content strategy framework
 - ✅ Power consumption analysis
 - ✅ Beginner-friendly documentation
 
 **In Progress:**
 - ⏳ Meshtastic LoRa integration
-- ⏳ WiFi access point configuration
 - ⏳ Solar power system assembly
 - ⏳ Field testing
 

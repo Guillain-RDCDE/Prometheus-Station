@@ -18,24 +18,26 @@ This documentation guides you step-by-step through building your own autonomous 
 - Server configuration and optimization
 - **Time:** 2-4 hours (mostly downloads) | **Difficulty:** ⭐⭐☆☆☆
 
-**[Kiwix Configuration](03-kiwix-configuration.md)**
+**[Step 3: Kiwix Configuration](03-kiwix-configuration.md)**
 - Advanced server configuration
 - Performance optimization
 - Content management
+- **Time:** 1-2 hours | **Difficulty:** ⭐⭐☆☆☆
+
+**[Step 4: WiFi Access Point](04-wifi-access-point.md)**
+- Transform Pi into wireless hotspot
+- Captive portal configuration
+- Network setup and optimization
+- **Time:** 1-2 hours | **Difficulty:** ⭐⭐⭐☆☆
 
 ### ⏳ Coming Soon
 
-**Step 3: Meshtastic Setup**
+**Step 5: Meshtastic Setup**
 - LoRa radio configuration
 - Mesh network deployment
 - Mobile terminal setup
 
-**Step 4: System Integration**
-- WiFi access point creation
-- Service orchestration
-- User interface
-
-**Step 5: Solar Power**
+**Step 6: Solar Power**
 - Power system wiring
 - Energy monitoring
 - Autonomy optimization

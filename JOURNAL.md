@@ -49,7 +49,7 @@
 
 ---
 
-## 📊 Project Progress
+## 📊 Project progress
 
 **Total time invested:** 4h 30min  
 **Days active:** 2  
@@ -68,7 +68,7 @@
 
 ---
 
-## 🎯 Project Milestones
+## 🎯 Project milestones
 
 | Milestone | Status | Completion Date |
 |-----------|--------|-----------------|

@@ -1,4 +1,4 @@
-# 🛠️ Hardware Guide
+# 🛠️ Hardware guide
 
 **Purpose of this document:** Understand what you need to buy, why you need it, and how much it costs.
 
@@ -67,7 +67,7 @@ This isn't just a shopping list. Each component is explained so you understand i
 
 ---
 
-## 💡 Understanding the System Architecture
+## 💡 Understanding the system architecture
 
 Before diving into components, let's understand how Prometheus Station works:
 
@@ -118,7 +118,7 @@ Now let's look at each component and understand WHY it's needed.
 
 ---
 
-## 🧠 The Brain: Computing System
+## 🧠 The brain: Computing system
 
 ### Raspberry Pi 4 (8GB RAM)
 

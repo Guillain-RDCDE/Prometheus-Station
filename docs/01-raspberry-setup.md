@@ -10,7 +10,7 @@
 
 ---
 
-## 🎯 What Success Looks Like
+## 🎯 What success looks like
 
 By the end of this guide, you'll have:
 - ✅ Raspberry Pi OS installed on your microSD card
@@ -23,14 +23,14 @@ By the end of this guide, you'll have:
 
 ---
 
-## 📋 Pre-Flight Checklist
+## 📋 Pre-flight checklist
 
 Before we start, gather everything:
 
 ### Hardware You Need:
 - [ ] **Raspberry Pi 4** (ideally 8GB RAM, but 4GB works)
 
-### 💾 Choose Your Storage (Based on Mission):
+### 💾 Choose your storage (based on mission):
 
 **Option 1: Medical Mission Pack** (~64GB needed)
 - **SD Card:** 64GB A2 class (~20€)
@@ -75,7 +75,7 @@ Before we start, gather everything:
 
 ---
 
-## 📖 The Big Picture: What We're Doing
+## 📖 The big picture: What we're doing
 
 Before jumping into commands, let's understand the process:
 

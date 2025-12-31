@@ -3,13 +3,13 @@
 **Goal:** Establish maintenance routines to keep Prometheus Station healthy, secure, and up-to-date.
 
 **Time Required:** 
-- Initial setup: 2 hours
+- Initial setup: 2-3 hours
 - Monthly maintenance: 30-45 minutes
 - ZIM updates: 2-6 hours (mostly downloading)
 
 **Difficulty:** ⭐⭐⭐ Medium (systematic procedures, nothing complex)
 
-**💡 Real experience:** A well-maintained station runs for months without issues. Neglect maintenance and you'll face corrupted files, full disks, and mysterious crashes.
+**💡 Real experience:** A well-maintained station runs for months without issues. Neglect maintenance and you'll face corrupted files, full disks, and mysterious crashes. This guide includes all the fixes discovered during real-world testing.
 
 ---
 
@@ -28,13 +28,15 @@
 ## 🎯 Overview
 
 We'll accomplish:
-1. ✅ Create health monitoring dashboard
-2. ✅ Setup automated log rotation
-3. ✅ Build ZIM update system
-4. ✅ Configure system update procedures
-5. ✅ Create backup/restore scripts
-6. ✅ Setup automated alerts
-7. ✅ Build monthly maintenance checklist
+1. ✅ Install required tools (bc, ufw)
+2. ✅ Create health monitoring dashboard
+3. ✅ Setup automated log rotation
+4. ✅ Build ZIM update system
+5. ✅ Configure system update procedures
+6. ✅ Create backup/restore scripts
+7. ✅ Setup automated alerts
+8. ✅ Configure cron automation
+9. ✅ Build monthly maintenance checklist
 
 **What you'll have at the end:**
 - Automated health checks
@@ -42,6 +44,82 @@ We'll accomplish:
 - Content update workflow
 - Emergency recovery tools
 - Maintenance calendar
+- Everything running automatically
+
+---
+
+## 🔧 Part 0: Install Required Tools (5 minutes)
+
+**Before we start, we need two essential tools that might be missing.**
+
+### Step 0.1: Install bc (calculator)
+
+**What is bc?** A command-line calculator needed for comparing temperatures and CPU loads.
+
+```bash
+sudo apt update
+sudo apt install -y bc
+```
+
+**Test it works:**
+```bash
+echo "70 > 60" | bc
+```
+
+**Expected output:** `1` (meaning "true")
+
+---
+
+### Step 0.2: Install and configure UFW (firewall)
+
+**What is UFW?** Uncomplicated Firewall - protects your Pi from unwanted connections.
+
+**⚠️ CRITICAL: We must add SSH rule BEFORE enabling the firewall, or we'll be locked out!**
+
+```bash
+# Install UFW
+sudo apt install -y ufw
+
+# FIRST: Allow SSH (port 22) - CRITICAL!
+sudo ufw allow 22/tcp
+
+# Allow Apache web server
+sudo ufw allow 80/tcp
+
+# Allow Kiwix
+sudo ufw allow 8080/tcp
+
+# Allow Tailscale VPN (if installed)
+sudo ufw allow in on tailscale0
+
+# NOW we can safely enable the firewall
+sudo ufw --force enable
+
+# Verify configuration
+sudo ufw status verbose
+```
+
+**Expected output:**
+```
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), disabled (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    Anywhere
+80/tcp                     ALLOW IN    Anywhere
+8080/tcp                   ALLOW IN    Anywhere
+Anywhere on tailscale0     ALLOW IN    Anywhere
+22/tcp (v6)                ALLOW IN    Anywhere (v6)
+80/tcp (v6)                ALLOW IN    Anywhere (v6)
+8080/tcp (v6)              ALLOW IN    Anywhere (v6)
+```
+
+**Why this order matters:**
+- ❌ **WRONG:** Enable firewall → Add SSH rule → Locked out, need keyboard/monitor
+- ✅ **RIGHT:** Add SSH rule → Enable firewall → SSH continues working
 
 ---
 
@@ -173,8 +251,12 @@ if command -v tailscale &> /dev/null; then
 fi
 
 # UFW Firewall
-sudo ufw status | grep -q "Status: active"
-check_status $? "Firewall (UFW)"
+if command -v ufw &> /dev/null; then
+    sudo ufw status | grep -q "Status: active"
+    check_status $? "Firewall (UFW)"
+else
+    echo -e "${YELLOW}⚠${NC} Firewall (UFW) - Not installed"
+fi
 
 echo ""
 
@@ -369,46 +451,22 @@ chmod +x ~/health-check.sh
 - ✅ Temperature under 65°C
 - ✅ Disk usage under 80%
 - ✅ No critical warnings
+- ✅ NO errors about `bc: command not found`
+- ✅ NO errors about `ufw: command not found`
 
----
-
-### Step 1.3: Schedule daily health checks
-
-```bash
-# Create log directory
-sudo mkdir -p /var/log/prometheus
-sudo chown $USER:$USER /var/log/prometheus
-
-# Add to crontab
-crontab -e
-```
-
-**Add this line at the end:**
-```
-# Daily health check at 3 AM
-0 3 * * * /home/guillain/health-check.sh >> /var/log/prometheus/health-$(date +\%Y-\%m).log 2>&1
-```
-
-**What this does:**
-- Runs health check every day at 3 AM
-- Logs output to monthly file
-- Keeps history for troubleshooting
-
-**Save and exit:** ESC, :wq, Enter (if vim) or Ctrl+X, Y, Enter (if nano)
+**If you see errors:** Go back to Part 0 and install missing tools.
 
 ---
 
 ## 🗂️ Part 2: Log Management (20 minutes)
 
-### Step 2.1: Configure log rotation
-
-**Create rotation config for Prometheus logs:**
+### Step 2.1: Configure log rotation for Prometheus logs
 
 ```bash
 sudo nano /etc/logrotate.d/prometheus
 ```
 
-**Paste:**
+**Paste this configuration:**
 
 ```
 /var/log/prometheus/*.log {
@@ -423,22 +481,25 @@ sudo nano /etc/logrotate.d/prometheus
 ```
 
 **What this does:**
-- Rotates logs weekly
-- Keeps 8 weeks of history
-- Compresses old logs
-- Creates new log files with correct permissions
+- `weekly` - Rotates logs every week
+- `rotate 8` - Keeps 8 weeks of history (2 months)
+- `compress` - Compresses old logs to save space
+- `delaycompress` - Doesn't compress the most recent rotated log
+- `missingok` - No error if log file is missing
+- `notifempty` - Doesn't rotate empty files
+- `create 0644 guillain guillain` - Creates new log file with correct permissions
 
 **Save:** Ctrl+X, Y, Enter
 
 ---
 
-### Step 2.2: Limit journal size
+### Step 2.2: Limit systemd journal size
 
 ```bash
 sudo nano /etc/systemd/journald.conf
 ```
 
-**Find and modify these lines:**
+**Find the `[Journal]` section and modify (or add if missing):**
 
 ```ini
 [Journal]
@@ -447,8 +508,9 @@ RuntimeMaxUse=100M
 ```
 
 **What this does:**
-- Limits systemd journal to 500MB
-- Prevents logs from filling disk
+- Limits system journal to 500MB maximum
+- Limits runtime journal to 100MB maximum
+- Prevents journal from filling your disk
 
 **Save and restart:**
 ```bash
@@ -457,32 +519,556 @@ sudo systemctl restart systemd-journald
 
 ---
 
-### Step 2.3: Clean old logs now
+### Step 2.3: Clean old logs NOW
 
 ```bash
 # Clean journal logs older than 30 days
 sudo journalctl --vacuum-time=30d
 
-# Clean old Apache logs
-sudo find /var/log/apache2/ -name "*.gz" -mtime +60 -delete
+# Clean old Apache logs (if any)
+sudo find /var/log/apache2/ -name "*.gz" -mtime +60 -delete 2>/dev/null
 
 # Check reclaimed space
 df -h /
 ```
 
-**Expected:** Should free up 100MB-1GB depending on uptime
+**Expected:** Should free up 100MB-1GB depending on system uptime
 
 ---
 
-## 🔄 Part 3: ZIM File Updates (40 minutes setup)
+### Step 2.4: Test log rotation
 
-### Step 3.1: Create ZIM update script
+```bash
+# Test the configuration (dry run)
+sudo logrotate -d /etc/logrotate.d/prometheus
+```
+
+**Expected output:**
+```
+rotating pattern: /var/log/prometheus/*.log  weekly (8 rotations)
+empty log files are not rotated, old logs are removed
+```
+
+---
+
+## 📝 Part 3: ZIM Inventory System (15 minutes)
+
+### Step 3.1: Create ZIM version tracker
+
+```bash
+nano ~/list-zim-versions.sh
+```
+
+**Paste this script:**
+
+```bash
+#!/bin/bash
+# List all ZIM files with versions and dates
+
+echo "╔════════════════════════════════════════════════════════╗"
+echo "║     INSTALLED ZIM FILES                                ║"
+echo "╚════════════════════════════════════════════════════════╝"
+echo ""
+
+cd /var/kiwix/data 2>/dev/null || {
+    echo "Error: /var/kiwix/data not found"
+    exit 1
+}
+
+for zim in *.zim; do
+    if [ -f "$zim" ]; then
+        SIZE=$(du -h "$zim" | cut -f1)
+        MODIFIED=$(stat -c %y "$zim" | cut -d' ' -f1)
+        
+        # Extract version from filename if present
+        VERSION=$(echo "$zim" | grep -oP '\d{4}-\d{2}' || echo "unknown")
+        
+        echo "File: $zim"
+        echo "  Size: $SIZE"
+        echo "  Version: $VERSION"
+        echo "  Modified: $MODIFIED"
+        echo ""
+    fi
+done
+
+echo "Total ZIM files: $(ls -1 *.zim 2>/dev/null | wc -l)"
+echo "Total storage: $(du -sh . | cut -f1)"
+```
+
+**Save and make executable:**
+```bash
+chmod +x ~/list-zim-versions.sh
+```
+
+---
+
+### Step 3.2: Test the inventory
+
+```bash
+~/list-zim-versions.sh
+```
+
+**Expected output:**
+```
+╔════════════════════════════════════════════════════════╗
+║     INSTALLED ZIM FILES                                ║
+╚════════════════════════════════════════════════════════╝
+
+File: mdwiki_en_all_maxi_2025-11.zim
+  Size: 2.2G
+  Version: 2025-11
+  Modified: 2025-11-13
+
+File: wikipedia_en_all_maxi_2025-08.zim
+  Size: 112G
+  Version: 2025-08
+  Modified: 2025-08-24
+
+[... other files ...]
+
+Total ZIM files: 7
+Total storage: 166G
+```
+
+**This tells you:**
+- Which files you have
+- How old they are
+- Which ones might need updating
+
+---
+
+## 💾 Part 4: Backup & Restore System (25 minutes)
+
+### Step 4.1: Create configuration backup script
+
+```bash
+nano ~/backup-config.sh
+```
+
+**Paste this COMPLETE script:**
+
+```bash
+#!/bin/bash
+# Prometheus Station - Configuration Backup
+# Backs up config files (NOT ZIM files - too large)
+
+set -e
+
+BACKUP_DIR="/var/backups/prometheus/configs"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+BACKUP_FILE="prometheus-config-$TIMESTAMP.tar.gz"
+
+echo "╔════════════════════════════════════════════════════════╗"
+echo "║     CONFIGURATION BACKUP                               ║"
+echo "╚════════════════════════════════════════════════════════╝"
+echo ""
+
+# Create backup directory
+sudo mkdir -p "$BACKUP_DIR"
+
+echo "Creating backup: $BACKUP_FILE"
+echo ""
+
+# What to backup
+FILES_TO_BACKUP=(
+    "/etc/systemd/system/kiwix-serve.service"
+    "/etc/apache2/sites-available/prometheus.conf"
+    "/etc/hostapd/hostapd.conf"
+    "/etc/dnsmasq.conf"
+    "/var/www/html/index.html"
+    "/var/www/html/status.php"
+    "/var/www/html/connect.html"
+    "/home/$USER/.ssh/authorized_keys"
+)
+
+# Add all .sh scripts separately (wildcard fix)
+for script in /home/$USER/*.sh; do
+    if [ -f "$script" ]; then
+        FILES_TO_BACKUP+=("$script")
+    fi
+done
+
+# Create temp directory for staging
+TEMP_DIR=$(mktemp -d)
+
+# Copy files preserving directory structure
+for file in "${FILES_TO_BACKUP[@]}"; do
+    if [ -e "$file" ]; then
+        # Create parent directory in temp
+        DIR=$(dirname "$file")
+        mkdir -p "$TEMP_DIR$DIR"
+        
+        # Copy file
+        if [ -d "$file" ]; then
+            cp -r "$file" "$TEMP_DIR$DIR/"
+        else
+            cp "$file" "$TEMP_DIR$DIR/"
+        fi
+        
+        echo "✓ $(basename $file)"
+    else
+        echo "⚠ Skipped (not found): $file"
+    fi
+done
+
+# Create ZIM file list (not the files themselves)
+echo "Creating ZIM inventory..."
+ls -lh /var/kiwix/data/*.zim > "$TEMP_DIR/zim-inventory.txt" 2>/dev/null || true
+
+# Add system info
+{
+    echo "=== System Info ==="
+    uname -a
+    echo ""
+    echo "=== Backup Date ==="
+    date
+    echo ""
+    echo "=== Installed Packages ==="
+    dpkg -l | grep -E 'kiwix|apache|hostapd|dnsmasq'
+} > "$TEMP_DIR/system-info.txt"
+
+# Create tarball
+cd "$TEMP_DIR"
+sudo tar -czf "$BACKUP_DIR/$BACKUP_FILE" .
+
+# Cleanup
+cd /
+rm -rf "$TEMP_DIR"
+
+echo ""
+echo "✓ Backup created: $BACKUP_DIR/$BACKUP_FILE"
+
+# Show backup size
+SIZE=$(du -h "$BACKUP_DIR/$BACKUP_FILE" | cut -f1)
+echo "  Size: $SIZE"
+
+# List all backups
+echo ""
+echo "All configuration backups:"
+ls -lh "$BACKUP_DIR" | tail -5
+
+# Delete backups older than 30 days
+OLD_BACKUPS=$(find "$BACKUP_DIR" -name "*.tar.gz" -mtime +30 2>/dev/null | wc -l)
+if [ $OLD_BACKUPS -gt 0 ]; then
+    echo ""
+    echo "Cleaning up $OLD_BACKUPS backup(s) older than 30 days..."
+    find "$BACKUP_DIR" -name "*.tar.gz" -mtime +30 -delete
+fi
+
+echo ""
+echo "To restore: tar -xzf $BACKUP_DIR/$BACKUP_FILE -C /"
+echo ""
+```
+
+**Save and make executable:**
+```bash
+chmod +x ~/backup-config.sh
+```
+
+---
+
+### Step 4.2: Create restore script
+
+```bash
+nano ~/restore-config.sh
+```
+
+**Paste:**
+
+```bash
+#!/bin/bash
+# Prometheus Station - Configuration Restore
+
+set -e
+
+BACKUP_DIR="/var/backups/prometheus/configs"
+
+echo "╔════════════════════════════════════════════════════════╗"
+echo "║     CONFIGURATION RESTORE                              ║"
+echo "╚════════════════════════════════════════════════════════╝"
+echo ""
+
+# List available backups
+echo "Available backups:"
+ls -lht "$BACKUP_DIR"/*.tar.gz 2>/dev/null | nl
+
+echo ""
+read -p "Enter backup number to restore (or 'cancel'): " BACKUP_NUM
+
+if [ "$BACKUP_NUM" = "cancel" ]; then
+    echo "Restore cancelled."
+    exit 0
+fi
+
+# Get backup file
+BACKUP_FILE=$(ls -t "$BACKUP_DIR"/*.tar.gz | sed -n "${BACKUP_NUM}p")
+
+if [ -z "$BACKUP_FILE" ]; then
+    echo "Invalid selection."
+    exit 1
+fi
+
+echo ""
+echo "Selected: $(basename $BACKUP_FILE)"
+echo ""
+echo "⚠ WARNING: This will overwrite current configuration!"
+echo ""
+read -p "Continue? (type 'yes' to confirm): " CONFIRM
+
+if [ "$CONFIRM" != "yes" ]; then
+    echo "Restore cancelled."
+    exit 0
+fi
+
+# Extract backup
+echo "Restoring configuration..."
+sudo tar -xzf "$BACKUP_FILE" -C /
+
+echo ""
+echo "✓ Configuration restored"
+echo ""
+echo "You should now:"
+echo "  1. Verify services: sudo systemctl status kiwix-serve apache2"
+echo "  2. Restart services: sudo systemctl restart kiwix-serve apache2"
+echo "  3. Test access: http://prometheus-station.local"
+echo ""
+```
+
+**Save and make executable:**
+```bash
+chmod +x ~/restore-config.sh
+```
+
+---
+
+### Step 4.3: Test backup
+
+```bash
+~/backup-config.sh
+```
+
+**Expected output:**
+```
+╔════════════════════════════════════════════════════════╗
+║     CONFIGURATION BACKUP                               ║
+╚════════════════════════════════════════════════════════╝
+
+Creating backup: prometheus-config-20251231-123456.tar.gz
+
+✓ kiwix-serve.service
+✓ prometheus.conf
+✓ hostapd.conf
+✓ dnsmasq.conf
+✓ index.html
+✓ status.php
+✓ connect.html
+✓ authorized_keys
+✓ health-check.sh
+✓ backup-config.sh
+✓ list-zim-versions.sh
+[... all your scripts ...]
+Creating ZIM inventory...
+
+✓ Backup created: /var/backups/prometheus/configs/prometheus-config-20251231-123456.tar.gz
+  Size: 24K
+```
+
+**Verify the backup:**
+```bash
+# List contents
+tar -tzf /var/backups/prometheus/configs/prometheus-config-*.tar.gz | head -20
+
+# Test extraction to temp directory
+mkdir -p ~/restore-test
+tar -xzf /var/backups/prometheus/configs/prometheus-config-*.tar.gz -C ~/restore-test
+ls -R ~/restore-test
+rm -rf ~/restore-test
+```
+
+---
+
+## 📧 Part 5: Automated Alert System (20 minutes)
+
+### Step 5.1: Create alert checker script
+
+```bash
+nano ~/check-alerts.sh
+```
+
+**Paste this script:**
+
+```bash
+#!/bin/bash
+# Prometheus Station - Alert Checker
+# Run this regularly to catch problems early
+
+ALERT_LOG="/var/log/prometheus/alerts.log"
+ALERT_TRIGGERED=false
+
+log_alert() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ALERT: $1" | tee -a "$ALERT_LOG"
+    ALERT_TRIGGERED=true
+}
+
+# Temperature check
+TEMP=$(vcgencmd measure_temp | cut -d'=' -f2 | cut -d"'" -f1)
+if (( $(echo "$TEMP > 70" | bc -l) )); then
+    log_alert "High temperature: ${TEMP}°C"
+fi
+
+# Disk space check
+DISK_USED=$(df / | awk 'NR==2{print $5}' | tr -d '%')
+if [ $DISK_USED -gt 90 ]; then
+    log_alert "Disk nearly full: ${DISK_USED}% used"
+fi
+
+# Service checks
+SERVICES="kiwix-serve apache2 ssh"
+for service in $SERVICES; do
+    if ! systemctl is-active --quiet $service; then
+        log_alert "Service down: $service"
+    fi
+done
+
+# Memory check
+MEM_PERCENT=$(free | awk 'NR==2{printf "%.0f", ($3/$2)*100}')
+if [ $MEM_PERCENT -gt 90 ]; then
+    log_alert "High memory usage: ${MEM_PERCENT}%"
+fi
+
+# Failed logins
+FAILED=$(grep "Failed password" /var/log/auth.log 2>/dev/null | tail -10 | wc -l)
+if [ $FAILED -gt 5 ]; then
+    log_alert "Multiple failed login attempts: $FAILED in last 10 lines"
+fi
+
+# If any alerts triggered, display them
+if [ "$ALERT_TRIGGERED" = true ]; then
+    echo "⚠ ALERTS DETECTED - Check $ALERT_LOG"
+    tail -10 "$ALERT_LOG"
+    exit 1
+else
+    echo "✓ No alerts - system healthy"
+    exit 0
+fi
+```
+
+**Save and make executable:**
+```bash
+chmod +x ~/check-alerts.sh
+```
+
+---
+
+### Step 5.2: Test the alert system
+
+```bash
+~/check-alerts.sh
+```
+
+**Expected output:**
+```
+✓ No alerts - system healthy
+```
+
+**If you see alerts:** Investigate and fix the issues before automating.
+
+---
+
+## ⏰ Part 6: Automation with Cron (15 minutes)
+
+### Step 6.1: Create log directory
+
+```bash
+sudo mkdir -p /var/log/prometheus
+sudo chown $USER:$USER /var/log/prometheus
+```
+
+---
+
+### Step 6.2: Configure cron jobs
+
+```bash
+crontab -e
+```
+
+**If this is your first time, select editor:**
+- Choose `1` for nano (easiest)
+
+**Add these lines AT THE END:**
+
+```bash
+# Prometheus Station - Automated Maintenance
+
+# Daily health check at 3 AM
+0 3 * * * /home/guillain/health-check.sh >> /var/log/prometheus/health-$(date +\%Y-\%m).log 2>&1
+
+# Weekly config backup on Sunday at 2 AM
+0 2 * * 0 /home/guillain/backup-config.sh >> /var/log/prometheus/backup.log 2>&1
+
+# Alert check every 6 hours
+0 */6 * * * /home/guillain/check-alerts.sh 2>&1 | grep -q "ALERT" && echo "$(date): Alerts detected" >> /var/log/prometheus/alerts.log
+```
+
+**Important notes:**
+- Replace `guillain` with YOUR username if different
+- The `\%` is needed in crontab (escapes the % character)
+- Each task runs automatically at scheduled time
+
+**Save:** Ctrl+X, Y, Enter
+
+---
+
+### Step 6.3: Verify cron configuration
+
+```bash
+# List your cron jobs
+crontab -l
+
+# Test that logging works
+~/health-check.sh >> /var/log/prometheus/health-test.log 2>&1
+
+# Check the log was created
+ls -lh /var/log/prometheus/
+cat /var/log/prometheus/health-test.log
+```
+
+**Expected:** Should see complete health report in the log file.
+
+---
+
+### Step 6.4: Understanding the automation
+
+**What will happen automatically:**
+
+**Every day at 3:00 AM:**
+- Health check runs
+- Results logged to `/var/log/prometheus/health-YYYY-MM.log`
+- One log file per month (automatic)
+
+**Every Sunday at 2:00 AM:**
+- Configuration backup created
+- Stored in `/var/backups/prometheus/configs/`
+- Old backups (>30 days) automatically deleted
+
+**Every 6 hours (0:00, 6:00, 12:00, 18:00):**
+- Alert check runs
+- Only logs if problems detected
+- Check `/var/log/prometheus/alerts.log` for issues
+
+---
+
+## 🔄 Part 7: ZIM Update System (Optional)
+
+**This part is optional but recommended when you want to update your content.**
+
+### Step 7.1: Create ZIM update script
 
 ```bash
 nano ~/update-zim-files.sh
 ```
 
-**Paste this COMPLETE script:**
+**Paste this script:**
 
 ```bash
 #!/bin/bash
@@ -601,7 +1187,7 @@ if [ $SIZE -lt 1000000 ]; then
     exit 1
 fi
 
-# Test with zimdump
+# Test with zimdump (if available)
 if command -v zimdump &> /dev/null; then
     zimdump info "$ZIM_FILENAME" > /dev/null 2>&1
     if [ $? -eq 0 ]; then
@@ -653,7 +1239,6 @@ echo -e "${GREEN}✓ Installation complete${NC}"
 echo ""
 echo -e "${YELLOW}Updating Kiwix configuration...${NC}"
 
-# You need to manually update the systemd service file
 echo ""
 echo -e "${RED}IMPORTANT:${NC} You must update the Kiwix service file:"
 echo ""
@@ -662,6 +1247,11 @@ echo ""
 echo "Update the ExecStart line to include:"
 echo "  /var/kiwix/data/$ZIM_FILENAME"
 echo ""
+if [ -n "$OLD_FILE" ]; then
+    echo "And remove the old file:"
+    echo "  /var/kiwix/data/$(basename $OLD_FILE)"
+    echo ""
+fi
 echo "Then restart Kiwix:"
 echo "  sudo systemctl daemon-reload"
 echo "  sudo systemctl restart kiwix-serve"
@@ -704,594 +1294,18 @@ echo ""
 log "ZIM update completed successfully"
 ```
 
-**Save:** Ctrl+X, Y, Enter
-
-**Make executable:**
+**Save and make executable:**
 ```bash
 chmod +x ~/update-zim-files.sh
 ```
 
----
-
-### Step 3.2: Create ZIM version tracker
-
-```bash
-nano ~/list-zim-versions.sh
-```
-
-**Paste:**
-
-```bash
-#!/bin/bash
-# List all ZIM files with versions and dates
-
-echo "╔════════════════════════════════════════════════════════╗"
-echo "║     INSTALLED ZIM FILES                                ║"
-echo "╚════════════════════════════════════════════════════════╝"
-echo ""
-
-cd /var/kiwix/data
-
-for zim in *.zim; do
-    if [ -f "$zim" ]; then
-        SIZE=$(du -h "$zim" | cut -f1)
-        MODIFIED=$(stat -c %y "$zim" | cut -d' ' -f1)
-        
-        # Extract version from filename if present
-        VERSION=$(echo "$zim" | grep -oP '\d{4}-\d{2}' || echo "unknown")
-        
-        echo "File: $zim"
-        echo "  Size: $SIZE"
-        echo "  Version: $VERSION"
-        echo "  Modified: $MODIFIED"
-        echo ""
-    fi
-done
-
-echo "Total ZIM files: $(ls -1 *.zim 2>/dev/null | wc -l)"
-echo "Total storage: $(du -sh . | cut -f1)"
-```
-
-**Save and make executable:**
-```bash
-chmod +x ~/list-zim-versions.sh
-```
+**Note:** This script is for manual use when you want to update content. You'll use it when `list-zim-versions.sh` shows old files.
 
 ---
 
-## 🔧 Part 4: System Updates (30 minutes)
+## 📅 Part 8: Monthly Maintenance Checklist (10 minutes)
 
-### Step 4.1: Create safe update script
-
-```bash
-nano ~/safe-system-update.sh
-```
-
-**Paste:**
-
-```bash
-#!/bin/bash
-# Prometheus Station - Safe System Update
-# Updates OS packages with safety checks
-
-set -e
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-LOG_FILE="/var/log/prometheus/system-updates.log"
-
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
-
-echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     SYSTEM UPDATE - SAFETY PROCEDURE                  ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
-echo ""
-
-log "Starting safe system update"
-
-# ============================================
-# Pre-update checks
-# ============================================
-echo -e "${YELLOW}[1/6] Pre-update safety checks...${NC}"
-
-# Check disk space
-DISK_FREE=$(df / | awk 'NR==2{print $4}')
-if [ $DISK_FREE -lt 1000000 ]; then
-    echo -e "${RED}✗ Insufficient disk space (less than 1GB free)${NC}"
-    echo "Free up space before updating"
-    exit 1
-fi
-echo -e "${GREEN}✓ Disk space: OK${NC}"
-
-# Check internet
-if ! ping -c 1 8.8.8.8 &> /dev/null; then
-    echo -e "${RED}✗ No internet connection${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓ Internet: OK${NC}"
-
-# Check critical services
-CRITICAL_SERVICES="kiwix-serve apache2 ssh"
-for service in $CRITICAL_SERVICES; do
-    if ! systemctl is-active --quiet $service; then
-        echo -e "${YELLOW}⚠ Warning: $service is not running${NC}"
-    fi
-done
-
-echo ""
-
-# ============================================
-# Backup current state
-# ============================================
-echo -e "${YELLOW}[2/6] Creating backup marker...${NC}"
-
-BACKUP_FILE="/var/backups/prometheus/pre-update-$(date +%Y%m%d-%H%M%S).txt"
-sudo mkdir -p /var/backups/prometheus
-
-{
-    echo "System state before update: $(date)"
-    echo ""
-    echo "=== Installed packages ==="
-    dpkg -l
-    echo ""
-    echo "=== Critical services ==="
-    systemctl status kiwix-serve apache2 ssh --no-pager
-} | sudo tee "$BACKUP_FILE" > /dev/null
-
-echo -e "${GREEN}✓ Backup marker created: $BACKUP_FILE${NC}"
-log "Created backup marker: $BACKUP_FILE"
-
-echo ""
-
-# ============================================
-# Update package lists
-# ============================================
-echo -e "${YELLOW}[3/6] Updating package lists...${NC}"
-
-sudo apt update
-
-UPDATES=$(apt list --upgradable 2>/dev/null | grep upgradable | wc -l)
-echo "Updates available: $UPDATES packages"
-
-if [ $UPDATES -eq 0 ]; then
-    echo -e "${GREEN}✓ System already up to date!${NC}"
-    log "System already up to date"
-    exit 0
-fi
-
-echo ""
-
-# ============================================
-# Show what will be updated
-# ============================================
-echo -e "${YELLOW}[4/6] Packages to be updated:${NC}"
-apt list --upgradable 2>/dev/null | grep upgradable | head -20
-if [ $UPDATES -gt 20 ]; then
-    echo "... and $((UPDATES - 20)) more"
-fi
-
-echo ""
-echo -e "${YELLOW}⚠ WARNING: System will restart if kernel is updated${NC}"
-echo ""
-read -p "Continue with update? (y/n) " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Update cancelled."
-    log "Update cancelled by user"
-    exit 0
-fi
-
-# ============================================
-# Perform update
-# ============================================
-echo -e "${YELLOW}[5/6] Installing updates...${NC}"
-echo "This may take 10-30 minutes..."
-echo ""
-
-sudo apt upgrade -y 2>&1 | tee -a "$LOG_FILE"
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Updates installed successfully${NC}"
-    log "Updates installed successfully ($UPDATES packages)"
-else
-    echo -e "${RED}✗ Update failed!${NC}"
-    log "ERROR: Update failed"
-    exit 1
-fi
-
-echo ""
-
-# ============================================
-# Post-update verification
-# ============================================
-echo -e "${YELLOW}[6/6] Post-update verification...${NC}"
-
-# Check critical services still running
-ALL_OK=true
-for service in $CRITICAL_SERVICES; do
-    if systemctl is-active --quiet $service; then
-        echo -e "${GREEN}✓ $service${NC}"
-    else
-        echo -e "${RED}✗ $service (not running!)${NC}"
-        ALL_OK=false
-    fi
-done
-
-# Check if reboot needed
-if [ -f /var/run/reboot-required ]; then
-    echo ""
-    echo -e "${YELLOW}⚠ REBOOT REQUIRED${NC}"
-    echo "Reason: $(cat /var/run/reboot-required.pkgs)"
-    echo ""
-    read -p "Reboot now? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        log "System rebooting after updates"
-        sudo reboot
-    else
-        echo "Remember to reboot later!"
-        log "Reboot postponed by user"
-    fi
-fi
-
-echo ""
-echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     UPDATE COMPLETE                                    ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
-echo ""
-
-if $ALL_OK; then
-    echo -e "${GREEN}All services running normally${NC}"
-    log "Update completed successfully - all services OK"
-else
-    echo -e "${YELLOW}Some services may need attention${NC}"
-    log "Update completed but some services need attention"
-fi
-
-echo ""
-```
-
-**Save and make executable:**
-```bash
-chmod +x ~/safe-system-update.sh
-```
-
----
-
-### Step 4.2: Test the update script
-
-```bash
-~/safe-system-update.sh
-```
-
-**What it does:**
-1. Checks prerequisites (disk space, internet)
-2. Creates backup marker
-3. Shows what will be updated
-4. Asks for confirmation
-5. Installs updates
-6. Verifies services still work
-7. Prompts for reboot if needed
-
-**Expected:** Should complete successfully if updates available
-
----
-
-## 💾 Part 5: Backup & Restore (25 minutes)
-
-### Step 5.1: Create configuration backup script
-
-```bash
-nano ~/backup-config.sh
-```
-
-**Paste:**
-
-```bash
-#!/bin/bash
-# Prometheus Station - Configuration Backup
-# Backs up config files (NOT ZIM files - too large)
-
-set -e
-
-BACKUP_DIR="/var/backups/prometheus/configs"
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-BACKUP_FILE="prometheus-config-$TIMESTAMP.tar.gz"
-
-echo "╔════════════════════════════════════════════════════════╗"
-echo "║     CONFIGURATION BACKUP                               ║"
-echo "╚════════════════════════════════════════════════════════╝"
-echo ""
-
-# Create backup directory
-sudo mkdir -p "$BACKUP_DIR"
-
-echo "Creating backup: $BACKUP_FILE"
-echo ""
-
-# What to backup
-FILES_TO_BACKUP=(
-    "/etc/systemd/system/kiwix-serve.service"
-    "/etc/apache2/sites-available/prometheus.conf"
-    "/etc/hostapd/hostapd.conf"
-    "/etc/dnsmasq.conf"
-    "/var/www/html/index.html"
-    "/var/www/html/status.php"
-    "/var/www/html/connect.html"
-    "/home/$USER/.ssh/authorized_keys"
-    "/home/$USER/*.sh"
-)
-
-# Create temp directory for staging
-TEMP_DIR=$(mktemp -d)
-
-# Copy files preserving directory structure
-for file in "${FILES_TO_BACKUP[@]}"; do
-    if [ -e "$file" ]; then
-        # Create parent directory in temp
-        DIR=$(dirname "$file")
-        mkdir -p "$TEMP_DIR$DIR"
-        
-        # Copy file
-        if [ -d "$file" ]; then
-            cp -r "$file" "$TEMP_DIR$DIR/"
-        else
-            cp "$file" "$TEMP_DIR$DIR/"
-        fi
-        
-        echo "✓ $(basename $file)"
-    else
-        echo "⚠ Skipped (not found): $file"
-    fi
-done
-
-# Create ZIM file list (not the files themselves)
-echo "Creating ZIM inventory..."
-ls -lh /var/kiwix/data/*.zim > "$TEMP_DIR/zim-inventory.txt" 2>/dev/null || true
-
-# Add system info
-{
-    echo "=== System Info ==="
-    uname -a
-    echo ""
-    echo "=== Backup Date ==="
-    date
-    echo ""
-    echo "=== Installed Packages ==="
-    dpkg -l | grep -E 'kiwix|apache|hostapd|dnsmasq'
-} > "$TEMP_DIR/system-info.txt"
-
-# Create tarball
-cd "$TEMP_DIR"
-sudo tar -czf "$BACKUP_DIR/$BACKUP_FILE" .
-
-# Cleanup
-cd /
-rm -rf "$TEMP_DIR"
-
-echo ""
-echo "✓ Backup created: $BACKUP_DIR/$BACKUP_FILE"
-
-# Show backup size
-SIZE=$(du -h "$BACKUP_DIR/$BACKUP_FILE" | cut -f1)
-echo "  Size: $SIZE"
-
-# List all backups
-echo ""
-echo "All configuration backups:"
-ls -lh "$BACKUP_DIR" | tail -5
-
-# Delete backups older than 30 days
-OLD_BACKUPS=$(find "$BACKUP_DIR" -name "*.tar.gz" -mtime +30 | wc -l)
-if [ $OLD_BACKUPS -gt 0 ]; then
-    echo ""
-    echo "Cleaning up $OLD_BACKUPS backup(s) older than 30 days..."
-    find "$BACKUP_DIR" -name "*.tar.gz" -mtime +30 -delete
-fi
-
-echo ""
-echo "To restore: tar -xzf $BACKUP_DIR/$BACKUP_FILE -C /"
-echo ""
-```
-
-**Save and make executable:**
-```bash
-chmod +x ~/backup-config.sh
-```
-
----
-
-### Step 5.2: Create restore script
-
-```bash
-nano ~/restore-config.sh
-```
-
-**Paste:**
-
-```bash
-#!/bin/bash
-# Prometheus Station - Configuration Restore
-
-set -e
-
-BACKUP_DIR="/var/backups/prometheus/configs"
-
-echo "╔════════════════════════════════════════════════════════╗"
-echo "║     CONFIGURATION RESTORE                              ║"
-echo "╚════════════════════════════════════════════════════════╝"
-echo ""
-
-# List available backups
-echo "Available backups:"
-ls -lht "$BACKUP_DIR"/*.tar.gz 2>/dev/null | nl
-
-echo ""
-read -p "Enter backup number to restore (or 'cancel'): " BACKUP_NUM
-
-if [ "$BACKUP_NUM" = "cancel" ]; then
-    echo "Restore cancelled."
-    exit 0
-fi
-
-# Get backup file
-BACKUP_FILE=$(ls -t "$BACKUP_DIR"/*.tar.gz | sed -n "${BACKUP_NUM}p")
-
-if [ -z "$BACKUP_FILE" ]; then
-    echo "Invalid selection."
-    exit 1
-fi
-
-echo ""
-echo "Selected: $(basename $BACKUP_FILE)"
-echo ""
-echo "⚠ WARNING: This will overwrite current configuration!"
-echo ""
-read -p "Continue? (type 'yes' to confirm): " CONFIRM
-
-if [ "$CONFIRM" != "yes" ]; then
-    echo "Restore cancelled."
-    exit 0
-fi
-
-# Extract backup
-echo "Restoring configuration..."
-sudo tar -xzf "$BACKUP_FILE" -C /
-
-echo ""
-echo "✓ Configuration restored"
-echo ""
-echo "You should now:"
-echo "  1. Verify services: sudo systemctl status kiwix-serve apache2"
-echo "  2. Restart services: sudo systemctl restart kiwix-serve apache2"
-echo "  3. Test access: http://prometheus-station.local"
-echo ""
-```
-
-**Save and make executable:**
-```bash
-chmod +x ~/restore-config.sh
-```
-
----
-
-### Step 5.3: Test backup
-
-```bash
-~/backup-config.sh
-```
-
-**Expected:** Creates tarball with all config files
-
-**Verify:**
-```bash
-ls -lh /var/backups/prometheus/configs/
-```
-
-Should show your backup file (~few KB to few MB)
-
----
-
-## 📧 Part 6: Automated Alerts (20 minutes)
-
-### Step 6.1: Create alert checker
-
-```bash
-nano ~/check-alerts.sh
-```
-
-**Paste:**
-
-```bash
-#!/bin/bash
-# Prometheus Station - Alert Checker
-# Run this daily to catch problems early
-
-ALERT_LOG="/var/log/prometheus/alerts.log"
-ALERT_TRIGGERED=false
-
-log_alert() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ALERT: $1" | tee -a "$ALERT_LOG"
-    ALERT_TRIGGERED=true
-}
-
-# Temperature check
-TEMP=$(vcgencmd measure_temp | cut -d'=' -f2 | cut -d"'" -f1)
-if (( $(echo "$TEMP > 70" | bc -l) )); then
-    log_alert "High temperature: ${TEMP}°C"
-fi
-
-# Disk space check
-DISK_USED=$(df / | awk 'NR==2{print $5}' | tr -d '%')
-if [ $DISK_USED -gt 90 ]; then
-    log_alert "Disk nearly full: ${DISK_USED}% used"
-fi
-
-# Service checks
-SERVICES="kiwix-serve apache2 ssh"
-for service in $SERVICES; do
-    if ! systemctl is-active --quiet $service; then
-        log_alert "Service down: $service"
-    fi
-done
-
-# Memory check
-MEM_PERCENT=$(free | awk 'NR==2{printf "%.0f", ($3/$2)*100}')
-if [ $MEM_PERCENT -gt 90 ]; then
-    log_alert "High memory usage: ${MEM_PERCENT}%"
-fi
-
-# Failed logins
-FAILED=$(grep "Failed password" /var/log/auth.log 2>/dev/null | tail -10 | wc -l)
-if [ $FAILED -gt 5 ]; then
-    log_alert "Multiple failed login attempts: $FAILED in last 10 lines"
-fi
-
-# If any alerts triggered, display them
-if [ "$ALERT_TRIGGERED" = true ]; then
-    echo ""
-    echo "⚠ ALERTS DETECTED - Check $ALERT_LOG"
-    echo ""
-    tail -10 "$ALERT_LOG"
-    exit 1
-else
-    echo "✓ No alerts - system healthy"
-    exit 0
-fi
-```
-
-**Save and make executable:**
-```bash
-chmod +x ~/check-alerts.sh
-```
-
----
-
-### Step 6.2: Schedule alert checks
-
-```bash
-crontab -e
-```
-
-**Add:**
-```
-# Alert check every 6 hours
-0 */6 * * * /home/guillain/check-alerts.sh
-```
-
-**Save and exit**
-
----
-
-## 📅 Part 7: Monthly Maintenance Checklist (10 minutes)
-
-### Step 7.1: Create maintenance script
+### Step 8.1: Create maintenance checklist script
 
 ```bash
 nano ~/monthly-maintenance.sh
@@ -1314,8 +1328,8 @@ echo "☐ 1. System Health Check"
 echo "   Run: ~/health-check.sh"
 echo ""
 
-echo "☐ 2. System Updates"
-echo "   Run: ~/safe-system-update.sh"
+echo "☐ 2. Review Health Logs"
+echo "   Check: cat /var/log/prometheus/health-$(date +%Y-%m).log | tail -100"
 echo ""
 
 echo "☐ 3. Check ZIM Updates"
@@ -1324,35 +1338,35 @@ echo "   Visit: https://download.kiwix.org/zim/"
 echo "   Update if newer versions available: ~/update-zim-files.sh"
 echo ""
 
-echo "☐ 4. Configuration Backup"
-echo "   Run: ~/backup-config.sh"
+echo "☐ 4. Verify Backups"
+echo "   Check: ls -lh /var/backups/prometheus/configs/"
+echo "   Should have recent backups"
 echo ""
 
-echo "☐ 5. Log Cleanup"
-echo "   Check: du -sh /var/log"
+echo "☐ 5. Check Alerts Log"
+echo "   Review: cat /var/log/prometheus/alerts.log"
+echo "   Should be mostly empty (only issues logged)"
+echo ""
+
+echo "☐ 6. Log Cleanup Check"
+echo "   Size: du -sh /var/log"
 echo "   Clean if >1GB: sudo journalctl --vacuum-size=500M"
 echo ""
 
-echo "☐ 6. Verify Services"
-echo "   Check: systemctl status kiwix-serve apache2 ssh"
+echo "☐ 7. Disk Space Review"
+echo "   Check: df -h /"
+echo "   Should have >20GB free"
 echo ""
 
-echo "☐ 7. Security Audit"
-echo "   Failed logins: sudo grep 'Failed password' /var/log/auth.log | wc -l"
-echo "   Firewall: sudo ufw status"
-echo ""
-
-echo "☐ 8. Performance Review"
-echo "   Temperature: vcgencmd measure_temp"
-echo "   Load average: uptime"
-echo "   Memory: free -h"
+echo "☐ 8. Temperature Check"
+echo "   Max temp: grep Temperature /var/log/prometheus/health-*.log | sort | tail -10"
+echo "   Should stay under 60°C"
 echo ""
 
 echo "☐ 9. Test Functionality"
-echo "   WiFi hotspot: ~/switch-to-field.sh"
-echo "   Web access: http://192.168.42.1"
+echo "   WiFi hotspot: Test connection"
+echo "   Web access: http://prometheus-station.local"
 echo "   Search: Test article search in Kiwix"
-echo "   Switch back: ~/switch-to-home.sh"
 echo ""
 
 echo "☐ 10. Update Documentation"
@@ -1363,7 +1377,8 @@ echo "════════════════════════�
 echo ""
 echo "Estimated time: 30-45 minutes"
 echo ""
-echo "Record completion:"
+
+# Record completion
 read -p "Mark this checklist as complete? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -1379,7 +1394,7 @@ chmod +x ~/monthly-maintenance.sh
 
 ---
 
-### Step 7.2: Create maintenance notes file
+### Step 8.2: Create maintenance notes file
 
 ```bash
 touch /var/log/prometheus/maintenance-notes.txt
@@ -1391,152 +1406,146 @@ echo "" >> /var/log/prometheus/maintenance-notes.txt
 
 ---
 
-## ✅ Part 8: Complete Testing (20 minutes)
+## ✅ Part 9: Final Testing & Verification (15 minutes)
 
-### Test each script
+### Step 9.1: Test all scripts
 
-**1. Health check:**
+**Test each script once:**
+
 ```bash
+# 1. Health check
 ~/health-check.sh
-```
-✅ Should show complete system status
 
----
-
-**2. List ZIM versions:**
-```bash
+# 2. List ZIM versions
 ~/list-zim-versions.sh
-```
-✅ Should show all installed ZIM files with dates
 
----
-
-**3. Configuration backup:**
-```bash
+# 3. Backup configuration
 ~/backup-config.sh
-```
-✅ Should create backup tarball
 
----
-
-**4. Alert check:**
-```bash
+# 4. Check alerts
 ~/check-alerts.sh
-```
-✅ Should report "No alerts - system healthy"
 
----
-
-**5. Monthly checklist:**
-```bash
+# 5. Monthly checklist (just display it)
 ~/monthly-maintenance.sh
 ```
-✅ Should display complete checklist
+
+**All should run without errors.**
 
 ---
 
-### Verify automated tasks
+### Step 9.2: Verify automation
 
-**Check crontab:**
 ```bash
+# Check cron jobs are configured
 crontab -l
-```
 
-**Should show:**
-```
-# Daily health check at 3 AM
-0 3 * * * /home/guillain/health-check.sh >> /var/log/prometheus/health-$(date +\%Y-\%m).log 2>&1
-
-# Alert check every 6 hours
-0 */6 * * * /home/guillain/check-alerts.sh
+# Should show 3 tasks:
+# - Daily health check (3 AM)
+# - Weekly backup (Sunday 2 AM)
+# - Alert check (every 6 hours)
 ```
 
 ---
 
-## 📊 Usage Guide
+### Step 9.3: Verify log rotation
 
-### Daily
-
-**Nothing!** Automated tasks run in background.
-
-**Optional:** Quick check
 ```bash
-~/health-check.sh | tail -20
+# Test logrotate configuration
+sudo logrotate -d /etc/logrotate.d/prometheus
+
+# Check systemd journal limits
+grep -E "^SystemMaxUse|^RuntimeMaxUse" /etc/systemd/journald.conf
+
+# Should show:
+# SystemMaxUse=500M
+# RuntimeMaxUse=100M
 ```
 
 ---
 
-### Weekly
+### Step 9.4: Complete system check
 
-**Check logs:**
 ```bash
-tail -50 /var/log/prometheus/alerts.log
-```
-
-If alerts present, investigate.
-
----
-
-### Monthly
-
-**Run maintenance checklist:**
-```bash
-~/monthly-maintenance.sh
-```
-
-Follow each step carefully.
-
----
-
-### When updating ZIM files
-
-**1. Check for updates:**
-```bash
-~/list-zim-versions.sh
-```
-
-**2. Visit Kiwix library:**
-- Medical: https://download.kiwix.org/zim/other/
-- Wikipedia: https://download.kiwix.org/zim/wikipedia/
-
-**3. Download and install:**
-```bash
-~/update-zim-files.sh
-```
-
-**4. Update service file:**
-```bash
-sudo nano /etc/systemd/system/kiwix-serve.service
-```
-
-Add new ZIM file path, remove old one.
-
-**5. Restart:**
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart kiwix-serve
-```
-
-**6. Test:**
-```
-http://prometheus-station.local
+echo "=== FINAL VERIFICATION ==="
+echo ""
+echo "1. Cron Jobs:"
+crontab -l | grep -v "^#" | grep -v "^$"
+echo ""
+echo "2. Log Directory:"
+ls -lh /var/log/prometheus/
+echo ""
+echo "3. Backups:"
+ls -lh /var/backups/prometheus/configs/ | tail -3
+echo ""
+echo "4. Disk Space:"
+df -h / | tail -1
+echo ""
+echo "5. Services:"
+systemctl is-active kiwix-serve apache2 ssh && echo "All critical services: ✓ Running"
+echo ""
+echo "6. Firewall:"
+sudo ufw status | grep "Status:"
+echo ""
+echo "=== VERIFICATION COMPLETE ==="
 ```
 
 ---
 
-### When doing system updates
+## ✅ Verification Checklist
 
-**Run safe update script:**
-```bash
-~/safe-system-update.sh
-```
+Go through each item to confirm everything works:
 
-**After reboot (if required):**
-```bash
-~/health-check.sh
-```
+### Installation
+- [ ] bc installed: `bc --version` shows version
+- [ ] UFW installed and configured: `sudo ufw status` shows active
+- [ ] All ports allowed: 22, 80, 8080, tailscale0
 
-Verify all services running.
+### Scripts Created & Tested
+- [ ] `health-check.sh` runs without errors
+- [ ] `list-zim-versions.sh` shows all ZIM files
+- [ ] `backup-config.sh` creates backup successfully
+- [ ] `check-alerts.sh` reports "No alerts"
+- [ ] `monthly-maintenance.sh` displays checklist
+
+### Log Management
+- [ ] `/etc/logrotate.d/prometheus` exists
+- [ ] systemd journal limited to 500M
+- [ ] `/var/log/prometheus/` directory exists
+
+### Automation
+- [ ] Cron jobs configured: `crontab -l` shows 3 tasks
+- [ ] Health check at 3 AM
+- [ ] Backup on Sunday at 2 AM
+- [ ] Alert check every 6 hours
+
+### Verification Tests
+- [ ] Manual health check logged: `/var/log/prometheus/health-test.log` exists
+- [ ] Backup file created: `/var/backups/prometheus/configs/` has files
+- [ ] No critical alerts: `~/check-alerts.sh` returns OK
+
+---
+
+## 📊 What You've Accomplished
+
+**Automated Systems:**
+✅ Daily health monitoring (3 AM)  
+✅ Weekly configuration backups (Sunday 2 AM)  
+✅ Regular alert checking (every 6 hours)  
+✅ Automatic log rotation (weekly)  
+✅ Automatic cleanup (old logs, old backups)  
+
+**Manual Tools:**
+✅ ZIM version inventory  
+✅ ZIM update system  
+✅ Configuration restore  
+✅ Monthly maintenance checklist  
+
+**Your Prometheus Station is now:**
+- Self-monitoring
+- Self-backing-up
+- Self-alerting
+- Self-cleaning
+- Low maintenance!
 
 ---
 
@@ -1544,231 +1553,125 @@ Verify all services running.
 
 ### Health check shows errors
 
-**High temperature:**
-- Add cooling (heatsinks, fan)
+**"bc: command not found"**
+```bash
+sudo apt install -y bc
+```
+
+**"ufw: command not found"**
+```bash
+sudo apt install -y ufw
+# Then configure as shown in Part 0
+```
+
+**High temperature warning**
+- Add heatsink/fan
 - Improve ventilation
-- Reduce load (fewer concurrent users)
+- Check for dust
 
-**High disk usage:**
-- Clean old logs: `sudo journalctl --vacuum-size=500M`
-- Remove old ZIM backups: `ls /var/backups/prometheus/zim-backups/`
-- Check largest directories: `sudo du -h --max-depth=1 / | sort -hr | head -10`
-
-**Service down:**
-- Check status: `sudo systemctl status SERVICE_NAME`
-- Check logs: `sudo journalctl -u SERVICE_NAME -n 50`
-- Restart: `sudo systemctl restart SERVICE_NAME`
-
----
-
-### ZIM update fails
-
-**Download interrupted:**
-- Resume with `wget -c URL`
-- Or start update script again (it will resume)
-
-**File corrupted:**
-- Delete partial file: `rm /var/kiwix/temp/FILENAME.zim`
-- Download again
-
-**Kiwix won't start after update:**
-- Check service file syntax: `sudo nano /etc/systemd/system/kiwix-serve.service`
-- Verify file paths are correct
-- Test manually: `/usr/local/bin/kiwix-serve --port=8080 /var/kiwix/data/*.zim`
-
----
-
-### Backup restore doesn't work
-
-**Permissions wrong after restore:**
+**High disk usage**
 ```bash
-sudo chown -R guillain:guillain /home/guillain
-sudo chown -R www-data:www-data /var/www/html
+# Clean logs
+sudo journalctl --vacuum-size=500M
+
+# Check what's using space
+sudo du -h --max-depth=1 / | sort -hr | head -10
 ```
 
-**Services won't start:**
+---
+
+### Cron jobs not running
+
+**Check cron service:**
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl restart kiwix-serve apache2
+sudo systemctl status cron
+```
+
+**Check cron logs:**
+```bash
+grep CRON /var/log/syslog | tail -20
+```
+
+**Verify crontab syntax:**
+```bash
+crontab -l
+# Should have exactly 3 task lines
 ```
 
 ---
 
-## 📝 Maintenance Calendar
+### Backup fails
 
-### Create reminder
-
-**Option 1: Phone calendar**
-- Title: "Prometheus Station Maintenance"
-- Repeat: Monthly
-- Alert: 1 day before
-- Notes: Run `~/monthly-maintenance.sh`
-
-**Option 2: Email reminder**
-- Use Google Calendar / Outlook
-- Recurring event
-- Email notification
-
-**Option 3: Desktop reminder**
-Add to your personal todo system.
-
----
-
-## 🎓 What You've Learned
-
-Congratulations! You now know how to:
-
-✅ **Monitor system health** automatically  
-✅ **Manage log files** to prevent disk full  
-✅ **Update ZIM content** safely  
-✅ **Apply system updates** without breaking things  
-✅ **Backup and restore** configurations  
-✅ **Set up automated alerts** for problems  
-✅ **Follow maintenance checklists** systematically  
-
-**Skills gained:**
-- System administration best practices
-- Preventive maintenance procedures
-- Backup/restore strategies
-- Log management
-- Automated monitoring
-- Safe update procedures
-
----
-
-## 🎯 Next Steps
-
-**Your maintenance system is complete!** Now you can:
-
-### Option A: Field deployment
-- Test 24-48 hours continuously
-- Switch to hotspot mode
-- Verify all services survive reboot
-- Document any issues
-
-### Option B: Advanced features
-- Add Meshtastic (long-range communication)
-- Solar power integration
-- E-Ink status display
-- Additional monitoring
-
-### Option C: Documentation
-- Create user guides
-- Print connection instructions
-- Document your specific setup
-- Share improvements with community
-
----
-
-## 📚 Quick Reference Card
-
-**Print this and keep near your station:**
-
+**Permission issues:**
+```bash
+sudo chown -R $USER:$USER /var/backups/prometheus
 ```
-╔════════════════════════════════════════════════════════╗
-║     PROMETHEUS STATION - MAINTENANCE QUICK REF         ║
-╚════════════════════════════════════════════════════════╝
 
-DAILY (automated):
-  • Health check (3 AM)
-  • Alert monitoring (every 6 hours)
-
-WEEKLY:
-  ~/health-check.sh
-  tail /var/log/prometheus/alerts.log
-
-MONTHLY:
-  ~/monthly-maintenance.sh
-  (Follow complete checklist)
-
-SYSTEM UPDATE:
-  ~/safe-system-update.sh
-
-ZIM UPDATE:
-  ~/list-zim-versions.sh
-  ~/update-zim-files.sh
-
-BACKUP:
-  ~/backup-config.sh
-
-EMERGENCY:
-  ~/health-check.sh
-  sudo systemctl restart kiwix-serve apache2
-
-LOGS:
-  /var/log/prometheus/
-
-HELP:
-  https://github.com/GuillainM/Prometheus-Station
+**Directory doesn't exist:**
+```bash
+sudo mkdir -p /var/backups/prometheus/configs
+sudo chown $USER:$USER /var/backups/prometheus/configs
 ```
 
 ---
 
-## ⏱️ Time Breakdown
+## 📅 Maintenance Schedule
 
-**From tested real-world setup:**
+### Daily (Automated)
+- Health check runs at 3 AM
+- Review only if you see issues
 
-| Phase | Time | Notes |
-|-------|------|-------|
-| Health dashboard | 30 min | Copy-paste scripts |
-| Log management | 20 min | Configuration |
-| ZIM update system | 40 min | Includes testing |
-| System updates | 30 min | Script + test run |
-| Backup/restore | 25 min | Both scripts |
-| Alerts | 20 min | Setup automation |
-| Checklist | 10 min | Documentation |
-| Testing | 20 min | Verify everything |
-| **TOTAL** | **3h 15min** | One-time setup |
+### Weekly (Automated)
+- Configuration backup on Sunday 2 AM
+- No action needed
 
-**Monthly maintenance:** 30-45 minutes
+### Monthly (Manual - 30-45 min)
+```bash
+~/monthly-maintenance.sh
+```
 
----
+Follow the checklist step by step.
 
-## 🔐 Security Notes
+### Quarterly
+- Review ZIM file versions
+- Update old content if needed
+- Check system updates
 
-### Regular security tasks
-
-**Monthly:**
-- Check failed login attempts
-- Audit firewall rules
-- Review SSH authorized keys
-- Update all packages
-
-**Quarterly:**
-- Change WiFi password (if compromised)
-- Review Tailscale access
-- Check for unusual network activity
-
-**Annually:**
-- Full security audit
-- Review all user accounts
-- Update emergency procedures
+### Yearly
+- Full system audit
+- Consider SD card replacement (preventive)
+- Update documentation
 
 ---
 
 ## 💡 Pro Tips
 
-### Efficiency tricks
+### Create command aliases
 
-**1. Alias common commands**
+Add to `~/.bashrc`:
+
 ```bash
+echo "# Prometheus Station aliases" >> ~/.bashrc
 echo "alias health='~/health-check.sh'" >> ~/.bashrc
+echo "alias zimlist='~/list-zim-versions.sh'" >> ~/.bashrc
+echo "alias backup='~/backup-config.sh'" >> ~/.bashrc
 echo "alias maint='~/monthly-maintenance.sh'" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-Now just type `health` or `maint`!
+Now just type `health` instead of `~/health-check.sh`!
 
 ---
 
-**2. Quick service restart**
+### Quick service restart
+
 ```bash
 nano ~/restart-all.sh
 ```
 
 ```bash
 #!/bin/bash
-sudo systemctl restart kiwix-serve apache2 hostapd dnsmasq
+sudo systemctl restart kiwix-serve apache2
 echo "All services restarted"
 ```
 
@@ -1778,40 +1681,132 @@ chmod +x ~/restart-all.sh
 
 ---
 
-**3. Monitoring widget** (if you have desktop)
+### Monitor in real-time
 
 ```bash
 watch -n 60 -c ~/health-check.sh
 ```
 
-Live updating dashboard!
+Live updating dashboard every 60 seconds!
+
+---
+
+## 🎓 What You've Learned
+
+**Skills gained:**
+- System monitoring automation
+- Log management and rotation
+- Backup/restore strategies
+- Cron job scheduling
+- Alert system configuration
+- Maintenance best practices
+- Troubleshooting methodology
+
+**These skills transfer to:**
+- Any Raspberry Pi project
+- Linux server administration
+- System maintenance in general
+- IT infrastructure management
+
+---
+
+## 📚 Quick Command Reference
+
+```bash
+# Health & Monitoring
+~/health-check.sh                    # Full system health report
+~/check-alerts.sh                    # Check for critical issues
+~/list-zim-versions.sh               # Show ZIM file inventory
+
+# Maintenance
+~/backup-config.sh                   # Backup configuration
+~/monthly-maintenance.sh             # Monthly checklist
+~/update-zim-files.sh               # Update ZIM content
+
+# Logs
+tail -f /var/log/prometheus/health-$(date +%Y-%m).log   # Watch health logs
+cat /var/log/prometheus/alerts.log                      # View alerts
+sudo journalctl -u kiwix-serve -f                       # Watch Kiwix logs
+
+# System
+df -h /                              # Check disk space
+free -h                              # Check memory
+vcgencmd measure_temp                # Check temperature
+systemctl status kiwix-serve         # Check Kiwix status
+
+# Cron
+crontab -l                           # List cron jobs
+crontab -e                           # Edit cron jobs
+
+# Cleanup
+sudo journalctl --vacuum-size=500M   # Clean system logs
+sudo apt clean                       # Clean package cache
+```
+
+---
+
+## 🎯 Next Steps
+
+**Your maintenance system is complete!** 
+
+**Option A:** Continue with additional features
+- Meshtastic LoRa network (long-range communication)
+- Solar power integration
+- E-Ink status display
+
+**Option B:** Deploy to the field
+- Test 24-48 hours continuously
+- Switch to hotspot mode
+- Verify everything works offline
+- Document any issues in maintenance log
+
+**Option C:** Optimize further
+- Fine-tune alert thresholds
+- Add custom monitoring
+- Create additional automation
 
 ---
 
 ## 📖 Additional Resources
 
-### Official documentation
-- [Kiwix Updates](https://library.kiwix.org/)
-- [Raspberry Pi System Maintenance](https://www.raspberrypi.org/documentation/)
-- [Ubuntu Server Guide](https://ubuntu.com/server/docs)
-
-### Tools
-- [htop](https://htop.dev/) - Interactive process viewer
-- [ncdu](https://dev.yorhel.nl/ncdu) - Disk usage analyzer
-- [glances](https://nicolargo.github.io/glances/) - System monitor
+### Official Documentation
+- [Cron HowTo](https://help.ubuntu.com/community/CronHowto)
+- [Logrotate](https://linux.die.net/man/8/logrotate)
+- [Systemd Journal](https://www.freedesktop.org/software/systemd/man/journald.conf.html)
 
 ### Community
 - [Prometheus Station GitHub](https://github.com/GuillainM/Prometheus-Station)
 - [r/raspberry_pi](https://reddit.com/r/raspberry_pi)
-- [Kiwix Forum](https://forum.kiwix.org/)
 
 ---
 
-**Last updated:** December 30, 2025  
+## ⏱️ Time Breakdown
+
+**From tested real-world setup:**
+
+| Phase | Time | Notes |
+|-------|------|-------|
+| Part 0: Install tools | 5 min | bc + UFW |
+| Part 1: Health dashboard | 30 min | Script creation + testing |
+| Part 2: Log management | 20 min | Configuration |
+| Part 3: ZIM inventory | 15 min | List versions |
+| Part 4: Backup system | 25 min | Both scripts + testing |
+| Part 5: Alert system | 20 min | Script + testing |
+| Part 6: Cron automation | 15 min | Setup + verification |
+| Part 7: ZIM updates | 40 min | Script (use as needed) |
+| Part 8: Maintenance checklist | 10 min | Documentation |
+| Part 9: Final testing | 15 min | Complete verification |
+| **TOTAL SETUP** | **3h 15min** | One-time configuration |
+
+**Monthly maintenance:** 30-45 minutes
+
+---
+
+**Last updated:** December 31, 2025  
 **Tested on:** Raspberry Pi 4 8GB, Raspberry Pi OS Lite (64-bit)  
-**Scripts tested:** All scripts verified working  
-**Maintenance schedule:** Proven over 6+ months continuous operation
+**All scripts tested:** ✅ Verified working  
+**Real-world deployment:** 6+ months continuous operation  
 
 ---
 
-*Made with 🔥 for Prometheus Station - Keep your knowledge hub healthy!*
+*Made with 🔥 for Prometheus Station - Tested, debugged, and perfected through real-world use!*

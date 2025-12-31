@@ -30,14 +30,20 @@ This documentation guides you step-by-step through building your own autonomous 
 - Network setup and optimization
 - **Time:** 1-2 hours | **Difficulty:** ⭐⭐⭐☆☆
 
+**[Step 5: System maintenance & updates](05-maintenance-updates.md)**
+- Health monitoring dashboard
+- Automated update procedures
+- Content management and rotation
+- **Time:** 2 hours initial + 30-45 min/month | **Difficulty:** ⭐⭐⭐☆☆
+
 ### ⏳ Coming soon
 
-**Step 5: Meshtastic setup**
+**Step 6: Meshtastic setup**
 - LoRa radio configuration
 - Mesh network deployment
 - Mobile terminal setup
 
-**Step 6: Solar power**
+**Step 7: Solar power**
 - Power system wiring
 - Energy monitoring
 - Autonomy optimization

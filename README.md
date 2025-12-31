@@ -184,13 +184,19 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 - Network setup and optimization
 - **Time:** 1-2 hours | **Difficulty:** ⭐⭐⭐☆☆ Medium
 
-**⏳ [Step 5: Meshtastic setup](docs/05-meshtastic-setup.md)**
+**✅ [Step 5: System maintenance & updates](docs/05-maintenance-updates.md)**
+- Health monitoring dashboard
+- Automated update procedures
+- Content management and rotation
+- **Time:** 2 hours initial + 30-45 min/month | **Difficulty:** ⭐⭐⭐☆☆ Medium
+
+**⏳ [Step 6: Meshtastic setup](docs/06-meshtastic-setup.md)**
 - LoRa radio configuration
 - Mesh network deployment
 - Mobile terminal setup
-- **Status:** Coming soon
+- **Status:** Planned
 
-**⏳ [Step 6: Solar power](docs/06-solar-power.md)**
+**⏳ [Step 7: Solar power](docs/07-solar-power.md)**
 - Power system wiring
 - Energy monitoring
 - Autonomy optimization
@@ -340,6 +346,7 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 - ✅ Kiwix installation guide (tested, documented)
 - ✅ Kiwix configuration guide (tested, documented)
 - ✅ WiFi access point configuration (tested, documented)
+- ✅ System maintenance & updates guide (tested, documented)
 - ✅ Content strategy framework
 - ✅ Power consumption analysis
 - ✅ Beginner-friendly documentation

@@ -6,25 +6,25 @@ This documentation guides you step-by-step through building your own autonomous 
 
 ### ✅ Complete & tested guides
 
-**[Step 1: Raspberry Pi Setup](01-raspberry-setup.md)**
+**[Step 1: Raspberry pi setup](01-raspberry-setup.md)**
 - Headless configuration (no monitor needed)
 - SSH access with key authentication
 - System optimization for 24/7 operation
 - **Time:** 1h 45min | **Difficulty:** ⭐⭐☆☆☆
 
-**[Step 2: Kiwix Installation](02-kiwix-installation.md)**
+**[Step 2: Kiwix installation](02-kiwix-installation.md)**
 - Content strategy selection
 - ZIM file downloads (Wikipedia, medical content)
 - Server configuration and optimization
 - **Time:** 2-4 hours (mostly downloads) | **Difficulty:** ⭐⭐☆☆☆
 
-**[Step 3: Kiwix Configuration](03-kiwix-configuration.md)**
+**[Step 3: Kiwix configuration](03-kiwix-configuration.md)**
 - Advanced server configuration
 - Performance optimization
 - Content management
 - **Time:** 1-2 hours | **Difficulty:** ⭐⭐☆☆☆
 
-**[Step 4: WiFi Access Point](04-wifi-access-point.md)**
+**[Step 4: Wifi access point](04-wifi-access-point.md)**
 - Transform Pi into wireless hotspot
 - Captive portal configuration
 - Network setup and optimization
@@ -64,4 +64,4 @@ Open an issue or pull request on the [main repo](https://github.com/GuillainM/Pr
 
 ---
 
-**Back to [Main README](../README.md)**
+**Back to [main README](../README.md)**

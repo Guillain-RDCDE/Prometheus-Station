@@ -1,4 +1,4 @@
-# Step 3: Kiwix Configuration & Web Interface
+# Step 3: Kiwix configuration & web interface
 
 **Goal:** Transform Kiwix from a basic server into a polished, professional knowledge station with custom landing page and monitoring tools.
 
@@ -9,7 +9,7 @@
 
 ---
 
-## 📋 What You'll Need
+## 📋 What you'll need
 
 ### Prerequisites
 - [ ] ✅ Completed [Step 1 - Raspberry Pi Setup](01-raspberry-setup.md)
@@ -40,9 +40,9 @@ We'll accomplish:
 
 ---
 
-## Step 1: Install Apache Web Server (10 minutes)
+## Step 1: install apache web server (10 minutes)
 
-### Why Apache?
+### Why apache?
 
 Kiwix runs on port 8080, but we want:
 - Clean URLs without port numbers
@@ -54,7 +54,7 @@ Kiwix runs on port 8080, but we want:
 
 ---
 
-### Install Apache
+### Install apache
 
 ```bash
 # Install Apache
@@ -72,7 +72,7 @@ Server version: Apache/2.4.XX (Debian)
 
 ---
 
-### Enable Required Modules
+### Enable required modules
 
 ```bash
 # Enable proxy modules for reverse proxy functionality
@@ -91,7 +91,7 @@ sudo systemctl restart apache2
 
 ---
 
-### Configure Firewall
+### Configure firewall
 
 ```bash
 # Apache will use port 80
@@ -114,7 +114,7 @@ To                         Action      From
 
 ---
 
-### Move Kiwix to Port 8080
+### Move kiwix to port 8080
 
 **Edit Kiwix service:**
 
@@ -156,9 +156,9 @@ Should return HTML content.
 
 ---
 
-## Step 2: Configure Apache Reverse Proxy (15 minutes)
+## Step 2: configure apache reverse proxy (15 minutes)
 
-### Create Apache Configuration
+### Create apache configuration
 
 ```bash
 sudo nano /etc/apache2/sites-available/prometheus.conf
@@ -204,7 +204,7 @@ sudo nano /etc/apache2/sites-available/prometheus.conf
 
 ---
 
-### Enable Site and Reload Apache
+### Enable site and reload apache
 
 ```bash
 # Disable default Apache site
@@ -226,7 +226,7 @@ sudo systemctl restart apache2
 
 ---
 
-### Test Reverse Proxy
+### Test reverse proxy
 
 **From browser:**
 ```
@@ -237,9 +237,9 @@ Should show Kiwix content library!
 
 ---
 
-## Step 3: Add Logo/Branding (10 minutes)
+## Step 3: add logo/branding (10 minutes)
 
-### Transfer Your Logo
+### Transfer your logo
 
 **From your computer (Windows PowerShell):**
 
@@ -267,7 +267,7 @@ ls -lh /var/www/html/logo.png
 
 ---
 
-## Step 4: Create Professional Landing Page (30 minutes)
+## Step 4: create professional landing page (30 minutes)
 
 ### Create index.html
 
@@ -800,7 +800,7 @@ sudo chmod 644 /var/www/html/index.html
 
 ---
 
-### Adjust Logo Size
+### Adjust logo size
 
 **If your logo is too large/small, edit the CSS:**
 
@@ -827,9 +827,9 @@ Common sizes:
 
 ---
 
-## Step 5: Install PHP for Dynamic Pages (10 minutes)
+## Step 5: install php for dynamic pages (10 minutes)
 
-### Why PHP?
+### Why php?
 
 We need PHP to create the system status monitoring page.
 
@@ -849,7 +849,7 @@ PHP 8.4.16 (cli) (built: Dec 18 2024 21:19:25) (NTS)
 
 ---
 
-### Enable PHP Module
+### Enable php module
 
 ```bash
 # Add www-data to video group (for temperature monitoring)
@@ -869,7 +869,7 @@ php_module (shared)
 
 ---
 
-## Step 6: Create Connection Instructions Page (15 minutes)
+## Step 6: create connection instructions page (15 minutes)
 
 ```bash
 sudo nano /var/www/html/connect.html
@@ -1165,7 +1165,7 @@ sudo nano /var/www/html/connect.html
 
 ---
 
-## Step 7: Create System Status Monitor (20 minutes)
+## Step 7: create system status monitor (20 minutes)
 
 **Download the complete status.php file provided separately, or create it:**
 
@@ -1192,7 +1192,7 @@ sudo chmod 644 /var/www/html/status.php
 
 ---
 
-## Step 8: Create Auto-Update Script (15 minutes)
+## Step 8: create auto-update script (15 minutes)
 
 **This script automatically updates the content index when you add new ZIM files.**
 
@@ -1285,7 +1285,7 @@ chmod +x ~/update-prometheus-content.sh
 
 ---
 
-### Automate with Cron (Optional)
+### Automate with cron (optional)
 
 **Run updates daily at 3 AM:**
 
@@ -1302,33 +1302,33 @@ crontab -e
 
 ---
 
-## ✅ Verification Checklist
+## ✅ Verification checklist
 
-### Apache Configuration
+### Apache configuration
 - [ ] Apache running: `systemctl status apache2`
 - [ ] Reverse proxy working: `http://prometheus-station.local/content/`
 - [ ] Port 80 in firewall: `sudo ufw status | grep 80`
 
-### Landing Page
+### Landing page
 - [ ] Index page loads: `http://prometheus-station.local`
 - [ ] Logo displays correctly
 - [ ] All content cards visible
 - [ ] Links work to Kiwix content
 - [ ] Responsive on mobile
 
-### PHP & Dynamic Pages
+### Php & dynamic pages
 - [ ] PHP installed: `php -v`
 - [ ] PHP module loaded: `apache2ctl -M | grep php`
 - [ ] Status page works: `http://prometheus-station.local/status.php`
 - [ ] Temperature displays correctly
 - [ ] All services show status
 
-### Connection Instructions
+### Connection instructions
 - [ ] Connect page loads: `http://prometheus-station.local/connect.html`
 - [ ] Printable format works
 - [ ] Password shown clearly (12345)
 
-### Auto-Update
+### Auto-update
 - [ ] Script executes: `~/update-prometheus-content.sh`
 - [ ] No errors shown
 - [ ] Cron job configured (if desired)
@@ -1337,7 +1337,7 @@ crontab -e
 
 ## 🛠️ Troubleshooting
 
-### Apache Won't Start
+### Apache won't start
 
 **Check logs:**
 ```bash
@@ -1360,7 +1360,7 @@ sudo netstat -tulpn | grep :80
 
 ---
 
-### Reverse Proxy Not Working
+### Reverse proxy not working
 
 **Symptoms:** `/content/` returns 404
 
@@ -1376,7 +1376,7 @@ sudo systemctl restart apache2
 
 ---
 
-### PHP Pages Show Code
+### Php pages show code
 
 **Symptom:** status.php displays PHP code instead of executing
 
@@ -1394,7 +1394,7 @@ sudo systemctl restart apache2
 
 ---
 
-### Temperature Shows Error
+### Temperature shows error
 
 **Symptom:** "Can't open device file: /dev/vcio"
 
@@ -1409,7 +1409,7 @@ sudo systemctl restart apache2
 
 ---
 
-### Logo Too Large/Small
+### Logo too large/small
 
 **Edit index.html:**
 ```bash
@@ -1426,9 +1426,9 @@ sudo nano /var/www/html/index.html
 
 ---
 
-## 📊 Performance Tips
+## 📊 Performance tips
 
-### Optimize Apache
+### Optimize apache
 
 ```bash
 sudo nano /etc/apache2/apache2.conf
@@ -1458,7 +1458,7 @@ sudo systemctl restart apache2
 
 ---
 
-### Cache Static Assets
+### Cache static assets
 
 **Add to prometheus.conf:**
 ```bash
@@ -1480,7 +1480,7 @@ sudo systemctl reload apache2
 
 ---
 
-## 🎯 What You've Accomplished
+## 🎯 What you've accomplished
 
 ✅ **Professional web interface** with branded landing page  
 ✅ **Reverse proxy** for clean, accessible URLs  
@@ -1499,7 +1499,7 @@ sudo systemctl reload apache2
 
 ---
 
-## 🎓 What You've Learned
+## 🎓 What you've learned
 
 - Apache web server configuration
 - Reverse proxy setup
@@ -1518,7 +1518,7 @@ sudo systemctl reload apache2
 
 ---
 
-## 🚀 Next Steps
+## 🚀 Next steps
 
 **Your web interface is complete!** Time to make the station autonomous:
 
@@ -1530,7 +1530,7 @@ sudo systemctl reload apache2
 
 ---
 
-## 📝 Quick Command Reference
+## 📝 Quick command reference
 
 ```bash
 # Apache control

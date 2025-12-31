@@ -11,17 +11,17 @@
 
 ## The vision
 
-When civilization's infrastructure collapses—whether by earthquake, war, censorship, or chaos—knowledge becomes the most precious resource.
+When civilization's infrastructure collapses—whether by earthquake, war, censorship, or chaos—knowledge becomes the foundation for survival and rebuilding.
 
-**Prometheus Station is a beacon in the darkness.**
+**Prometheus Station is a seed vault for human knowledge.**
 
-A solar-powered, self-sufficient knowledge repository that works when the internet doesn't. When cell towers are rubble. When libraries are ash. When asking Google isn't an option.
+A solar-powered, self-sufficient knowledge hub that works when the internet doesn't. When cell towers are rubble. When libraries are ash. When asking Google isn't an option.
 
-This is the Library of Alexandria for the apocalypse. A lifeboat filled with humanity's accumulated wisdom, ready to deploy anywhere, serving anyone within reach.
+This is more than emergency medicine. It's the collective wisdom needed to rebuild: how to purify water, grow food, generate power, treat illness, educate children, and maintain the thin veneer we call civilization.
 
 **No internet. No monthly fees. No dependency on infrastructure that can fail.**
 
-Just knowledge, communication, and light in the darkness.
+Just the accumulated knowledge of humanity, ready to restart civilization from scratch if needed.
 
 ---
 
@@ -30,10 +30,11 @@ Just knowledge, communication, and light in the darkness.
 Three critical systems in one portable, resilient package:
 
 ### 📚 An offline knowledge repository
-- Complete Wikipedia (90GB+ in English alone)
-- Emergency medical protocols (WHO, MSF, ICRC field guides)
-- Survival knowledge (water purification, food safety, emergency procedures)
-- Educational content in multiple languages
+- Complete Wikipedia (90GB+ in English alone) - Human knowledge, uncensored
+- Essential technical skills (engineering, agriculture, construction, energy)
+- Medical protocols (emergency medicine, public health, disease prevention)
+- Survival fundamentals (water, food, shelter, sanitation, first aid)
+- Educational resources (mathematics, sciences, languages, history)
 - Access via WiFi hotspot - connect like any network, no internet needed
 
 ### 📡 Long-range mesh communication
@@ -49,7 +50,7 @@ Three critical systems in one portable, resilient package:
 - Portable or fixed installation
 - Operates in disaster zones, remote areas, anywhere with sun
 
-**In practice:** You deploy a backpack-sized station. It creates a WiFi bubble containing all human knowledge. People connect with phones, tablets, laptops. No internet required. Knowledge flows. Lives are saved.
+**In practice:** You deploy a backpack-sized station. It creates a WiFi bubble containing the essential knowledge to sustain civilization. People connect with phones, tablets, laptops. No internet required. Knowledge flows. Communities rebuild. Civilization persists.
 
 ---
 
@@ -57,33 +58,37 @@ Three critical systems in one portable, resilient package:
 
 ### The problem
 
-Knowledge is centralized. Wikipedia requires internet. Medical references are online. When infrastructure fails, we go blind.
+Modern civilization stores its knowledge in the cloud. Wikipedia, textbooks, technical manuals, medical references—all require functioning infrastructure.
 
-**We've built a civilization dependent on fragile systems.**
+**When the grid fails, we lose access to everything we know.**
+
+A doctor in a disaster zone can't look up treatment protocols. Engineers can't reference specifications. Teachers have no materials. Communities lose the technical knowledge needed to maintain water systems, generate power, or grow food efficiently.
 
 ### The solution
 
 Decentralize critical knowledge. Make it resilient. Make it accessible. Make it work when everything else fails.
 
-**Prometheus gave humanity fire. We're giving humanity knowledge that can't be extinguished.**
+**Prometheus gave humanity fire. This station preserves the knowledge to use it—and everything else we've learned since.**
 
 ### Who this serves
 
-- 🚑 **Disaster zones** - Earthquake, hurricane, flood response teams
-- 🏥 **Remote clinics** - Medical workers in underserved areas
-- 🌍 **Humanitarian missions** - MSF, ICRC, Red Cross field operations
-- 📚 **Censored regions** - Access to uncensored information
-- 🏔️ **Off-grid communities** - Education without infrastructure
-- 🔬 **Field research** - Knowledge base in remote locations
-- 🛡️ **Resilience planners** - Community preparedness
-- 🎓 **Educators** - Teaching in low-connectivity areas
+- 🏚️ **Post-disaster communities** - Rebuilding infrastructure, restoring services
+- 🏥 **Remote medical facilities** - Healthcare without internet connectivity
+- 🌍 **Humanitarian operations** - MSF, ICRC, Red Cross field missions
+- 📚 **Censored regions** - Access to uncensored human knowledge
+- 🏔️ **Off-grid settlements** - Education and technical references
+- 🔬 **Remote operations** - Field research, mining, exploration
+- 🛡️ **Resilience planners** - Community self-sufficiency preparation
+- 🎓 **Educators** - Teaching in areas with unreliable connectivity
+- 🏗️ **Development projects** - Building infrastructure in remote areas
 
-**Real-world examples this system was designed for:**
-- 2010 Haiti earthquake - infrastructure destroyed, medical knowledge inaccessible
-- 2013 Typhoon Haiyan - hospitals offline, protocols needed
-- Syrian conflict zones - censored internet, limited medical access
-- Remote Amazon clinics - zero connectivity, life-or-death decisions daily
-- Refugee camps - educational resources non-existent
+**Real-world scenarios this system addresses:**
+- 2010 Haiti earthquake - Infrastructure destroyed, technical knowledge needed for rebuilding
+- 2013 Typhoon Haiyan - Power grid down, water systems failed, no access to repair manuals
+- Syrian conflict zones - Censored internet, isolated communities needing to maintain services
+- Remote settlements - Zero connectivity, need technical references for infrastructure
+- Refugee camps - Educational resources non-existent, children growing up without schooling
+- Grid failures - Extended power outages eliminating access to online resources
 
 ---
 
@@ -91,28 +96,31 @@ Decentralize critical knowledge. Make it resilient. Make it accessible. Make it 
 
 ### Knowledge content (choose your strategy)
 
-**Strategy 1: Emergency Response Pack (~5.5 GB)**
-- Post-disaster medical protocols (MSF/WHO/ICRC)
-- Emergency medicine encyclopedia
-- ER procedures and toxicology
-- Water purification guides
-- Food safety protocols
-- Wikipedia medicine subset (EN + FR)
-- **Best for:** Field deployment, rapid response, humanitarian missions
+**Strategy 1: Crisis response pack (~5.5 GB)**
+- Emergency medical protocols (WHO, MSF, ICRC field guides)
+- Water purification and sanitation (critical infrastructure)
+- Food safety and emergency nutrition
+- Shelter and emergency construction
+- Basic electrical and mechanical repair
+- Wikipedia subsets: medicine, engineering, agriculture (EN + FR)
+- **Best for:** Disaster response, rapid deployment, humanitarian missions
 
-**Strategy 2: Full Knowledge Base (~120-150 GB)**
-- Complete Wikipedia (English + French)
-- All medical content from Strategy 1
-- Comprehensive educational resources
-- **Best for:** Permanent installations, schools, community centers
+**Strategy 2: Civilization rebuild kit (~120-150 GB)**
+- Complete Wikipedia (English + French) - All human knowledge
+- All critical content from Strategy 1
+- Technical references (engineering, agriculture, construction, energy)
+- Educational curriculum (K-12 mathematics, sciences, literature)
+- Historical and cultural knowledge
+- **Best for:** Long-term installations, community centers, educational hubs
 
-**Strategy 3: Minimal Kit (~750 MB)**
-- Core disaster medicine protocols
-- Emergency procedures only
-- Water safety essentials
-- **Best for:** Ultra-portable, proof-of-concept, testing
+**Strategy 3: Survival essentials (~750 MB)**
+- Critical medical protocols (life-threatening emergencies)
+- Water purification methods
+- Basic shelter and fire
+- Emergency food safety
+- **Best for:** Ultra-portable, rapid response, proof-of-concept
 
-See [Content Strategy Guide](docs/02-kiwix-installation.md) for details.
+See [Content strategy guide](docs/02-kiwix-installation.md) for details.
 
 ### Hardware components
 
@@ -152,37 +160,37 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 
 ### Setup guides (complete & tested)
 
-**✅ [Step 1: Raspberry Pi Setup](docs/01-raspberry-setup.md)**
+**✅ [Step 1: Raspberry pi setup](docs/01-raspberry-setup.md)**
 - Headless configuration (no monitor needed)
 - SSH access with key authentication
 - System optimization for 24/7 operation
 - **Time:** 1h 45min | **Difficulty:** ⭐⭐☆☆☆ Easy
 
-**✅ [Step 2: Kiwix Installation](docs/02-kiwix-installation.md)**
+**✅ [Step 2: Kiwix installation](docs/02-kiwix-installation.md)**
 - Content strategy selection
 - ZIM file downloads (Wikipedia, medical content)
 - Server configuration and optimization
 - **Time:** 2-4 hours (mostly downloads) | **Difficulty:** ⭐⭐☆☆☆ Medium
 
-**✅ [Step 3: Kiwix Configuration](docs/03-kiwix-configuration.md)**
+**✅ [Step 3: Kiwix configuration](docs/03-kiwix-configuration.md)**
 - Advanced server configuration
 - Performance optimization
 - Content management
 - **Time:** 1-2 hours | **Difficulty:** ⭐⭐☆☆☆ Medium
 
-**✅ [Step 4: WiFi Access Point](docs/04-wifi-access-point.md)**
+**✅ [Step 4: Wifi access point](docs/04-wifi-access-point.md)**
 - Transform Pi into wireless hotspot
 - Captive portal configuration
 - Network setup and optimization
 - **Time:** 1-2 hours | **Difficulty:** ⭐⭐⭐☆☆ Medium
 
-**⏳ [Step 5: Meshtastic Setup](docs/05-meshtastic-setup.md)**
+**⏳ [Step 5: Meshtastic setup](docs/05-meshtastic-setup.md)**
 - LoRa radio configuration
 - Mesh network deployment
 - Mobile terminal setup
 - **Status:** Coming soon
 
-**⏳ [Step 6: Solar Power](docs/06-solar-power.md)**
+**⏳ [Step 6: Solar power](docs/06-solar-power.md)**
 - Power system wiring
 - Energy monitoring
 - Autonomy optimization
@@ -232,10 +240,10 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 - Community-driven improvement
 
 **Ethical**
-- Knowledge should be free
-- Privacy by design (no tracking)
-- Humanitarian focus
-- Medical information for all
+- Knowledge should be free and accessible to all
+- Privacy by design (no tracking, no data collection)
+- Humanitarian and educational focus
+- Information for survival, rebuilding, and flourishing
 
 **Practical**
 - Real hardware, real testing
@@ -247,23 +255,34 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 
 ## 🌍 Real-world impact
 
-**Designed for when everything fails:**
+**Designed for when infrastructure fails and knowledge becomes survival:**
 
-- Natural disasters (earthquakes, tsunamis, hurricanes)
-- Conflict zones with destroyed infrastructure
-- Censored internet regions
-- Remote locations with no connectivity
-- Grid failures and power outages
-- Refugee camps and displacement crises
-- Emergency preparedness and resilience
+**Crisis scenarios:**
+- Natural disasters - Earthquakes, tsunamis, hurricanes destroying local infrastructure
+- Conflict zones - War-torn areas with destroyed libraries, schools, hospitals
+- Grid failures - Extended power outages eliminating internet access
+- Censorship - Regions where access to information is restricted or monitored
 
-**If you deploy this in the field, we want to hear about it.** Your experience shapes future versions.
+**Rebuilding scenarios:**
+- Post-disaster reconstruction - Engineers need specs, builders need plans
+- Water system restoration - Communities need purification and distribution knowledge
+- Educational continuity - Teachers and students need curriculum materials
+- Medical capability - Healthcare workers need protocols and references
+- Agricultural recovery - Farmers need information on crops, soil, irrigation
+
+**Long-term resilience:**
+- Remote settlements - Off-grid communities maintaining civilization
+- Refugee camps - Displaced populations educating next generation
+- Indigenous preservation - Communities documenting and sharing traditional knowledge
+- Preparedness planning - Municipalities building resilient information infrastructure
+
+**If you deploy this in the field, we want to hear about it.** Your experience shapes future versions and helps communities worldwide.
 
 ---
 
 ## 🛠️ Technical overview
 
-**System Architecture:**
+**System architecture:**
 ```
 ┌─────────────────────────────────────────┐
 │          PROMETHEUS STATION             │
@@ -298,14 +317,14 @@ This repository contains **complete, tested, beginner-friendly documentation** f
     Access Wikipedia      Long-range comms
 ```
 
-**Power Budget:**
+**Power budget:**
 - Solar input: 15-25W (daytime average)
 - System draw: 4-6W (continuous)
 - Battery capacity: 89Wh
 - Runtime: 18+ hours without sun
 - Autonomy: Indefinite with 4+ hours sunlight/day
 
-**Network Capabilities:**
+**Network capabilities:**
 - WiFi: 50-300m range (local knowledge access)
 - LoRa: 1-15km+ range (mesh communication)
 - Concurrent users: 10-20 (WiFi), unlimited (LoRa mesh)
@@ -325,7 +344,7 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 - ✅ Power consumption analysis
 - ✅ Beginner-friendly documentation
 
-**In Progress:**
+**In progress:**
 - ⏳ Meshtastic LoRa integration
 - ⏳ Solar power system assembly
 - ⏳ Field testing
@@ -365,7 +384,7 @@ Open an issue or pull request. All knowledge shared makes this better.
 
 ## 🏥 Medical disclaimer
 
-**Critical Notice:**
+**Critical notice:**
 
 Medical content provided by Prometheus Station is for **reference and educational purposes only**.
 
@@ -395,7 +414,7 @@ Copyright © 2025 Guillain d'Erceville
 - ✅ Share and distribute
 - ❌ Don't blame me if it achieves sentience
 
-**Special Grant to Humanitarian Organizations:**
+**Special grant to humanitarian organizations:**
 
 MSF, ICRC, Red Cross, and all humanitarian organizations: You have explicit permission to use, modify, and deploy this system **without attribution requirements**. Save lives first. Credit never.
 

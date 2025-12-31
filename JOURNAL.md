@@ -10,7 +10,7 @@
 ## 📖 Journal Entries
 
 ### [Day 0 - December 26, 2025 (Morning)](journal/day-0.md)
-**Project Kickoff**
+**Project kickoff**
 - Received all hardware (~570€)
 - Set up GitHub repository
 - Created documentation structure
@@ -19,7 +19,7 @@
 ---
 
 ### [Day 1 - December 26, 2025 (Afternoon)](journal/day-1.md)
-**✅ Raspberry Pi Setup - COMPLETED**
+**✅ Raspberry pi setup - COMPLETED**
 - Time: 1h 45min
 - Difficulty: ⭐⭐☆☆☆ Easy
 - Flashed Raspberry Pi OS
@@ -30,7 +30,7 @@
 ---
 
 ### [Day 2 - December 26, 2025 (Evening)](journal/day-2.md)
-**📚 Content Strategy Research**
+**📚 Content strategy research**
 - Time: 2h 45min
 - Difficulty: ⭐⭐⭐☆☆ Medium
 - Discovered "Wikimed" doesn't exist!
@@ -42,7 +42,7 @@
 ---
 
 ### [Day 3 - December 27, 2025](journal/day-3.md)
-**⏳ Kiwix Installation & Medical Pack Download**
+**⏳ Kiwix installation & medical pack download**
 - Planned: Download Strategy 1 (Emergency Medical Pack)
 - Estimated time: 2-3 hours
 - Status: 📋 PENDING
@@ -72,14 +72,14 @@
 
 | Milestone | Status | Completion Date |
 |-----------|--------|-----------------|
-| Hardware Received | ✅ | Dec 26, 2025 (AM) |
-| Raspberry Pi Setup | ✅ | Dec 26, 2025 (PM) |
-| Content Strategy | ✅ | Dec 26, 2025 (Eve) |
-| Kiwix Installation | ⏳ | Dec 27, 2025 |
-| Meshtastic Setup | 📋 | TBD |
-| System Integration | 📋 | TBD |
-| Solar Power | 📋 | TBD |
-| First Deployment | 📋 | TBD |
+| Hardware received | ✅ | Dec 26, 2025 (AM) |
+| Raspberry pi setup | ✅ | Dec 26, 2025 (PM) |
+| Content strategy | ✅ | Dec 26, 2025 (Eve) |
+| Kiwix installation | ⏳ | Dec 27, 2025 |
+| Meshtastic setup | 📋 | TBD |
+| System integration | 📋 | TBD |
+| Solar power | 📋 | TBD |
+| First deployment | 📋 | TBD |
 
 ---
 
@@ -98,7 +98,7 @@
 
 - [README.md](README.md) - Project overview
 - [HARDWARE.md](HARDWARE.md) - Complete parts list
-- [Installation Guides](README.md#quick-start) - Step-by-step setup
+- [Installation guides](README.md#quick-start) - Step-by-step setup
 
 ---
 

@@ -1,4 +1,4 @@
-# Step 2: Kiwix Installation & Content Strategy
+# Step 2: Kiwix installation & content strategy
 
 **Goal:** Install Kiwix server and download medical/educational content based on your mission.
 
@@ -9,7 +9,7 @@
 
 ---
 
-## 📋 What You'll Need
+## 📋 What you'll need
 
 ### Prerequisites
 - [ ] ✅ Completed [Step 1 - Raspberry Pi Setup](01-raspberry-setup.md)
@@ -41,21 +41,21 @@ We'll accomplish:
 
 ---
 
-## 📚 Understanding Kiwix & ZIM Files
+## 📚 Understanding kiwix & zim files
 
-### What is Kiwix?
+### What is kiwix?
 - **Offline content server** - Serves Wikipedia without internet
 - **Web interface** - Looks and feels like real Wikipedia
 - **Lightweight** - Runs on Raspberry Pi efficiently
 - **Open source** - Free, actively maintained
 
-### What are ZIM files?
+### What are zim files?
 - **Compressed archives** - Wikipedia content in optimized format
 - **Complete content** - Articles, images, metadata, search index
 - **Updated monthly** - Kiwix team maintains current versions
 - **Various sources** - Wikipedia, medical encyclopedias, survival guides
 
-### ZIM File Naming
+### Zim file naming
 ```
 wikipedia_en_all_maxi_2025-08.zim
     │      │   │    │      │
@@ -68,7 +68,7 @@ wikipedia_en_all_maxi_2025-08.zim
 
 ---
 
-## ⚠️ CRITICAL: "Wikimed" Doesn't Exist!
+## ⚠️ Critical: "wikimed" doesn't exist!
 
 **Common mistake found in old guides:**
 
@@ -87,13 +87,13 @@ Many tutorials mention downloading "Wikimed" (~50GB). **This project was discont
 
 ---
 
-## 📦 Choose Your Content Strategy
+## 📦 Choose your content strategy
 
 **Before downloading anything, decide what you need:**
 
 ---
 
-### Strategy 1: Emergency Medical Pack (5.5 GB) ⭐ RECOMMENDED FOR QUICK START
+### Strategy 1: emergency medical pack (5.5 gb) ⭐ recommended for quick start
 
 **Best for:** Humanitarian missions, disaster response, field medicine, testing
 
@@ -164,7 +164,7 @@ Many tutorials mention downloading "Wikimed" (~50GB). **This project was discont
 
 ---
 
-## 🎯 Strategy Comparison Table
+## 🎯 Strategy comparison table
 
 | Aspect | Strategy 1 (Medical) | Strategy 2 (Full) | Strategy 3 (Minimal) |
 |--------|---------------------|-------------------|---------------------|
@@ -179,9 +179,9 @@ Many tutorials mention downloading "Wikimed" (~50GB). **This project was discont
 
 ---
 
-## Step 1: Install Kiwix Server (10 minutes)
+## Step 1: install kiwix server (10 minutes)
 
-### Connect to Your Pi
+### Connect to your pi
 
 ```bash
 ssh guillain@prometheus-station
@@ -190,7 +190,7 @@ ssh guillain@prometheus-station
 
 ---
 
-### Install Dependencies
+### Install dependencies
 
 ```bash
 sudo apt update
@@ -199,7 +199,7 @@ sudo apt install -y curl wget
 
 ---
 
-### Download Kiwix Tools
+### Download kiwix tools
 
 ```bash
 cd ~
@@ -210,7 +210,7 @@ curl -L https://download.kiwix.org/release/kiwix-tools/kiwix-tools_linux-aarch64
 
 ---
 
-### Extract and Install
+### Extract and install
 
 ```bash
 # Extract
@@ -231,7 +231,7 @@ rm -rf kiwix-tools.tar.gz kiwix-tools_linux-aarch64-*
 
 ---
 
-### Verify Installation
+### Verify installation
 
 ```bash
 kiwix-serve --version
@@ -246,7 +246,7 @@ kiwix-serve 3.x.x
 
 ---
 
-## Step 2: Create Kiwix Directory Structure (2 minutes)
+## Step 2: create kiwix directory structure (2 minutes)
 
 ```bash
 # Create directories for ZIM files
@@ -269,7 +269,7 @@ drwxr-xr-x 2 guillain guillain 4096 Dec 28 10:00 /var/kiwix/data
 
 ---
 
-## ⚠️ CRITICAL: Check Disk Space BEFORE Downloading
+## ⚠️ Critical: check disk space before downloading
 
 **This is THE most important step to avoid problems!**
 
@@ -302,7 +302,7 @@ See **"Troubleshooting: Insufficient Disk Space"** section below BEFORE download
 
 ---
 
-## Step 3: Download ZIM Files (Based on Your Strategy)
+## Step 3: download zim files (based on your strategy)
 
 **Navigate to data directory:**
 ```bash
@@ -324,7 +324,7 @@ screen -S kiwix-download
 
 ---
 
-### Strategy 1: Emergency Medical Pack (5.5 GB)
+### Strategy 1: emergency medical pack (5.5 gb)
 
 **Download time:** 15-45 minutes depending on connection
 
@@ -424,7 +424,7 @@ wget https://download.kiwix.org/zim/other/zimgit-water_en_2024-08.zim
 
 ---
 
-## 💡 Monitoring Download Progress
+## 💡 Monitoring download progress
 
 While downloads are running:
 
@@ -446,9 +446,9 @@ vnstat -l  # Live traffic monitoring
 
 ---
 
-## ⚠️ Common Download Issues & Solutions
+## ⚠️ Common download issues & solutions
 
-### Issue 1: Download Interrupted
+### Issue 1: download interrupted
 
 **Symptom:** Lost connection, download stopped
 
@@ -461,7 +461,7 @@ Wget will continue from where it left off! ✅
 
 ---
 
-### Issue 2: "No space left on device"
+### Issue 2: "no space left on device"
 
 **Symptom:** Download fails with disk full error
 
@@ -469,7 +469,7 @@ Wget will continue from where it left off! ✅
 
 ---
 
-### Issue 3: Very Slow Download
+### Issue 3: very slow download
 
 **Symptom:** Download at kB/s instead of MB/s
 
@@ -480,7 +480,7 @@ Wget will continue from where it left off! ✅
 
 ---
 
-### Issue 4: 404 Not Found
+### Issue 4: 404 not found
 
 **Symptom:** URL doesn't exist
 
@@ -499,11 +499,11 @@ Look for most recent date (e.g., `2025-11` is newer than `2025-08`)
 
 ---
 
-## Step 4: CRITICAL - Verify Downloaded Files (15 minutes)
+## Step 4: critical - verify downloaded files (15 minutes)
 
 **⚠️ DON'T SKIP THIS STEP!** Corrupted files will cause Kiwix to fail.
 
-### Install Verification Tools
+### Install verification tools
 
 ```bash
 sudo apt install -y zim-tools
@@ -511,7 +511,7 @@ sudo apt install -y zim-tools
 
 ---
 
-### Check File Sizes
+### Check file sizes
 
 ```bash
 cd /var/kiwix/data
@@ -536,7 +536,7 @@ ls -lh
 
 ---
 
-### Verify File Integrity with zimdump
+### Verify file integrity with zimdump
 
 **Test each file:**
 
@@ -583,7 +583,7 @@ Exception: Zim file(s) is of bad size or corrupted.
 
 ---
 
-### Verify MD5 Checksums (Optional but Recommended)
+### Verify md5 checksums (optional but recommended)
 
 **For critical files like Wikipedia EN (112GB), verify the checksum:**
 
@@ -610,11 +610,11 @@ md5sum: WARNING: 1 computed checksum did NOT match
 
 ---
 
-## 🔍 Troubleshooting: Insufficient Disk Space
+## 🔍 Troubleshooting: insufficient disk space
 
 **Symptom:** `df -h` shows less free space than expected, or "No space left on device" errors
 
-### Diagnose What's Using Space
+### Diagnose what's using space
 
 ```bash
 # Find largest directories
@@ -632,7 +632,7 @@ find ~ -name "*.tmp" -o -name "*.part" 2>/dev/null
 
 ---
 
-### Common Space Wasters
+### Common space wasters
 
 **1. Duplicate ZIM files in home directory**
 
@@ -701,7 +701,7 @@ sudo apt autoremove
 
 ---
 
-### Real-World Example (From Our Build)
+### Real-world example (from our build)
 
 **Problem encountered:**
 ```
@@ -745,7 +745,7 @@ Filesystem      Size  Used Avail Use% Mounted on
 
 ---
 
-## Step 5: Test Kiwix Manually (5 minutes)
+## Step 5: test kiwix manually (5 minutes)
 
 **Before creating a service, test that Kiwix works:**
 
@@ -783,7 +783,7 @@ The Kiwix server is running and can be accessed in the local network at:
 
 ---
 
-### Test Access
+### Test access
 
 **From your laptop browser:**
 
@@ -808,11 +808,11 @@ Try these URLs (in order of reliability):
 
 ---
 
-## Step 6: Create Systemd Service (15 minutes)
+## Step 6: create systemd service (15 minutes)
 
 **Why a systemd service?** So Kiwix starts automatically when Pi boots.
 
-### Create Service File
+### Create service file
 
 ```bash
 sudo nano /etc/systemd/system/kiwix-serve.service
@@ -873,7 +873,7 @@ WantedBy=multi-user.target
 
 ---
 
-### What Each Setting Does
+### What each setting does
 
 | Setting | Purpose |
 |---------|---------|
@@ -886,7 +886,7 @@ WantedBy=multi-user.target
 
 ---
 
-### Enable and Start Service
+### Enable and start service
 
 ```bash
 # Reload systemd to recognize new service
@@ -922,7 +922,7 @@ sudo systemctl status kiwix-serve
 
 ---
 
-### If Service Fails to Start
+### If service fails to start
 
 **Check the logs:**
 ```bash
@@ -953,7 +953,7 @@ sudo netstat -tulpn | grep :8080
 
 ---
 
-### Configure Firewall
+### Configure firewall
 
 **Allow HTTP traffic (port 8080):**
 ```bash
@@ -980,9 +980,9 @@ Anywhere on tailscale0     ALLOW       Anywhere    (Tailscale VPN)
 
 ---
 
-## Step 7: Test Final Setup (10 minutes)
+## Step 7: test final setup (10 minutes)
 
-### Test 1: Access from Browser
+### Test 1: access from browser
 
 **From your laptop, try these URLs:**
 
@@ -994,7 +994,7 @@ Anywhere on tailscale0     ALLOW       Anywhere    (Tailscale VPN)
 
 ---
 
-### Test 2: Content Functionality
+### Test 2: content functionality
 
 **For Strategy 1 (Medical Pack):**
 1. Click "Post-Disaster Medical Protocols"
@@ -1010,7 +1010,7 @@ Anywhere on tailscale0     ALLOW       Anywhere    (Tailscale VPN)
 
 ---
 
-### Test 3: Check Service Logs
+### Test 3: check service logs
 
 **View recent activity:**
 ```bash
@@ -1031,7 +1031,7 @@ Press Ctrl+C to stop.
 
 ---
 
-### Test 4: Auto-Start on Boot
+### Test 4: auto-start on boot
 
 **The ultimate test - reboot:**
 
@@ -1063,16 +1063,16 @@ With uptime of just a few seconds/minutes.
 
 ---
 
-## ✅ Verification Checklist
+## ✅ Verification checklist
 
 Go through each item to confirm everything works:
 
-### Service Status
+### Service status
 - [ ] `sudo systemctl status kiwix-serve` shows "active (running)"
 - [ ] Service enabled for auto-start: `systemctl is-enabled kiwix-serve` returns "enabled"
 - [ ] No errors in logs: `sudo journalctl -u kiwix-serve | grep -i error` returns nothing
 
-### Content Access
+### Content access
 - [ ] Can access Kiwix from laptop: `http://YOUR_PI_IP:8080` works
 - [ ] All downloaded ZIM files appear in content list
 - [ ] Can open and read articles from each ZIM file
@@ -1102,7 +1102,7 @@ Go through each item to confirm everything works:
 
 ## 🛠️ Troubleshooting
 
-### Service Won't Start
+### Service won't start
 
 **Check logs:**
 ```bash
@@ -1143,7 +1143,7 @@ zimdump info filename.zim
 
 ---
 
-### Web Interface Not Loading
+### Web interface not loading
 
 **1. Verify service is running:**
 ```bash
@@ -1192,7 +1192,7 @@ If this works, problem is network-related.
 
 ---
 
-### Search Not Working
+### Search not working
 
 **Symptoms:** Search returns no results or times out
 
@@ -1224,7 +1224,7 @@ sudo swapoff -a
 
 ---
 
-### Slow Performance
+### Slow performance
 
 **Symptoms:** Pages load slowly (>5 seconds), searches timeout
 
@@ -1263,7 +1263,7 @@ Load average should be <1.0 for responsive system.
 
 ---
 
-### Content Missing After Adding New ZIM
+### Content missing after adding new zim
 
 **Problem:** Downloaded new ZIM file but it doesn't appear in Kiwix
 
@@ -1283,11 +1283,11 @@ sudo systemctl restart kiwix-serve
 
 ---
 
-## 📊 Performance Metrics
+## 📊 Performance metrics
 
 **Document your system for future reference:**
 
-### Typical Resource Usage
+### Typical resource usage
 
 **Strategy 1 (Medical Pack - 7 ZIM files):**
 - **RAM:** 500MB - 1.5GB
@@ -1308,7 +1308,7 @@ sudo systemctl restart kiwix-serve
 
 ---
 
-### Search Performance
+### Search performance
 
 **Test search speed:**
 ```bash
@@ -1322,7 +1322,7 @@ time curl -s "http://localhost:8080/search?content=mdwiki&pattern=fracture" > /d
 
 ---
 
-### Concurrent User Capacity
+### Concurrent user capacity
 
 **Pi 4 8GB typically handles:**
 - **Light use** (browsing): 20-30 users
@@ -1336,7 +1336,7 @@ time curl -s "http://localhost:8080/search?content=mdwiki&pattern=fracture" > /d
 
 ---
 
-## 🎯 Next Steps
+## 🎯 Next steps
 
 **Kiwix is now running!** What's next?
 
@@ -1351,7 +1351,7 @@ time curl -s "http://localhost:8080/search?content=mdwiki&pattern=fracture" > /d
 - [ ] **[Step 4 - Meshtastic Setup](03-meshtastic-setup.md)** - Add long-range messaging
 - [ ] **[Step 5 - System Integration](04-integration.md)** - WiFi AP, E-Ink display
 
-### Optional Enhancements:
+### Optional enhancements:
 - [ ] Setup automatic content updates
 - [ ] Create download/backup scripts
 - [ ] Add usage statistics
@@ -1360,9 +1360,9 @@ time curl -s "http://localhost:8080/search?content=mdwiki&pattern=fracture" > /d
 
 ---
 
-## 📚 Content Maintenance
+## 📚 Content maintenance
 
-### Updating ZIM Files
+### Updating zim files
 
 Wikipedia ZIM files are updated monthly. To update:
 
@@ -1404,9 +1404,9 @@ rm wikipedia_en_medicine_maxi_2025-09.zim
 
 ---
 
-## 💡 Field Deployment Tips
+## 💡 Field deployment tips
 
-### Before Going Offline:
+### Before going offline:
 
 - [ ] Download all content you need
 - [ ] **Test EVERYTHING works**
@@ -1417,7 +1417,7 @@ rm wikipedia_en_medicine_maxi_2025-09.zim
 - [ ] Test auto-start after reboot
 - [ ] Verify all ZIM files with zimdump
 
-### Connection Instructions Template:
+### Connection instructions template:
 
 ```
 PROMETHEUS STATION - OFFLINE KNOWLEDGE
@@ -1443,15 +1443,15 @@ No internet needed. Everything works offline.
 
 ---
 
-## 📖 Additional Resources
+## 📖 Additional resources
 
-### Kiwix Documentation:
+### Kiwix documentation:
 - [Official Wiki](https://wiki.kiwix.org/)
 - [Server Documentation](https://wiki.kiwix.org/wiki/Kiwix-serve)
 - [ZIM File Library](https://library.kiwix.org/)
 - [Performance Tuning](https://wiki.kiwix.org/wiki/Kiwix-serve#Performance)
 
-### Medical Content Sources:
+### Medical content sources:
 - [WHO Publications](https://www.who.int/publications)
 - [MSF Field Guides](https://medicalguidelines.msf.org/)
 - [WikiEM Emergency Medicine](https://wikem.org/)
@@ -1462,7 +1462,7 @@ No internet needed. Everything works offline.
 
 ---
 
-## 🎓 What You've Learned
+## 🎓 What you've learned
 
 Congratulations! You now know how to:
 
@@ -1488,7 +1488,7 @@ Congratulations! You now know how to:
 
 ---
 
-## ⏱️ Actual Time Breakdown
+## ⏱️ Actual time breakdown
 
 **From real build experience:**
 

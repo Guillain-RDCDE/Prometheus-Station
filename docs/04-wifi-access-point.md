@@ -1,11 +1,11 @@
-# Step 4: WiFi Access Point Configuration
+# Step 4: Wifi access point configuration
 
-**Goal:** Transform your Raspberry Pi into a wireless access point that broadcasts knowledge to any device with WiFi.
+**Goal:** Configure intelligent WiFi that connects to known networks OR creates a hotspot automatically.
 
 **Time Required:** 1-2 hours  
-**Difficulty:** ⭐⭐⭐ Medium (network configuration can be tricky)
+**Difficulty:** ⭐⭐⭐ Medium
 
-**💡 Real experience:** This is where Prometheus Station becomes truly accessible. No cables, no configuration needed from users - just connect and access knowledge.
+**💡 Real experience:** This configuration was tested and debugged in real-world conditions. Every error you might encounter is documented here with solutions.
 
 ---
 
@@ -16,427 +16,164 @@
 - [ ] ✅ Completed [Step 3 - Kiwix Configuration](03-kiwix-configuration.md)
 - [ ] SSH access to your Pi
 - [ ] Pi currently connected to internet (for installing packages)
-- [ ] Basic understanding of network concepts (we'll explain everything)
 
 ---
 
-## 🎯 Overview
+## 🎯 What we're building
 
-We'll accomplish:
-1. ✅ Understand dual-WiFi configuration (internet + AP)
-2. ✅ Install and configure hostapd (access point daemon)
-3. ✅ Setup dnsmasq (DHCP + DNS server)
-4. ✅ Configure network interfaces
-5. ✅ Create WiFi hotspot "Prometheus-Station"
-6. ✅ Setup captive portal (auto-redirect to landing page)
-7. ✅ Configure routing and NAT (optional internet sharing)
-8. ✅ Test with multiple devices
-9. ✅ Optimize for field deployment
+**Intelligent WiFi behavior:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              PROMETHEUS STATION LOGIC                    │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  AT HOME (Known WiFi available):                        │
+│  ├─ wlan0 connects to your WiFi (client mode)          │
+│  ├─ You can SSH normally                                │
+│  └─ Pi has internet access                              │
+│                                                          │
+│  IN THE FIELD (No known WiFi):                          │
+│  ├─ wlan0 creates hotspot "Prometheus-Station"         │
+│  ├─ Users connect to access Kiwix                       │
+│  └─ Works 100% offline                                  │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 🧠 Understanding the Setup
+## 🧠 Understanding the approach
 
-### What We're Building
+### Why this method works
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    PROMETHEUS STATION                        │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │              Raspberry Pi 4                          │  │
-│  │                                                      │  │
-│  │  wlan0 (client mode)                                │  │
-│  │    ↓                                                 │  │
-│  │  Connected to: "HomeWiFi"                           │  │
-│  │  Purpose: Internet access (optional)                │  │
-│  │  IP: 192.168.1.42 (DHCP from router)               │  │
-│  │                                                      │  │
-│  │  wlan1 or virtual interface (AP mode)              │  │
-│  │    ↓                                                 │  │
-│  │  Broadcasting: "Prometheus-Station"                 │  │
-│  │  Purpose: Serve content to users                   │  │
-│  │  IP: 192.168.42.1 (static)                         │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                           ↓                                  │
-│              ┌────────────────────────┐                     │
-│              │  Users connect here:   │                     │
-│              │  SSID: Prometheus-Sta  │                     │
-│              │  Pass: Knowledge2025   │                     │
-│              │  Get IP: 192.168.42.x  │                     │
-│              └────────────────────────┘                     │
-└──────────────────────────────────────────────────────────────┘
-```
+We're **NOT** fighting against NetworkManager. Instead:
 
-### The Challenge: Single WiFi Adapter
+1. ✅ **At home:** NetworkManager manages wlan0 normally (WiFi client)
+2. ✅ **In field:** We manually switch to hotspot mode
+3. ✅ **Simple scripts** to toggle between modes
+4. ✅ **No complex automation** that breaks randomly
 
-**Raspberry Pi 4 has only ONE WiFi adapter.**
+### The two modes
 
-You can't use it simultaneously as:
-- Client (connected to internet WiFi)
-- Access Point (broadcasting your own WiFi)
+**Mode 1: HOME (WiFi Client)**
+- NetworkManager controls wlan0
+- Connects to known WiFi networks
+- Easy SSH access
+- Pi has internet
 
-**Solutions:**
-
-**Option 1: AP Mode Only (Recommended for Field Deployment)**
-- Pi creates WiFi network
-- No internet connection
-- 100% offline operation
-- Simplest configuration
-- **Best for: Remote areas, disaster zones**
-
-**Option 2: External WiFi Dongle (Dual Mode)**
-- Built-in WiFi: Connect to internet
-- USB WiFi dongle: Create access point
-- Share internet connection to users
-- More complex setup
-- **Best for: Educational centers, permanent installations**
-
-**Option 3: Ethernet + WiFi AP**
-- Ethernet: Connect to internet
-- WiFi: Create access point
-- Reliable internet sharing
-- Requires wired connection
-- **Best for: Indoor setups with network access**
-
-**This guide covers Option 1 (AP only) and Option 3 (Ethernet + WiFi).** Option 2 requires additional hardware.
+**Mode 2: FIELD (Hotspot)**
+- hostapd + dnsmasq control wlan0
+- Creates access point
+- Users connect for offline content
+- No internet dependency
 
 ---
 
-## 🛠️ Part 1: Preparation (15 minutes)
+## 📦 Part 1: Install required packages (5 minutes)
 
-### Step 1.1: Disconnect from WiFi (Optional)
-
-If your Pi is currently connected to WiFi and you want AP-only mode:
-
-```bash
-# Check current WiFi connection
-iwconfig
-
-# Disconnect from WiFi
-sudo nmcli device disconnect wlan0
-
-# Verify disconnected
-iwconfig wlan0
-```
-
-**Expected output:**
-```
-wlan0     IEEE 802.11  ESSID:off/any
-          Mode:Managed  Access Point: Not-Associated
-```
-
-**Keep Ethernet connected** if you want internet access for installing packages!
-
----
-
-### Step 1.2: Update Package List
+### Step 1.1: Install hostapd and dnsmasq
 
 ```bash
 sudo apt update
+sudo apt install -y hostapd dnsmasq
 ```
+
+**What these do:**
+- **hostapd** - Creates the WiFi access point
+- **dnsmasq** - Provides DHCP (assigns IPs) and DNS
 
 ---
 
-### Step 1.3: Install Required Software
+### Step 1.2: Stop and disable services
 
 ```bash
-# Install hostapd (creates access point)
-sudo apt install -y hostapd
-
-# Install dnsmasq (DHCP and DNS server)
-sudo apt install -y dnsmasq
-
-# Install iptables for routing (if internet sharing needed)
-sudo apt install -y iptables-persistent
-```
-
-**What each package does:**
-
-| Package | Purpose | Why We Need It |
-|---------|---------|----------------|
-| **hostapd** | Access Point daemon | Creates the WiFi network |
-| **dnsmasq** | DHCP/DNS server | Assigns IP addresses to clients, resolves DNS |
-| **iptables-persistent** | Firewall rules | Saves NAT rules for internet sharing |
-
-**Installation takes:** ~2 minutes
-
----
-
-### Step 1.4: Stop Services During Configuration
-
-```bash
-# Stop services while we configure
+# Stop services (we'll start them manually when needed)
 sudo systemctl stop hostapd
 sudo systemctl stop dnsmasq
 
-# Disable auto-start (we'll re-enable later)
+# Disable auto-start
 sudo systemctl disable hostapd
 sudo systemctl disable dnsmasq
 ```
 
-**Why:** Prevents services from interfering while we set them up.
+**Why disable?** We don't want them starting automatically and conflicting with NetworkManager at home.
 
 ---
 
-## 📡 Part 2: Configure DHCP Server (20 minutes)
+## 🔧 Part 2: Configure hostapd (20 minutes)
 
-### Step 2.1: Backup Original Configuration
-
-```bash
-# Backup dnsmasq config
-sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
-
-# Create new configuration
-sudo nano /etc/dnsmasq.conf
-```
-
----
-
-### Step 2.2: Configure dnsmasq
-
-**Paste this complete configuration:**
-
-```
-# Prometheus Station - dnsmasq Configuration
-
-# Interface to bind to (our access point)
-interface=wlan0
-bind-interfaces
-
-# DHCP range and lease time
-dhcp-range=192.168.42.10,192.168.42.250,255.255.255.0,24h
-
-# Default gateway (the Pi itself)
-dhcp-option=3,192.168.42.1
-
-# DNS servers (Pi first, then Google as backup)
-dhcp-option=6,192.168.42.1,8.8.8.8
-
-# Domain name
-domain=prometheus.local
-
-# Local domain handling
-local=/prometheus.local/
-expand-hosts
-
-# Main DNS address
-address=/prometheus.local/192.168.42.1
-address=/prometheus-station.local/192.168.42.1
-
-# Captive portal: redirect all domains to Pi
-# Uncomment these lines if you want captive portal behavior
-# address=/#/192.168.42.1
-
-# DHCP authoritative (we're the boss of this network)
-dhcp-authoritative
-
-# Don't read /etc/resolv.conf or /etc/hosts
-no-resolv
-no-hosts
-
-# DNS forwarding (if we have internet)
-server=8.8.8.8
-server=8.8.4.4
-
-# Don't forward local queries
-bogus-priv
-
-# Enable logging for troubleshooting
-log-queries
-log-dhcp
-
-# DHCP options
-dhcp-option=19,0  # IP forwarding off
-dhcp-option=44,192.168.42.1  # WINS server
-dhcp-option=45,192.168.42.1  # NetBIOS name server
-dhcp-option=46,8  # NetBIOS node type
-```
-
-**Save:** Ctrl+X, Y, Enter
-
----
-
-### Step 2.3: Understanding the Configuration
-
-**Key settings explained:**
-
-| Setting | Value | What It Does |
-|---------|-------|--------------|
-| `interface=wlan0` | WiFi interface | Which interface to serve DHCP on |
-| `dhcp-range=192.168.42.10...250` | IP pool | IPs assigned to clients (up to 240 devices) |
-| `dhcp-option=3` | Gateway | Tells clients where to send traffic |
-| `dhcp-option=6` | DNS servers | Where to resolve domain names |
-| `address=/prometheus.local/` | Local DNS | Resolves prometheus.local to Pi's IP |
-| `dhcp-authoritative` | Authority flag | We control this network |
-| `server=8.8.8.8` | Upstream DNS | Forward queries to Google DNS (if internet available) |
-
----
-
-### Step 2.4: Test Configuration Syntax
-
-```bash
-# Test dnsmasq configuration
-sudo dnsmasq --test
-```
-
-**Expected output:**
-```
-dnsmasq: syntax check OK.
-```
-
-**If you see errors:** Check for typos in the config file.
-
----
-
-## 🌐 Part 3: Configure Static IP for Access Point (10 minutes)
-
-### Step 3.1: Configure dhcpcd
-
-The Pi needs a static IP on the WiFi interface to act as gateway.
-
-```bash
-sudo nano /etc/dhcpcd.conf
-```
-
-**Scroll to the bottom and add:**
-
-```
-# Prometheus Station - Static IP for Access Point
-interface wlan0
-    static ip_address=192.168.42.1/24
-    nohook wpa_supplicant
-```
-
-**What this does:**
-- Sets Pi's WiFi IP to `192.168.42.1`
-- `/24` means subnet mask `255.255.255.0`
-- `nohook wpa_supplicant` prevents WiFi client mode from interfering
-
-**Save:** Ctrl+X, Y, Enter
-
----
-
-### Step 3.2: Disable wpa_supplicant on wlan0
-
-**If you want AP-only mode** (no client WiFi):
-
-```bash
-# Create override to prevent wpa_supplicant on wlan0
-sudo nano /etc/systemd/system/wpa_supplicant@wlan0.service.d/override.conf
-```
-
-**Create the directory first:**
-```bash
-sudo mkdir -p /etc/systemd/system/wpa_supplicant@wlan0.service.d
-```
-
-**Then create the file:**
-```bash
-sudo nano /etc/systemd/system/wpa_supplicant@wlan0.service.d/override.conf
-```
-
-**Add:**
-```ini
-[Unit]
-# Disable wpa_supplicant on wlan0 (using as AP)
-ConditionPathExists=!/etc/wpa_supplicant/wpa_supplicant-wlan0.conf
-```
-
-**Save:** Ctrl+X, Y, Enter
-
----
-
-## 📻 Part 4: Configure Access Point (20 minutes)
-
-### Step 4.1: Create hostapd Configuration
+### Step 2.1: Create hostapd configuration
 
 ```bash
 sudo nano /etc/hostapd/hostapd.conf
 ```
 
-**Paste this complete configuration:**
+**Paste this COMPLETE configuration:**
 
 ```
 # Prometheus Station - Access Point Configuration
 
-# Interface and driver
 interface=wlan0
 driver=nl80211
 
-# SSID (network name)
+# Network name (SSID)
 ssid=Prometheus-Station
 
-# Hardware mode: g = 2.4GHz
+# 2.4GHz mode
 hw_mode=g
-
-# Channel (1-11 for 2.4GHz, avoid crowded channels)
 channel=6
 
-# Enable 802.11n
+# 802.11n support (basic, no HT40)
 ieee80211n=1
+wmm_enabled=0
 
-# Enable WMM (WiFi Multimedia)
-wmm_enabled=1
-
-# HT capabilities (High Throughput - 802.11n features)
-ht_capab=[HT40+][SHORT-GI-20][DSSS_CCK-40]
-
-# MAC address ACL (0 = disabled, accept all)
+# Security settings
 macaddr_acl=0
-
-# Authentication algorithm (1 = open system)
 auth_algs=1
-
-# Don't broadcast SSID (0 = broadcast, 1 = hidden)
 ignore_broadcast_ssid=0
 
-# WPA configuration
+# WPA2 encryption
 wpa=2
 wpa_key_mgmt=WPA-PSK
-wpa_passphrase=Knowledge2025
+wpa_passphrase=12345678
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 
 # Country code (regulatory domain)
 country_code=FR
 
-# Maximum clients
+# Maximum connected clients
 max_num_sta=30
 ```
 
-**🔒 SECURITY NOTE:** 
-- Change `wpa_passphrase=Knowledge2025` to something stronger!
-- Good password: 12+ characters, mix of letters/numbers/symbols
-- Example: `Pr0m3th3us!St@ti0n#2025`
+**🔒 IMPORTANT NOTES:**
+
+1. **Password length:** MUST be 8-63 characters for WPA2
+   - ✅ `12345678` works
+   - ❌ `12345` is TOO SHORT and will fail
+   - ❌ `1234578` (typo) will fail
+
+2. **Country code:** Change `FR` to your country:
+   - `FR` = France
+   - `US` = United States
+   - `GB` = United Kingdom
+   - `DE` = Germany
+
+3. **Channel:** 
+   - Channels 1, 6, 11 don't overlap
+   - Usually 6 works well
+   - Change if you have interference
+
+4. **NO HT40 configuration:** 
+   - Raspberry Pi WiFi doesn't support HT40 in AP mode
+   - Stick to basic 802.11n settings shown above
 
 **Save:** Ctrl+X, Y, Enter
 
 ---
 
-### Step 4.2: Understanding hostapd Configuration
-
-**Key settings explained:**
-
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| `ssid=` | Network name | What users see when scanning for WiFi |
-| `channel=6` | WiFi channel | 1, 6, 11 are least overlapping in 2.4GHz |
-| `hw_mode=g` | 2.4GHz mode | Compatible with all devices (5GHz = 'a') |
-| `wpa=2` | WPA2 encryption | Most secure common standard |
-| `wpa_passphrase=` | Password | What users type to connect |
-| `country_code=FR` | Regulatory domain | Legal frequency/power limits for France |
-| `max_num_sta=30` | Max clients | Limit concurrent connections |
-
-**Channel selection tips:**
-- Channels 1, 6, 11 don't overlap
-- Use channel scanner to find least congested: `sudo iwlist wlan0 scan | grep Frequency`
-- Rural area: any channel works
-- Urban area: test to find clearest
-
----
-
-### Step 4.3: Tell System Where Config File Is
+### Step 2.2: Point to configuration file
 
 ```bash
 sudo nano /etc/default/hostapd
@@ -456,800 +193,592 @@ DAEMON_CONF="/etc/hostapd/hostapd.conf"
 
 ---
 
-### Step 4.4: Unmask and Enable hostapd
+### Step 2.3: Verify configuration
 
 ```bash
-# Unmask service (in case it was masked)
-sudo systemctl unmask hostapd
+# Test the configuration syntax
+sudo hostapd -dd /etc/hostapd/hostapd.conf 2>&1 | head -20
+```
 
-# Enable service (auto-start on boot)
-sudo systemctl enable hostapd
+**Look for errors.** Common ones:
+
+**❌ "invalid WPA passphrase length 7"**
+→ Password too short, must be 8+ characters
+
+**❌ "Hardware does not support configured channel"**
+→ You have HT40 config, remove it (use config above)
+
+**Press Ctrl+C** to stop the test.
+
+**If no errors,** you'll see normal initialization messages. That's good!
+
+---
+
+## 🌐 Part 3: Configure dnsmasq (15 minutes)
+
+### Step 3.1: Backup original config
+
+```bash
+sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
 ```
 
 ---
 
-## 🔄 Part 5: Configure NAT and IP Forwarding (Optional - 15 minutes)
-
-**⚠️ SKIP THIS SECTION if you want AP-only mode (no internet sharing).**
-
-**DO THIS SECTION if you want to share internet connection:**
-- You have Ethernet cable connected
-- You have USB WiFi dongle for client connection
-- Users should access both local content AND internet
-
----
-
-### Step 5.1: Enable IP Forwarding
+### Step 3.2: Create new configuration
 
 ```bash
-# Enable IP forwarding
-sudo nano /etc/sysctl.conf
+sudo nano /etc/dnsmasq.conf
 ```
 
-**Find this line:**
+**Paste this COMPLETE configuration:**
+
 ```
-#net.ipv4.ip_forward=1
+# Prometheus Station - DHCP/DNS Configuration
+
+# Interface to bind to
+interface=wlan0
+bind-interfaces
+
+# DHCP range - assigns IPs to connected devices
+dhcp-range=192.168.42.10,192.168.42.250,255.255.255.0,24h
+
+# Gateway (the Pi itself)
+dhcp-option=3,192.168.42.1
+
+# DNS servers (Pi first, then Google as backup)
+dhcp-option=6,192.168.42.1,8.8.8.8
+
+# Domain name
+domain=prometheus.local
+local=/prometheus.local/
+expand-hosts
+
+# DNS entries - point to the Pi
+address=/prometheus.local/192.168.42.1
+address=/prometheus-station.local/192.168.42.1
+
+# We are the DHCP authority on this network
+dhcp-authoritative
+
+# Don't read system resolv.conf
+no-resolv
+
+# Upstream DNS servers (for internet queries if available)
+server=8.8.8.8
+server=8.8.4.4
+
+# Don't forward private IP queries
+bogus-priv
+
+# Enable logging (useful for troubleshooting)
+log-queries
+log-dhcp
 ```
 
-**Uncomment it (remove #):**
-```
-net.ipv4.ip_forward=1
-```
+**What this does:**
+- Assigns IPs from `192.168.42.10` to `192.168.42.250`
+- Sets Pi as gateway (`192.168.42.1`)
+- Provides DNS resolution
+- Logs connections (check with `sudo journalctl -u dnsmasq`)
 
 **Save:** Ctrl+X, Y, Enter
 
-**Apply immediately:**
-```bash
-sudo sysctl -w net.ipv4.ip_forward=1
-```
-
 ---
 
-### Step 5.2: Configure NAT (Network Address Translation)
+## 🧪 Part 4: Manual testing (15 minutes)
 
-**Find your internet interface name:**
+**Before automating, let's verify everything works manually.**
 
-```bash
-ip link show
-```
-
-**Expected output:**
-```
-1: lo: ...
-2: eth0: ...  ← Ethernet (if connected)
-3: wlan0: ... ← WiFi (our AP)
-```
-
-**If using Ethernet:** Internet interface = `eth0`  
-**If using USB WiFi dongle:** Internet interface = `wlan1` (or whatever shows)
-
-**Create NAT rules:**
+### Step 4.1: Switch to hotspot mode
 
 ```bash
-# Assuming eth0 is your internet interface
-# Change eth0 to your actual interface name
+# 1. Tell NetworkManager to stop managing wlan0
+sudo nmcli device set wlan0 managed no
 
-# NAT rule (masquerade outgoing traffic)
-sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+# 2. Configure static IP on wlan0
+sudo ip addr flush dev wlan0
+sudo ip addr add 192.168.42.1/24 dev wlan0
+sudo ip link set wlan0 up
 
-# Forward traffic from wlan0 to eth0
-sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
-```
-
-**Save rules permanently:**
-
-```bash
-sudo netfilter-persistent save
-```
-
-**Verify rules:**
-```bash
-sudo iptables -t nat -L -v
-```
-
-**Expected output:**
-```
-Chain POSTROUTING (policy ACCEPT 0 packets, 0 bytes)
- pkts bytes target     prot opt in     out     source               destination
-    0     0 MASQUERADE  all  --  any    eth0    anywhere             anywhere
-```
-
----
-
-## 🚀 Part 6: Start Services and Test (15 minutes)
-
-### Step 6.1: Restart Network Services
-
-```bash
-# Restart dhcpcd (network interface management)
-sudo systemctl restart dhcpcd
-
-# Wait 5 seconds
-sleep 5
-
-# Start dnsmasq (DHCP/DNS)
+# 3. Start DHCP server
 sudo systemctl start dnsmasq
 
-# Start hostapd (access point)
+# 4. Start access point
 sudo systemctl start hostapd
-```
 
----
-
-### Step 6.2: Check Service Status
-
-**Check hostapd:**
-```bash
+# 5. Verify services are running
 sudo systemctl status hostapd
-```
-
-**Expected:**
-```
-● hostapd.service - Access point and authentication server
-   Loaded: loaded (/lib/systemd/system/hostapd.service; enabled)
-   Active: active (running) since Sun 2025-12-29 12:00:00 CET
-   ...
-   Dec 29 12:00:00 prometheus-station hostapd[1234]: wlan0: AP-ENABLED
-```
-
-**Key indicators:**
-- ✅ `Active: active (running)`
-- ✅ `enabled` (will start on boot)
-- ✅ `AP-ENABLED` in logs
-
-**If you see errors:** Jump to Troubleshooting section.
-
----
-
-**Check dnsmasq:**
-```bash
 sudo systemctl status dnsmasq
 ```
 
-**Expected:**
+**Expected output for hostapd:**
+```
+● hostapd.service - Access point and authentication server
+     Active: active (running)
+     ...
+     wlan0: AP-ENABLED
+```
+
+**Expected output for dnsmasq:**
 ```
 ● dnsmasq.service - dnsmasq - A lightweight DHCP and caching DNS server
-   Loaded: loaded (/lib/systemd/system/dnsmasq.service; enabled)
-   Active: active (running) since Sun 2025-12-29 12:00:00 CET
+     Active: active (running)
 ```
 
 ---
 
-### Step 6.3: Verify WiFi Access Point
+### Step 4.2: Verify wifi mode
 
-**Check WiFi interface:**
 ```bash
 iwconfig wlan0
 ```
 
 **Expected output:**
 ```
-wlan0     IEEE 802.11  Mode:Master  Tx-Power=31 dBm
-          Retry short limit:7   RTS thr:off   Fragment thr:off
-          Power Management:off
+wlan0     IEEE 802.11  ESSID:"Prometheus-Station"
+          Mode:Master  Tx-Power=31 dBm
+          ...
 ```
 
 **Key indicators:**
-- ✅ `Mode:Master` (access point mode)
-- ✅ `Power Management:off` (always on)
+- ✅ `ESSID:"Prometheus-Station"` - Network name correct
+- ✅ `Mode:Master` - In access point mode
 
 ---
 
-**Check IP address:**
-```bash
-ip addr show wlan0
-```
-
-**Expected:**
-```
-3: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
-    link/ether b8:27:eb:xx:xx:xx brd ff:ff:ff:ff:ff:ff
-    inet 192.168.42.1/24 brd 192.168.42.255 scope global wlan0
-       valid_lft forever preferred_lft forever
-```
-
-**Key indicator:**
-- ✅ `inet 192.168.42.1/24` (static IP is set)
-
----
-
-### Step 6.4: Test with Your Phone/Laptop
+### Step 4.3: Test with phone/laptop
 
 **From your phone or laptop:**
 
 1. **Open WiFi settings**
 2. **Scan for networks**
-3. **Look for:** `Prometheus-Station`
-4. **Connect with password:** `Knowledge2025` (or your custom password)
-5. **Wait for connection...**
-
-**Expected:**
-- Connection successful ✅
-- You get an IP like `192.168.42.42`
-- You may see "No Internet" (normal if AP-only mode)
+3. **Find:** `Prometheus-Station`
+4. **Connect with password:** `12345678`
+5. **You should:**
+   - See "Connected" status
+   - Get IP address like `192.168.42.42`
+   - May see "No Internet" warning (normal, we're offline)
 
 ---
 
-### Step 6.5: Test Connectivity
+### Step 4.4: Test content access
 
-**From your connected device:**
+**From your connected device, open browser:**
 
-**Test 1: Ping the Pi**
-```bash
-# Windows Command Prompt:
-ping 192.168.42.1
-
-# Expected: Replies with <10ms latency
 ```
-
-**Test 2: Access Kiwix**
-```
-Open browser, go to:
 http://192.168.42.1
-or
-http://prometheus-station.local
 ```
 
-**Should load:** Your Prometheus Station landing page! 🎉
+**You should see:**
+- ✅ Prometheus Station landing page
+- ✅ Links to all ZIM files (Kiwix content)
+- ✅ Can click and browse Wikipedia articles
+
+**Test navigation:**
+- Click on a content card
+- Search for an article
+- Verify images load
+- Check that everything is responsive
 
 ---
 
-### Step 6.6: Test DHCP Assignment
+### Step 4.5: Check connected devices
 
-**Check which IPs were assigned:**
+**On the Pi, view connected clients:**
 
-**On the Pi:**
 ```bash
-# View DHCP leases
+# See DHCP leases
 cat /var/lib/misc/dnsmasq.leases
 ```
 
-**Expected output:**
+**Example output:**
 ```
-1735473600 aa:bb:cc:dd:ee:ff 192.168.42.42 YourPhone 01:aa:bb:cc:dd:ee:ff
-1735473650 11:22:33:44:55:66 192.168.42.43 YourLaptop 01:11:22:33:44:55:66
+1735584123 aa:bb:cc:dd:ee:ff 192.168.42.42 iPhone-de-Guillaume 01:aa:bb:cc:dd:ee:ff
 ```
 
-**Shows:**
+Shows:
 - Timestamp
 - MAC address
 - Assigned IP
 - Device hostname
+- Client identifier
 
 ---
 
-## 🎨 Part 7: Configure Captive Portal (Optional - 20 minutes)
+## 🔄 Part 5: Switching between modes (10 minutes)
 
-**What is a captive portal?** The popup that appears when you connect to WiFi (like at coffee shops).
+### Creating toggle scripts
 
-**Why add it?** Users automatically see your landing page without typing an address.
-
----
-
-### Step 7.1: Install Captive Portal Software
-
-```bash
-sudo apt install -y nodogsplash
-```
-
-**What is nodogsplash?** Lightweight captive portal that redirects new connections to your page.
+We'll create two simple scripts to switch modes.
 
 ---
 
-### Step 7.2: Configure nodogsplash
+### Script 1: Switch to home mode (wifi client)
 
 ```bash
-sudo nano /etc/nodogsplash/nodogsplash.conf
+nano ~/switch-to-home.sh
 ```
 
-**Find and modify these settings:**
-
-```
-# Network interface
-GatewayInterface wlan0
-
-# Gateway name (appears in portal)
-GatewayName Prometheus Station
-
-# Redirect target (your landing page)
-RedirectURL http://192.168.42.1/
-
-# Session timeout (0 = unlimited)
-SessionTimeout 0
-
-# Download/upload limits (0 = unlimited)
-MaxDownload 0
-MaxUpload 0
-
-# Authenticated users list
-FirewallRuleSet authenticated-users {
-    FirewallRule allow all
-}
-
-# Preauthenticated users (access without portal)
-FirewallRuleSet preauthenticated-users {
-    FirewallRule allow tcp port 53
-    FirewallRule allow udp port 53
-    FirewallRule allow tcp port 80
-}
-
-# Users to router (allow DNS, etc.)
-FirewallRuleSet users-to-router {
-    FirewallRule allow all
-}
-
-# Trusted users (bypass portal) - Optional
-FirewallRuleSet trusted-users {
-    FirewallRule allow all
-}
-
-# MAC addresses that bypass portal (optional)
-# TrustedMACList aa:bb:cc:dd:ee:ff, 11:22:33:44:55:66
-```
-
-**Save:** Ctrl+X, Y, Enter
-
----
-
-### Step 7.3: Create Custom Splash Page
-
-**Create a simple splash page:**
-
-```bash
-sudo nano /etc/nodogsplash/htdocs/splash.html
-```
-
-**Paste this HTML:**
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Welcome to Prometheus Station</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #0066cc 0%, #004999 100%);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            text-align: center;
-        }
-        .container {
-            max-width: 600px;
-            padding: 40px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-        }
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 20px;
-        }
-        p {
-            font-size: 1.2em;
-            margin-bottom: 30px;
-        }
-        .button {
-            background: white;
-            color: #0066cc;
-            padding: 15px 40px;
-            border: none;
-            border-radius: 50px;
-            font-size: 1.1em;
-            font-weight: bold;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-        }
-        .button:hover {
-            background: #f0f0f0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🔥 Welcome to Prometheus Station</h1>
-        <p>Offline knowledge hub for emergency medical information, Wikipedia, and survival guides.</p>
-        <p>No internet needed. Everything works offline.</p>
-        <form method="GET" action="$authaction$">
-            <input type="hidden" name="tok" value="$tok$">
-            <input type="hidden" name="redir" value="$redir$">
-            <button type="submit" class="button">Access Knowledge Base</button>
-        </form>
-    </div>
-</body>
-</html>
-```
-
-**Save:** Ctrl+X, Y, Enter
-
-**What the variables mean:**
-- `$authaction$` - nodogsplash authentication handler
-- `$tok$` - Session token
-- `$redir$` - Redirect URL after authentication
-
----
-
-### Step 7.4: Enable and Start nodogsplash
-
-```bash
-# Enable service
-sudo systemctl enable nodogsplash
-
-# Start service
-sudo systemctl start nodogsplash
-
-# Check status
-sudo systemctl status nodogsplash
-```
-
-**Expected:**
-```
-● nodogsplash.service - NoDogSplash Captive Portal
-   Loaded: loaded (/lib/systemd/system/nodogsplash.service; enabled)
-   Active: active (running)
-```
-
----
-
-### Step 7.5: Test Captive Portal
-
-**From a new device (or forget the network and reconnect):**
-
-1. Connect to `Prometheus-Station`
-2. **Automatic popup should appear** with splash page
-3. Click "Access Knowledge Base"
-4. **Redirected to:** `http://192.168.42.1/`
-
-**On iOS:** Opens in captive portal browser  
-**On Android:** Opens in Chrome  
-**On Windows:** Opens in default browser
-
----
-
-### Step 7.6: Troubleshooting Captive Portal
-
-**Problem: Popup doesn't appear**
-
-**Solutions:**
-
-1. **Force captive portal detection:**
-   - iOS: Open Safari, type any URL
-   - Android: Notification should appear
-   - Windows: Network notification
-
-2. **Check nodogsplash logs:**
-   ```bash
-   sudo journalctl -u nodogsplash -n 50
-   ```
-
-3. **Verify service is running:**
-   ```bash
-   sudo systemctl status nodogsplash
-   ```
-
-4. **Test manually:**
-   ```
-   Open browser to: http://192.168.42.1
-   ```
-
-**Problem: Portal loops (keeps redirecting)**
-
-**Solution:**
-```bash
-# Clear nodogsplash sessions
-sudo ndsctl clients
-
-# Reset nodogsplash
-sudo systemctl restart nodogsplash
-```
-
----
-
-## 🔧 Part 8: Optimization and Fine-Tuning (15 minutes)
-
-### Step 8.1: Optimize WiFi Power and Range
-
-```bash
-sudo nano /etc/rc.local
-```
-
-**Add before `exit 0`:**
-
-```bash
-# Disable WiFi power management (keep WiFi always on)
-iwconfig wlan0 power off
-
-# Set WiFi transmission power to maximum
-iwconfig wlan0 txpower 30dBm
-```
-
-**Save:** Ctrl+X, Y, Enter
-
-**Apply immediately:**
-```bash
-sudo iwconfig wlan0 power off
-sudo iwconfig wlan0 txpower 30dBm
-```
-
-**Check settings:**
-```bash
-iwconfig wlan0
-```
-
-**Expected:**
-```
-wlan0     IEEE 802.11  Mode:Master  Tx-Power=30 dBm
-          ...
-          Power Management:off
-```
-
----
-
-### Step 8.2: Configure Quality of Service (QoS)
-
-**Prioritize web traffic for faster page loads:**
-
-```bash
-sudo nano /etc/sysctl.conf
-```
-
-**Add at the end:**
-
-```
-# TCP tuning for better responsiveness
-net.core.rmem_max = 16777216
-net.core.wmem_max = 16777216
-net.ipv4.tcp_rmem = 4096 87380 16777216
-net.ipv4.tcp_wmem = 4096 65536 16777216
-net.ipv4.tcp_congestion_control = bbr
-```
-
-**Apply:**
-```bash
-sudo sysctl -p
-```
-
----
-
-### Step 8.3: Limit Concurrent Connections (Optional)
-
-**To prevent overload with too many users:**
-
-```bash
-sudo nano /etc/hostapd/hostapd.conf
-```
-
-**Find:**
-```
-max_num_sta=30
-```
-
-**Change to your preferred limit:**
-```
-max_num_sta=20  # Recommended for stable performance
-```
-
-**Restart hostapd:**
-```bash
-sudo systemctl restart hostapd
-```
-
----
-
-### Step 8.4: Monitor Active Connections
-
-**Create monitoring script:**
-
-```bash
-nano ~/monitor-ap.sh
-```
-
-**Add:**
+**Paste:**
 
 ```bash
 #!/bin/bash
-# Prometheus Station - Access Point Monitor
+# Prometheus Station - Switch to HOME mode (WiFi client)
 
-echo "======================================"
-echo " PROMETHEUS STATION - AP STATUS"
-echo "======================================"
+echo "========================================"
+echo " Switching to HOME mode (WiFi Client)"
+echo "========================================"
 echo ""
 
-# Access Point Status
-echo "Access Point:"
-sudo systemctl is-active hostapd && echo "  Status: ✓ Running" || echo "  Status: ✗ Stopped"
-echo ""
+# Stop hotspot services
+echo "Stopping hotspot..."
+sudo systemctl stop hostapd
+sudo systemctl stop dnsmasq
 
-# Connected Clients
-echo "Connected Clients:"
-iw dev wlan0 station dump | grep Station | wc -l | xargs echo "  Count:"
-echo ""
+# Let NetworkManager manage wlan0 again
+echo "Activating NetworkManager on wlan0..."
+sudo nmcli device set wlan0 managed yes
 
-# DHCP Leases
-echo "DHCP Leases:"
-cat /var/lib/misc/dnsmasq.leases | awk '{print "  " $3 " - " $4}'
-echo ""
+# Wait for connection
+echo "Waiting for WiFi connection..."
+sleep 10
 
-# Interface Status
-echo "Interface Status:"
-iwconfig wlan0 | grep -E 'Mode|Frequency|Tx-Power'
+# Check status
 echo ""
+echo "Status:"
+nmcli device status | grep wlan0
 
-# Traffic Statistics
-echo "Traffic:"
-ifconfig wlan0 | grep -E 'RX packets|TX packets'
 echo ""
-
-echo "======================================"
+echo "✓ Switched to HOME mode"
+echo "  wlan0 will connect to known WiFi networks"
+echo ""
 ```
 
 **Save:** Ctrl+X, Y, Enter
 
 **Make executable:**
 ```bash
-chmod +x ~/monitor-ap.sh
+chmod +x ~/switch-to-home.sh
 ```
 
-**Test it:**
+---
+
+### Script 2: Switch to field mode (hotspot)
+
 ```bash
-~/monitor-ap.sh
+nano ~/switch-to-field.sh
 ```
 
-**Example output:**
+**Paste:**
+
+```bash
+#!/bin/bash
+# Prometheus Station - Switch to FIELD mode (Hotspot)
+
+echo "========================================"
+echo " Switching to FIELD mode (Hotspot)"
+echo "========================================"
+echo ""
+
+# Stop NetworkManager on wlan0
+echo "Stopping NetworkManager on wlan0..."
+sudo nmcli device set wlan0 managed no
+
+# Configure static IP
+echo "Configuring static IP..."
+sudo ip addr flush dev wlan0
+sudo ip addr add 192.168.42.1/24 dev wlan0
+sudo ip link set wlan0 up
+
+# Start DHCP server
+echo "Starting DHCP server..."
+sudo systemctl start dnsmasq
+
+# Start access point
+echo "Starting access point..."
+sudo systemctl start hostapd
+
+# Wait for services to start
+sleep 3
+
+# Check status
+echo ""
+echo "Status:"
+sudo systemctl is-active hostapd && echo "  hostapd: ✓ Running" || echo "  hostapd: ✗ Failed"
+sudo systemctl is-active dnsmasq && echo "  dnsmasq: ✓ Running" || echo "  dnsmasq: ✗ Failed"
+
+echo ""
+echo "✓ Switched to FIELD mode"
+echo "  Hotspot: Prometheus-Station"
+echo "  Password: 12345678"
+echo "  Access at: http://192.168.42.1"
+echo ""
 ```
-======================================
- PROMETHEUS STATION - AP STATUS
-======================================
 
-Access Point:
-  Status: ✓ Running
+**Save:** Ctrl+X, Y, Enter
 
-Connected Clients:
-  Count: 3
-
-DHCP Leases:
-  192.168.42.42 - iPhone
-  192.168.42.43 - MacBook
-  192.168.42.44 - Android
-
-Interface Status:
-          Mode:Master  Frequency:2.437 GHz
-          Tx-Power=30 dBm
-
-Traffic:
-        RX packets:1534  bytes:234567
-        TX packets:2891  bytes:3456789
-
-======================================
+**Make executable:**
+```bash
+chmod +x ~/switch-to-field.sh
 ```
 
 ---
 
-## ✅ Verification Checklist
+### Using the scripts
 
-### Network Configuration
-- [ ] Pi has static IP `192.168.42.1` on wlan0: `ip addr show wlan0`
-- [ ] hostapd running: `sudo systemctl status hostapd`
-- [ ] dnsmasq running: `sudo systemctl status dnsmasq`
-- [ ] wlan0 in Master mode: `iwconfig wlan0 | grep Master`
-- [ ] WiFi power management off: `iwconfig wlan0 | grep "Power Management:off"`
+**To switch to home mode (WiFi client):**
+```bash
+~/switch-to-home.sh
+```
 
-### Access Point
-- [ ] "Prometheus-Station" network visible on phones/laptops
-- [ ] Can connect with password
-- [ ] Devices receive IP in range 192.168.42.x
-- [ ] Multiple devices can connect simultaneously
-- [ ] No disconnections or instability
-
-### Content Access
-- [ ] Can ping Pi from connected device: `ping 192.168.42.1`
-- [ ] Landing page loads: `http://192.168.42.1`
-- [ ] Kiwix accessible: `http://192.168.42.1:8080` (or port 80 if configured)
-- [ ] Can search and browse Wikipedia articles
-- [ ] Images load in articles
-
-### DNS and DHCP
-- [ ] DNS resolves: `nslookup prometheus.local` returns 192.168.42.1
-- [ ] DHCP assigns IPs: Check `/var/lib/misc/dnsmasq.leases`
-- [ ] No DHCP conflicts (multiple devices get different IPs)
-
-### Captive Portal (if configured)
-- [ ] Splash page appears when connecting
-- [ ] Can click through to landing page
-- [ ] No redirect loops
-- [ ] Works on iOS, Android, Windows
-
-### Internet Sharing (if configured)
-- [ ] Can access external websites from connected devices
-- [ ] NAT rules present: `sudo iptables -t nat -L`
-- [ ] IP forwarding enabled: `cat /proc/sys/net/ipv4/ip_forward` returns 1
-
-### Auto-Start
-- [ ] Services enabled: `systemctl is-enabled hostapd dnsmasq`
-- [ ] Test reboot: `sudo reboot`, then verify WiFi broadcasts
-- [ ] All services start automatically after reboot
-
-### Performance
-- [ ] Connection speed adequate (test file download from Kiwix)
-- [ ] No lag when browsing
-- [ ] Stable with 5-10 concurrent users
-- [ ] Pi temperature under 65°C: `vcgencmd measure_temp`
+**To switch to field mode (hotspot):**
+```bash
+~/switch-to-field.sh
+```
 
 ---
 
-## 🛠️ Troubleshooting
+### Test the scripts now
 
-### Problem: WiFi Network Not Visible
+**1. Currently in hotspot mode, switch back to home:**
 
-**Check hostapd status:**
+```bash
+~/switch-to-home.sh
+```
+
+**Wait 10-15 seconds, then verify:**
+```bash
+nmcli device status
+iwconfig wlan0
+```
+
+**Should show wlan0 connected to your home WiFi.**
+
+---
+
+**2. Switch back to hotspot:**
+
+```bash
+~/switch-to-field.sh
+```
+
+**Verify with your phone** - you should see "Prometheus-Station" again.
+
+---
+
+## 📝 Part 6: Update connection instructions (10 minutes)
+
+### Update the landing page password
+
+```bash
+sudo nano /var/www/html/connect.html
+```
+
+**Find ALL occurrences of the old password and update:**
+
+**Change:**
+```html
+Password: <span class="credential">12345</span>
+```
+
+**To:**
+```html
+Password: <span class="credential">12345678</span>
+```
+
+**There are multiple places in the file - update them all!**
+
+**Use Ctrl+W to search** for `12345` and make sure you get every instance.
+
+**Save:** Ctrl+X, Y, Enter
+
+---
+
+### Update main landing page (if needed)
+
+```bash
+sudo nano /var/www/html/index.html
+```
+
+**If there's a password reference, update it to `12345678`.**
+
+**Save:** Ctrl+X, Y, Enter
+
+---
+
+## ✅ Part 7: Complete testing checklist
+
+### Mode: HOME (wifi client)
+
+**Switch to home mode:**
+```bash
+~/switch-to-home.sh
+```
+
+**Verify:**
+- [ ] wlan0 shows as "connected" to your WiFi: `nmcli device status`
+- [ ] Can SSH to Pi from your network: `ssh guillain@prometheus-station.local`
+- [ ] Pi has internet access: `ping -c 3 google.com`
+- [ ] iwconfig shows `Mode:Managed`
+
+---
+
+### Mode: FIELD (hotspot)
+
+**Switch to field mode:**
+```bash
+~/switch-to-field.sh
+```
+
+**Verify:**
+- [ ] hostapd running: `sudo systemctl is-active hostapd` returns "active"
+- [ ] dnsmasq running: `sudo systemctl is-active dnsmasq` returns "active"
+- [ ] iwconfig shows `Mode:Master` and `ESSID:"Prometheus-Station"`
+- [ ] Phone/laptop can see "Prometheus-Station" network
+- [ ] Can connect with password `12345678`
+- [ ] Device receives IP in range 192.168.42.x
+- [ ] Can access http://192.168.42.1 from connected device
+- [ ] Kiwix content loads and works
+- [ ] Can search and browse articles
+- [ ] Images load correctly
+
+---
+
+### Switching between modes
+
+- [ ] Can switch from home to field: `~/switch-to-field.sh`
+- [ ] Can switch from field to home: `~/switch-to-home.sh`
+- [ ] No errors in switching process
+- [ ] Each mode works after switching
+- [ ] Scripts complete in <15 seconds
+
+---
+
+## 🛠️ Part 8: Troubleshooting
+
+### Problem: hostapd fails to start
+
+**Symptom:**
+```
+Job for hostapd.service failed because the control process exited with error code
+```
+
+**Diagnosis:**
+```bash
+sudo journalctl -xeu hostapd.service -n 30 --no-pager
+```
+
+---
+
+**Common Error 1: "invalid WPA passphrase length"**
+
+```
+Line 25: invalid WPA passphrase length 7 (expected 8..63)
+```
+
+**Solution:**
+```bash
+sudo nano /etc/hostapd/hostapd.conf
+
+# Ensure wpa_passphrase is 8-63 characters
+wpa_passphrase=12345678  # ✅ Correct (8 chars)
+# NOT: wpa_passphrase=12345  # ❌ Too short (5 chars)
+# NOT: wpa_passphrase=1234578  # ❌ Typo (7 chars)
+```
+
+---
+
+**Common Error 2: "Hardware does not support configured channel"**
+
+```
+wlan0: IEEE 802.11 Hardware does not support configured channel
+Configured channel (6) or frequency (2437) (secondary_channel=1) not found
+```
+
+**Solution:** You have HT40 configuration which Raspberry Pi doesn't support in AP mode.
+
+```bash
+sudo nano /etc/hostapd/hostapd.conf
+
+# Remove or comment out these lines:
+# ht_capab=[HT40+][SHORT-GI-20][DSSS_CCK-40]
+
+# Use simple config:
+ieee80211n=1
+wmm_enabled=0
+```
+
+**Restart:**
+```bash
+sudo systemctl restart hostapd
+```
+
+---
+
+**Common Error 3: "restart request repeated too quickly"**
+
+```
+hostapd.service: Start request repeated too quickly
+```
+
+**Solution:**
+```bash
+# Reset the failure state
+sudo systemctl reset-failed hostapd
+
+# Wait 5 seconds
+sleep 5
+
+# Try again
+sudo systemctl start hostapd
+```
+
+---
+
+### Problem: Can't connect to hotspot
+
+**Symptom:** Phone finds network but won't connect, or asks for password repeatedly
+
+**Solutions:**
+
+**1. Verify password in config:**
+```bash
+cat /etc/hostapd/hostapd.conf | grep wpa_passphrase
+```
+
+Should show exactly 8-63 characters, no typos.
+
+---
+
+**2. Check hostapd is running:**
 ```bash
 sudo systemctl status hostapd
 ```
 
-**If failed:**
+Must show `Active: active (running)` and `AP-ENABLED`.
 
-**1. Check configuration syntax:**
+---
+
+**3. Verify wlan0 mode:**
 ```bash
-sudo hostapd -dd /etc/hostapd/hostapd.conf
+iwconfig wlan0
 ```
 
-This runs hostapd in debug mode. Press Ctrl+C after seeing output.
+Must show `Mode:Master`.
 
-**Common errors:**
+---
 
-**Error: "Could not configure driver mode"**
-```
-Solution: wlan0 is still in client mode
-Fix:
-sudo systemctl stop wpa_supplicant
+**4. Restart services:**
+```bash
 sudo systemctl restart hostapd
-```
-
-**Error: "nl80211: Could not configure driver mode"**
-```
-Solution: Interface is busy
-Fix:
-sudo rfkill unblock wifi
-sudo systemctl restart hostapd
-```
-
-**Error: "Channel x is not allowed"**
-```
-Solution: Invalid channel for your country
-Fix: Change channel in hostapd.conf (try 6 or 11)
-```
-
-**2. Check if interface exists:**
-```bash
-iw dev
-```
-
-Should show wlan0.
-
-**3. Verify WiFi is not blocked:**
-```bash
-rfkill list
-```
-
-Should show "Soft blocked: no" for WiFi.
-
-If blocked:
-```bash
-sudo rfkill unblock wifi
+sudo systemctl restart dnsmasq
 ```
 
 ---
 
-### Problem: Can Connect But No IP Address
+### Problem: Connected but no IP address
 
-**Symptoms:** WiFi connects but devices say "Obtaining IP address..." forever
+**Symptom:** Phone connects to WiFi but shows "Obtaining IP address..." forever
 
 **Solutions:**
 
@@ -1258,50 +787,50 @@ sudo rfkill unblock wifi
 sudo systemctl status dnsmasq
 ```
 
-**2. Check dnsmasq logs:**
+**2. Verify wlan0 has static IP:**
+```bash
+ip addr show wlan0
+```
+
+Should show `inet 192.168.42.1/24`.
+
+**3. Check dnsmasq logs:**
 ```bash
 sudo journalctl -u dnsmasq -n 50
 ```
 
-**3. Test DHCP manually:**
-```bash
-# On Pi, check if dnsmasq is listening
-sudo netstat -ulpn | grep :67
-```
+Look for DHCP requests and offers.
 
-Should show dnsmasq listening on port 67.
+---
 
-**4. Restart services in order:**
+**4. Restart DHCP:**
 ```bash
-sudo systemctl restart dhcpcd
-sleep 3
 sudo systemctl restart dnsmasq
-sudo systemctl restart hostapd
-```
-
-**5. Check for IP conflicts:**
-```bash
-# Make sure nothing else is using 192.168.42.1
-ip addr show
 ```
 
 ---
 
-### Problem: Devices Get IP But Can't Access Content
+### Problem: Can access hotspot but not Kiwix
 
-**Symptoms:** Connected, have IP, but web pages don't load
+**Symptom:** Connected to WiFi, have IP, but http://192.168.42.1 doesn't load
 
 **Solutions:**
 
-**1. Test connectivity from Pi:**
+**1. Verify Kiwix is running:**
 ```bash
-# Can Pi reach itself?
-curl http://192.168.42.1
+sudo systemctl status kiwix-serve
 ```
 
-Should return HTML.
+**2. Test from Pi itself:**
+```bash
+curl http://localhost
+```
 
-**2. Check firewall:**
+Should return HTML content.
+
+---
+
+**3. Check firewall:**
 ```bash
 sudo ufw status
 ```
@@ -1314,404 +843,356 @@ sudo ufw allow 80/tcp
 sudo ufw reload
 ```
 
-**3. Check Kiwix is running:**
-```bash
-sudo systemctl status kiwix-serve
-```
+---
 
-**4. Test from connected device:**
+**4. Restart Apache/Kiwix:**
 ```bash
-# From phone/laptop (if you have terminal):
-ping 192.168.42.1
-curl -I http://192.168.42.1
+sudo systemctl restart apache2
+sudo systemctl restart kiwix-serve
 ```
-
-**5. Check routing:**
-```bash
-# On Pi
-sudo iptables -L -v
-```
-
-Should show ACCEPT rules for FORWARD chain.
 
 ---
 
-### Problem: Weak Signal or Limited Range
+### Problem: Hotspot disappears randomly
+
+**Symptom:** Hotspot works initially but stops broadcasting after some time
 
 **Solutions:**
 
-**1. Increase transmission power:**
-```bash
-sudo iwconfig wlan0 txpower 31dBm
-```
-
-**2. Check for interference:**
-```bash
-# Scan for nearby networks
-sudo iwlist wlan0 scan | grep -E 'Channel|ESSID|Quality'
-```
-
-Change to less crowded channel in hostapd.conf.
-
-**3. Position antenna:**
-- Vertical orientation (omnidirectional)
-- Away from metal objects
-- Higher is better (use mast)
-
-**4. External antenna (if you have one):**
-- RP-SMA connector on Pi 4
-- 5-7 dBi omnidirectional antenna recommended
-
-**5. Check for power issues:**
-```bash
-vcgencmd get_throttled
-```
-
-Should return `throttled=0x0`. If not, power supply is insufficient.
-
----
-
-### Problem: Connection Drops Frequently
-
-**Symptoms:** Clients disconnect randomly, have to reconnect
-
-**Solutions:**
-
-**1. Disable power management:**
-```bash
-sudo iwconfig wlan0 power off
-```
-
-**2. Check for overheating:**
+**1. Check for thermal issues:**
 ```bash
 vcgencmd measure_temp
 ```
 
-If >70°C, add cooling (heatsink/fan).
-
-**3. Reduce max clients:**
-
-Edit hostapd.conf:
-```
-max_num_sta=15  # Lower from 30
-```
-
-**4. Check system load:**
-```bash
-uptime
-```
-
-Load average should be <2.0. If higher, Pi is overloaded.
-
-**5. Review logs for errors:**
-```bash
-sudo journalctl -u hostapd -n 100
-```
-
-Look for "disconnected" messages with reason codes.
+If >70°C, add cooling.
 
 ---
 
-### Problem: Captive Portal Not Working
-
-**Symptoms:** No popup appears when connecting
-
-**Solutions:**
-
-**1. Test nodogsplash status:**
+**2. Disable WiFi power management:**
 ```bash
-sudo systemctl status nodogsplash
+sudo iwconfig wlan0 power off
+
+# Make permanent
+sudo nano /etc/rc.local
+# Add before 'exit 0':
+iwconfig wlan0 power off
 ```
-
-**2. Check logs:**
-```bash
-sudo journalctl -u nodogsplash -n 50
-```
-
-**3. Manually trigger portal:**
-
-On connected device, open browser to:
-```
-http://192.168.42.1
-```
-
-**4. Check iptables rules:**
-```bash
-sudo iptables -L -v | grep 2050
-```
-
-nodogsplash should have rules on port 2050.
-
-**5. Restart nodogsplash:**
-```bash
-sudo systemctl restart nodogsplash
-```
-
-**6. Verify splash page exists:**
-```bash
-ls -l /etc/nodogsplash/htdocs/splash.html
-```
-
-**7. Test with different devices:**
-- iOS: Should show automatically
-- Android: May need to tap notification
-- Windows: May need to open browser manually
 
 ---
 
-## 📊 Performance Optimization
+**3. Check system logs:**
+```bash
+sudo journalctl -u hostapd -f
+```
 
-### Expected Performance Metrics
+Watch for disconnection messages.
+
+---
+
+## 📊 Part 9: Performance metrics
+
+### Expected performance
 
 **With 5 concurrent users:**
 - Page load time: 1-3 seconds
 - Search results: <2 seconds
 - CPU usage: 30-50%
-- RAM usage: 1.5-2.5 GB
 - Temperature: 50-60°C
 
 **With 15 concurrent users:**
 - Page load time: 2-5 seconds
 - Search results: 2-4 seconds
 - CPU usage: 50-80%
-- RAM usage: 2.5-4 GB
 - Temperature: 60-70°C
 
-**With 25+ concurrent users:**
-- Performance degradation expected
-- Consider multiple Pi units
-- Or upgrade to Pi 5
+**Maximum recommended:** 20-30 concurrent users
 
 ---
 
-### Monitoring Performance
+### Monitoring performance
 
-**Create performance monitoring script:**
+**Create monitoring script:**
 
 ```bash
-nano ~/monitor-performance.sh
+nano ~/monitor-hotspot.sh
 ```
 
-**Add:**
+**Paste:**
 
 ```bash
 #!/bin/bash
-# Monitor Prometheus Station performance
+# Monitor Prometheus Station hotspot
 
-echo "=== PERFORMANCE METRICS ==="
+echo "=== HOTSPOT STATUS ==="
 echo ""
 
 # Connected clients
-CLIENTS=$(iw dev wlan0 station dump | grep Station | wc -l)
-echo "Connected Clients: $CLIENTS"
+CLIENTS=$(iw dev wlan0 station dump 2>/dev/null | grep Station | wc -l)
+echo "Connected clients: $CLIENTS"
 echo ""
 
-# CPU usage
-echo "CPU Usage:"
-top -bn1 | grep "Cpu(s)" | awk '{print "  " $2}'
+# Services
+echo "Services:"
+sudo systemctl is-active hostapd >/dev/null 2>&1 && echo "  hostapd: ✓" || echo "  hostapd: ✗"
+sudo systemctl is-active dnsmasq >/dev/null 2>&1 && echo "  dnsmasq: ✓" || echo "  dnsmasq: ✗"
 echo ""
 
-# Memory
-echo "Memory:"
-free -h | awk 'NR==2{printf "  Used: %s / %s (%.0f%%)\n", $3,$2,$3*100/$2 }'
+# System resources
+echo "System:"
+echo "  CPU: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)%"
+echo "  Temp: $(vcgencmd measure_temp)"
+echo "  RAM: $(free -h | awk 'NR==2{printf "%s / %s", $3,$2}')"
 echo ""
 
-# Temperature
-TEMP=$(vcgencmd measure_temp | cut -d= -f2)
-echo "Temperature: $TEMP"
+# DHCP leases
+echo "Active leases:"
+cat /var/lib/misc/dnsmasq.leases 2>/dev/null | awk '{print "  " $3 " - " $4}' || echo "  None"
 echo ""
-
-# Load average
-echo "Load Average:"
-uptime | awk -F'load average:' '{print "  " $2}'
-echo ""
-
-# Network traffic
-echo "Network Traffic (wlan0):"
-ifconfig wlan0 | grep -E 'RX packets|TX packets' | head -2
-echo ""
-
-# Disk usage
-echo "Disk Usage:"
-df -h / | awk 'NR==2{printf "  Used: %s / %s (%s)\n", $3,$2,$5}'
-echo ""
-
-echo "=========================="
 ```
 
-**Save and make executable:**
+**Save:** Ctrl+X, Y, Enter
+
+**Make executable:**
 ```bash
-chmod +x ~/monitor-performance.sh
+chmod +x ~/monitor-hotspot.sh
 ```
 
-**Run continuously:**
+**Use it:**
 ```bash
-watch -n 5 ~/monitor-performance.sh
+~/monitor-hotspot.sh
 ```
 
 ---
 
-## 🌍 Field Deployment Checklist
+## 🌍 Part 10: Field deployment guide
 
-### Pre-Deployment
+### Pre-deployment checklist
 
-- [ ] Test with 10+ concurrent connections
-- [ ] Verify stable operation for 24+ hours
-- [ ] Check temperature under sustained load
-- [ ] Test at various distances (5m, 10m, 20m, 50m)
-- [ ] Verify content accessibility from all major devices (iOS, Android, Windows, Mac)
+**Before going to the field:**
+
+- [ ] Test hotspot at home (works ✓)
+- [ ] Test with 5+ devices simultaneously
+- [ ] Verify content accessible (Kiwix loads)
+- [ ] Test 24-hour continuous operation
+- [ ] Check temperature under load (<65°C)
 - [ ] Print connection instructions
-- [ ] Document any device-specific quirks
-
-### Deployment Site Setup
-
-- [ ] Position Pi for optimal coverage (elevated, central location)
-- [ ] Ensure adequate ventilation (no enclosed spaces)
-- [ ] Connect power (solar/battery/mains)
-- [ ] Mount antenna vertically for omnidirectional coverage
-- [ ] Protect from weather (if outdoor)
-- [ ] Test signal strength at perimeter
-- [ ] Adjust position if needed
-
-### User Training
-
-- [ ] Create simple connection guide (see template below)
-- [ ] Print QR code with WiFi credentials
-- [ ] Demonstrate connection process
-- [ ] Show landing page navigation
-- [ ] Explain offline nature (no internet = normal)
-- [ ] Provide troubleshooting tips
+- [ ] Note WiFi password on station label
+- [ ] Charge all batteries fully
+- [ ] Test solar charging (if applicable)
 
 ---
 
-### Connection Instructions Template
+### Deployment procedure
+
+**1. On-site setup:**
+
+```bash
+# SSH into Pi (via Tailscale or Ethernet initially)
+ssh guillain@prometheus-station.local
+
+# Switch to field mode
+~/switch-to-field.sh
+
+# Verify hotspot active
+~/monitor-hotspot.sh
+
+# Disconnect Ethernet (if used)
+# Hotspot should remain active
+```
+
+**2. Position for optimal coverage:**
+- Elevated location (table, shelf, mast)
+- Central to coverage area
+- Away from metal objects
+- Good ventilation
+
+**3. Test signal strength:**
+- Walk to perimeter of coverage area
+- Verify WiFi signal visible
+- Test connection from furthest point
+
+---
+
+### User instructions template
+
+**Print and display near station:**
 
 ```
 ╔════════════════════════════════════════════╗
-║    PROMETHEUS STATION - CONNECTION GUIDE   ║
+║    PROMETHEUS STATION - HOW TO CONNECT     ║
 ╚════════════════════════════════════════════╝
 
 📶 STEP 1: CONNECT TO WIFI
    Network Name: Prometheus-Station
-   Password: Knowledge2025
+   Password: 12345678
 
-📱 STEP 2: OPEN BROWSER
-   Automatic: Popup should appear
-   Manual: http://192.168.42.1
+📱 STEP 2: OPEN WEB BROWSER
+   Address: http://192.168.42.1
 
 📚 STEP 3: ACCESS CONTENT
-   - Emergency Medical Protocols
-   - Wikipedia Encyclopedia
-   - Survival Guides
+   • Emergency Medical Protocols
+   • Wikipedia Encyclopedia  
+   • Survival Guides
 
-⚠️ NOTE:
-   "No Internet" warning is NORMAL
-   All content works offline
+⚠️ NOTE: "No Internet" warning is NORMAL
+         All content works offline
 
-ℹ️ HELP:
-   If connection fails:
+ℹ️ TROUBLESHOOTING:
+   Can't connect?
    1. Forget network and reconnect
    2. Turn WiFi off/on
-   3. Restart device
+   3. Restart your device
    
-   Still issues? Find station operator.
+   Need help? Ask station operator.
 
 ╔════════════════════════════════════════════╗
-║        STATION ACTIVE 24/7                 ║
+║         STATION ACTIVE 24/7                ║
 ╚════════════════════════════════════════════╝
 ```
 
 ---
 
-## 🎓 What You've Learned
+## 🎓 What you've learned
 
 Congratulations! You now know how to:
 
-✅ **Configure a Raspberry Pi as WiFi access point**  
-✅ **Setup DHCP server for automatic IP assignment**  
-✅ **Configure DNS for local domain resolution**  
-✅ **Create captive portal for automatic redirect**  
-✅ **Share internet connection via NAT (optional)**  
-✅ **Optimize WiFi performance and range**  
-✅ **Monitor access point status and connected clients**  
-✅ **Troubleshoot common WiFi and network issues**  
-✅ **Deploy knowledge sharing infrastructure in field**  
+✅ **Configure hostapd** for WiFi access point  
+✅ **Setup dnsmasq** for DHCP and DNS  
+✅ **Debug WPA2 password issues** (length requirements)  
+✅ **Troubleshoot channel/hardware conflicts**  
+✅ **Create mode-switching scripts** for flexibility  
+✅ **Test WiFi hotspot functionality** thoroughly  
+✅ **Monitor connected clients and performance**  
+✅ **Deploy offline knowledge infrastructure** in field  
 
-**These skills transfer to:**
-- Any WiFi hotspot deployment
-- Network administration
-- Captive portal systems (coffee shops, hotels)
-- Emergency communication infrastructure
-- Educational technology deployment
-- Humanitarian tech projects
-
----
-
-## 🎯 Next Steps
-
-**Your WiFi access point is operational!** Time to add long-range communication:
-
-**→ [Step 5 - Meshtastic Setup](05-meshtastic-setup.md)**
-
-In Step 5, you'll:
-- Install Meshtastic for LoRa mesh networking
-- Configure T-Beam as gateway node
-- Setup long-range messaging (1-15km+)
-- Integrate with WiFi access point
-- Create unified communication system
+**Skills gained:**
+- WiFi access point configuration
+- DHCP/DNS server management
+- NetworkManager interaction
+- Bash scripting for system control
+- Field deployment procedures
+- User support documentation
 
 ---
 
-## ⏱️ Time Breakdown
+## 🎯 Next steps
 
-**From tested real build:**
+**Your WiFi configuration is complete!** Choose your path:
 
-| Phase | Expected | Actual | Notes |
-|-------|----------|--------|-------|
-| Install packages | 5 min | 7 min | Includes download time |
-| Configure DHCP | 10 min | 15 min | Reading/understanding config |
-| Configure static IP | 5 min | 8 min | Testing settings |
-| Configure hostapd | 15 min | 25 min | Channel testing, password setup |
-| NAT configuration | 10 min | 15 min | Optional (if internet sharing) |
-| Start services | 10 min | 12 min | Includes troubleshooting |
-| Test connections | 10 min | 20 min | Multiple devices tested |
-| Captive portal | 15 min | 30 min | Optional (custom splash page) |
-| Optimization | 10 min | 15 min | QoS, power settings |
-| **TOTAL (Basic)** | **1h 30min** | **1h 50min** | No captive portal |
-| **TOTAL (Full)** | **2h** | **2h 20min** | With captive portal |
+### **Option A: Continue with meshtastic** (recommended)
+→ [Step 5 - Meshtastic Setup](05-meshtastic-setup.md)
+- Long-range LoRa communication
+- Mesh networking (1-15km range)
+- Integration with hotspot
 
-**Time savers:**
-- Copy-paste configurations (don't type)
-- Use provided scripts
-- Skip captive portal if not needed
-- Test with one device first, then multiple
+### **Option B: Solar power** (if hardware ready)
+→ [Step 6 - Solar Power Setup](06-solar-power.md)
+- Autonomous operation
+- Battery management
+- Power optimization
+
+### **Option C: Test current setup**
+- Run for 24-48 hours
+- Monitor stability
+- Test with multiple users
+- Document any issues
 
 ---
 
-## 📚 Additional Resources
+## 📚 Additional resources
 
-### Documentation:
-- [Raspberry Pi Access Point Guide](https://www.raspberrypi.org/documentation/configuration/wireless/access-point-routed.md)
+### Documentation
 - [hostapd Documentation](https://w1.fi/hostapd/)
 - [dnsmasq Manual](http://www.thekelleys.org.uk/dnsmasq/doc.html)
-- [nodogsplash GitHub](https://github.com/nodogsplash/nodogsplash)
+- [Raspberry Pi Access Point Guide](https://www.raspberrypi.org/documentation/configuration/wireless/access-point-routed.md)
 
-### Network Tools:
-- [WiFi Analyzer (Android)](https://play.google.com/store/apps/details?id=com.farproc.wifi.analyzer)
-- [Network Analyzer (iOS)](https://apps.apple.com/app/network-analyzer/id562315041)
-- [Angry IP Scanner](https://angryip.org/)
+### Tools
+- [WiFi Analyzer (Android)](https://play.google.com/store/apps/details?id=com.farproc.wifi.analyzer) - Check channel interference
+- [Network Analyzer (iOS)](https://apps.apple.com/app/network-analyzer/id562315041) - Scan and troubleshoot
 
-### Troubleshooting:
-- [Raspberry Pi Forums](https://forums.raspberrypi.com/)
-- [Stack Exchange - Raspberry Pi](https://raspberrypi.stackexchange.com/)
+### Community
+- [Raspberry Pi Forums - Networking](https://forums.raspberrypi.com/viewforum.php?f=36)
+- [/r/raspberry_pi](https://reddit.com/r/raspberry_pi)
 
 ---
 
-**Last updated:** December 2025  
+## ⏱️ Time breakdown
+
+**From tested real-world build:**
+
+| Phase | Time | Notes |
+|-------|------|-------|
+| Install packages | 5 min | Fast on good connection |
+| Configure hostapd | 20 min | Including password debugging |
+| Configure dnsmasq | 15 min | Straightforward |
+| Manual testing | 15 min | First successful connection |
+| Create scripts | 10 min | Copy-paste, test |
+| Update docs | 10 min | Password corrections |
+| Full testing | 15 min | Both modes, multiple devices |
+| **TOTAL** | **1h 30min** | With troubleshooting included |
+
+**Time savers:**
+- Copy configurations exactly (don't type)
+- Verify password length BEFORE starting hostapd
+- Use scripts instead of manual commands
+- Test incrementally (don't skip verification steps)
+
+---
+
+## 🔐 Security considerations
+
+### Current setup (field deployment)
+
+**Password:** `12345678`
+- ✅ Meets WPA2 minimum (8 chars)
+- ⚠️ Not very strong
+- ✅ Easy to communicate verbally
+- ✅ Appropriate for humanitarian/emergency use
+
+### For different contexts
+
+**High-security environment:**
+```
+wpa_passphrase=Pr0m3th3us!St@ti0n#2025
+```
+
+**Public access (no password):**
+```bash
+# Edit /etc/hostapd/hostapd.conf
+# Remove these lines:
+# wpa=2
+# wpa_key_mgmt=WPA-PSK
+# wpa_passphrase=12345678
+# wpa_pairwise=TKIP
+# rsn_pairwise=CCMP
+
+# Add:
+# auth_algs=1  (already there)
+```
+
+**Warning:** Open networks have security implications. Only use in controlled environments.
+
+---
+
+## 💾 Backup recommendation
+
+**Now that WiFi works, create a system backup:**
+
+1. **Shutdown Pi:** `sudo shutdown -h now`
+2. **Remove SD card**
+3. **Image with Win32DiskImager or dd**
+4. **Label:** "Prometheus-Station-WiFi-Working-YYYY-MM-DD.img"
+5. **Store safely**
+
+**This is your recovery point** if anything breaks later!
+
+---
+
+**Last updated:** December 30, 2025  
 **Tested on:** Raspberry Pi 4 8GB, Raspberry Pi OS Lite (64-bit)  
-**Field tested:** 25 concurrent users, 50m range (outdoor, clear line of sight)  
-**Hardware:** Built-in WiFi adapter (no external dongle)
+**Hardware:** Built-in WiFi adapter (no external dongle required)  
+**Real-world testing:** 15 concurrent users, 8-hour continuous operation, stable performance
 
 ---
 
-*Made with 🔥 for Prometheus Station - Bringing knowledge to those who need it most*
+*Made with 🔥 for Prometheus Station - Tested, debugged, and verified in real deployment conditions*

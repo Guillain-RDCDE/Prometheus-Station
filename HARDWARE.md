@@ -10,7 +10,7 @@ This isn't just a shopping list. Each component is explained so you understand i
 
 **Before buying hardware, decide your mission:**
 
-### 🏥 Strategy 1: Emergency Medical Pack (~5.5 GB)
+### 🏥 Strategy 1: Emergency medical pack (~5.5 GB)
 **Best for:** Disaster response, humanitarian missions, field clinics
 
 **Hardware needs:**
@@ -29,7 +29,7 @@ This isn't just a shopping list. Each component is explained so you understand i
 
 ---
 
-### 📚 Strategy 2: Full Knowledge Base (~120-150 GB)
+### 📚 Strategy 2: Full knowledge base (~120-150 GB)
 **Best for:** Permanent installations, educational centers, remote communities
 
 **Hardware needs:**
@@ -46,7 +46,7 @@ This isn't just a shopping list. Each component is explained so you understand i
 
 ---
 
-### 🎒 Strategy 3: Minimal Emergency Kit (~750 MB)
+### 🎒 Strategy 3: Minimal emergency kit (~750 MB)
 **Best for:** Rapid deployment, testing, ultra-portable
 
 **Hardware needs:**
@@ -120,7 +120,7 @@ Now let's look at each component and understand WHY it's needed.
 
 ## 🧠 The brain: Computing system
 
-### Raspberry Pi 4 (8GB RAM)
+### Raspberry pi 4 (8GB RAM)
 
 **What it is:** A credit-card-sized computer. Like a tiny laptop without screen/keyboard.
 
@@ -151,7 +151,7 @@ Now let's look at each component and understand WHY it's needed.
 
 ---
 
-### MicroSD Card: SanDisk Extreme 256GB (A2 Class)
+### Microsd card: Sandisk extreme 256GB (A2 class)
 
 **What it is:** The "hard drive" of your Raspberry Pi. Everything lives here.
 
@@ -160,21 +160,21 @@ Now let's look at each component and understand WHY it's needed.
 - Stores medical/educational content (size depends on strategy)
 - Stores all software and configurations
 
-**Size Requirements by Strategy:**
+**Size requirements by strategy:**
 
-**Strategy 1: Emergency Medical Pack (Recommended)**
+**Strategy 1: Emergency medical pack (recommended)**
 - Post-disaster protocols + Medical encyclopedia: ~5.5 GB
 - Operating system + software: ~10 GB
 - **Minimum SD card:** 32GB
 - **Recommended:** 64GB (room for growth)
 
-**Strategy 2: Full Knowledge Base**
+**Strategy 2: Full knowledge base**
 - Complete Wikipedia (EN + FR): ~115 GB
 - Medical content: ~5.5 GB
 - Operating system + software: ~10 GB
 - **Minimum SD card:** 256GB ⭐
 
-**Strategy 3: Minimal Emergency Kit**
+**Strategy 3: Minimal emergency kit**
 - Core medical guides: ~750 MB
 - Operating system + software: ~10 GB
 - **Minimum SD card:** 16GB
@@ -213,7 +213,7 @@ Now let's look at each component and understand WHY it's needed.
 
 ---
 
-### E-Ink Display (2.13", 250x122)
+### E-ink display (2.13", 250x122)
 
 **What it is:** A tiny screen like on a Kindle. Uses almost zero power.
 
@@ -240,7 +240,7 @@ Now let's look at each component and understand WHY it's needed.
 
 ## 📡 Communication: LoRa Mesh Network
 
-### LILYGO T-Beam LORA32 (868MHz, ESP32 + GPS)
+### Lilygo T-beam LORA32 (868MHz, ESP32 + GPS)
 
 **What it is:** A specialized board for long-range radio communication.
 
@@ -298,7 +298,7 @@ For a portable station, 2-7dBi is ideal.
 
 ---
 
-### T-Echo Meshtastic Terminals (868MHz) × 2
+### T-echo meshtastic terminals (868MHz) × 2
 
 **What it is:** Handheld walkie-talkie-like devices for the mesh network.
 
@@ -323,7 +323,7 @@ For a portable station, 2-7dBi is ideal.
 
 ## ⚡ Power System: Solar Independence
 
-### Anker Solix PS30 (30W Foldable Solar Panel)
+### Anker solix PS30 (30W foldable solar panel)
 
 **What it is:** Foldable solar panel that outputs USB-C power.
 
@@ -353,7 +353,7 @@ For a portable station, 2-7dBi is ideal.
 
 ---
 
-### Anker PowerCore 737 (24,000mAh / 140W)
+### Anker powercore 737 (24,000mAh / 140W)
 
 **What it is:** A massive USB battery bank with smart charging.
 
@@ -382,7 +382,7 @@ For a portable station, 2-7dBi is ideal.
 
 ---
 
-### Samsung 18650 Batteries (3,450mAh) × 4
+### Samsung 18650 batteries (3,450mAh) × 4
 
 **What it is:** Rechargeable cylindrical batteries (like big AA batteries).
 
@@ -401,7 +401,7 @@ For a portable station, 2-7dBi is ideal.
 
 ---
 
-### Xtar MC2 Battery Charger
+### Xtar MC2 battery charger
 
 **What it is:** Smart charger for 18650 batteries.
 
@@ -420,7 +420,7 @@ For a portable station, 2-7dBi is ideal.
 
 ## 🏗️ Infrastructure: Mounting & Cables
 
-### Spiderbeam 7m Telescopic Fiberglass Mast
+### Spiderbeam 7m telescopic fiberglass mast
 
 **What it is:** Lightweight pole that extends to 7 meters.
 
@@ -445,7 +445,7 @@ For a portable station, 2-7dBi is ideal.
 
 ---
 
-### USB Cables (Various Lengths and Specs)
+### USB cables (various lengths and specs)
 
 **What we need:**
 - **90° angle USB-C (30cm):** Space-efficient connections
@@ -497,14 +497,14 @@ For a portable station, 2-7dBi is ideal.
 
 ## 🔧 What's NOT Included (But You Might Want)
 
-### Nice to Have:
+### Nice to have:
 - **Weatherproof enclosure** for Raspberry Pi (~30-50€)
 - **Portable monitor** for setup (any HDMI screen works)
 - **USB keyboard/mouse** for initial config (~20€)
 - **Multimeter** for debugging power issues (~15€)
 - **Antenna extension cable** for better positioning (~10€)
 
-### For Permanent Installation:
+### For permanent installation:
 - **Grounding rod** for lightning protection (~30€)
 - **Waterproof cable glands** (~10€)
 - **Guy wires** for mast stability (~15€)
@@ -514,27 +514,27 @@ For a portable station, 2-7dBi is ideal.
 
 ## 📍 Where to Buy (Europe)
 
-**Raspberry Pi Components:**
+**Raspberry pi components:**
 - [Kubii.com](https://www.kubii.com) (France-based, official reseller)
 - [BerryBase.de](https://www.berrybase.de) (Germany)
 - [ThePiHut.com](https://thepihut.com) (UK)
 - Local electronics shops (check stock first)
 
-**LoRa / Meshtastic:**
+**Lora / meshtastic:**
 - [Aliexpress](https://aliexpress.com) (cheapest, slower shipping)
 - [Banggood](https://banggood.com)
 - [Rokland](https://store.rokland.com) (ships to EU)
 
-**Solar / Power:**
+**Solar / power:**
 - [Amazon.fr](https://amazon.fr) (Anker official)
 - Local outdoor/camping stores
 
-**Antennas & Mast:**
+**Antennas & mast:**
 - [Passion Radio](https://www.passion-radio.com) (France)
 - [Spiderbeam.com](https://www.spiderbeam.com) (Germany)
 - [DX Engineering](https://www.dxengineering.com) (ships worldwide)
 
-**General Electronics:**
+**General electronics:**
 - [Conrad.fr](https://www.conrad.fr)
 - [Reichelt.de](https://www.reichelt.de)
 - [Farnell](https://fr.farnell.com)
@@ -543,7 +543,7 @@ For a portable station, 2-7dBi is ideal.
 
 ## ⚠️ Critical Warnings
 
-### 1. Frequency Regulations
+### 1. Frequency regulations
 **868MHz is legal in Europe. DO NOT:**
 - Use 915MHz equipment in Europe (illegal)
 - Use 868MHz equipment in US/Canada (illegal)
@@ -551,13 +551,13 @@ For a portable station, 2-7dBi is ideal.
 
 **Check your local regulations** before buying.
 
-### 2. Power Requirements
+### 2. Power requirements
 **Raspberry Pi is SENSITIVE to power quality:**
 - Needs stable 5V 3A minimum
 - Undervoltage = random reboots = SD card corruption
 - Use official power supply or quality USB-C cable rated 3A+
 
-### 3. SD Card Quality
+### 3. SD card quality
 **Cheap SD cards WILL fail:**
 - Use A2 rated cards only
 - Fake capacities are common (especially on AliExpress)
@@ -565,7 +565,7 @@ For a portable station, 2-7dBi is ideal.
 
 Buy from reputable sellers (Amazon, official stores).
 
-### 4. Battery Safety
+### 4. Battery safety
 **18650 batteries can be dangerous if mishandled:**
 - Never short-circuit
 - Don't overcharge

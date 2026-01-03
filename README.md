@@ -190,16 +190,16 @@ This repository contains **complete, tested, beginner-friendly documentation** f
 - Content management and rotation
 - **Time:** 2 hours initial + 30-45 min/month | **Difficulty:** ⭐⭐⭐☆☆ Medium
 
-**⏳ [Step 6: Meshtastic setup](docs/06-meshtastic-setup.md)**
-- LoRa radio configuration
-- Mesh network deployment
-- Mobile terminal setup
-- **Status:** Planned
-
-**⏳ [Step 7: Solar power](docs/07-solar-power.md)**
+**⏳ [Step 6: Solar power](docs/06-solar-power.md)**
 - Power system wiring
 - Energy monitoring
 - Autonomy optimization
+- **Status:** Planned
+
+**⏳ [Step 7: Meshtastic setup](docs/07-meshtastic-setup.md)**
+- LoRa radio configuration
+- Mesh network deployment
+- Mobile terminal setup
 - **Status:** Planned
 
 ### Quick start

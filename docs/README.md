@@ -6,7 +6,7 @@ This documentation guides you step-by-step through building your own autonomous 
 
 ### ✅ Complete & tested guides
 
-**[Step 1: Raspberry pi setup](01-raspberry-setup.md)**
+**[Step 1: Raspberry Pi setup](01-raspberry-setup.md)**
 - Headless configuration (no monitor needed)
 - SSH access with key authentication
 - System optimization for 24/7 operation
@@ -24,13 +24,13 @@ This documentation guides you step-by-step through building your own autonomous 
 - Content management
 - **Time:** 1-2 hours | **Difficulty:** ⭐⭐☆☆☆
 
-**[Step 4: Wifi access point](04-wifi-access-point.md)**
+**[Step 4: WiFi access point](04-wifi-access-point.md)**
 - Transform Pi into wireless hotspot
 - Captive portal configuration
 - Network setup and optimization
 - **Time:** 1-2 hours | **Difficulty:** ⭐⭐⭐☆☆
 
-**[Step 5: System maintenance & updates](05-maintenance-updates.md)**
+**[Step 5: System maintenance and updates](05-maintenance-updates.md)**
 - Health monitoring dashboard
 - Automated update procedures
 - Content management and rotation

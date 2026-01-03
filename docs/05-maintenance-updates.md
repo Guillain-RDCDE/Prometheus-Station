@@ -1,4 +1,4 @@
-# Step 5: System Maintenance & Updates
+# Step 5: System maintenance and updates
 
 **Goal:** Establish maintenance routines to keep Prometheus Station healthy, secure, and up-to-date.
 
@@ -48,7 +48,7 @@ We'll accomplish:
 
 ---
 
-## 🔧 Part 0: Install Required Tools (5 minutes)
+## 🔧 Part 0: Install required tools (5 minutes)
 
 **Before we start, we need two essential tools that might be missing.**
 
@@ -123,7 +123,7 @@ Anywhere on tailscale0     ALLOW IN    Anywhere
 
 ---
 
-## 📊 Part 1: Health Monitoring Dashboard (30 minutes)
+## 📊 Part 1: Health monitoring dashboard (30 minutes)
 
 ### Step 1.1: Create system health script
 
@@ -458,7 +458,7 @@ chmod +x ~/health-check.sh
 
 ---
 
-## 🗂️ Part 2: Log Management (20 minutes)
+## 🗂️ Part 2: Log management (20 minutes)
 
 ### Step 2.1: Configure log rotation for Prometheus logs
 
@@ -551,7 +551,7 @@ empty log files are not rotated, old logs are removed
 
 ---
 
-## 📝 Part 3: ZIM Inventory System (15 minutes)
+## 📝 Part 3: ZIM inventory system (15 minutes)
 
 ### Step 3.1: Create ZIM version tracker
 
@@ -637,7 +637,7 @@ Total storage: 166G
 
 ---
 
-## 💾 Part 4: Backup & Restore System (25 minutes)
+## 💾 Part 4: Backup and restore system (25 minutes)
 
 ### Step 4.1: Create configuration backup script
 
@@ -887,7 +887,7 @@ rm -rf ~/restore-test
 
 ---
 
-## 📧 Part 5: Automated Alert System (20 minutes)
+## 📧 Part 5: Automated alert system (20 minutes)
 
 ### Step 5.1: Create alert checker script
 
@@ -975,7 +975,7 @@ chmod +x ~/check-alerts.sh
 
 ---
 
-## ⏰ Part 6: Automation with Cron (15 minutes)
+## ⏰ Part 6: Automation with cron (15 minutes)
 
 ### Step 6.1: Create log directory
 
@@ -1058,7 +1058,7 @@ cat /var/log/prometheus/health-test.log
 
 ---
 
-## 🔄 Part 7: ZIM Update System (Optional)
+## 🔄 Part 7: ZIM update system (optional)
 
 **This part is optional but recommended when you want to update your content.**
 
@@ -1303,7 +1303,7 @@ chmod +x ~/update-zim-files.sh
 
 ---
 
-## 📅 Part 8: Monthly Maintenance Checklist (10 minutes)
+## 📅 Part 8: Monthly maintenance checklist (10 minutes)
 
 ### Step 8.1: Create maintenance checklist script
 
@@ -1406,7 +1406,7 @@ echo "" >> /var/log/prometheus/maintenance-notes.txt
 
 ---
 
-## ✅ Part 9: Final Testing & Verification (15 minutes)
+## ✅ Part 9: Final testing and verification (15 minutes)
 
 ### Step 9.1: Test all scripts
 
@@ -1525,7 +1525,7 @@ Go through each item to confirm everything works:
 
 ---
 
-## 📊 What You've Accomplished
+## 📊 What you've accomplished
 
 **Automated Systems:**
 ✅ Daily health monitoring (3 AM)  
@@ -1691,7 +1691,7 @@ Live updating dashboard every 60 seconds!
 
 ---
 
-## 🎓 What You've Learned
+## 🎓 What you've learned
 
 **Skills gained:**
 - System monitoring automation
@@ -1710,7 +1710,7 @@ Live updating dashboard every 60 seconds!
 
 ---
 
-## 📚 Quick Command Reference
+## 📚 Quick command reference
 
 ```bash
 # Health & Monitoring
@@ -1745,7 +1745,7 @@ sudo apt clean                       # Clean package cache
 
 ---
 
-## 🎯 Next Steps
+## 🎯 Next steps
 
 **Your maintenance system is complete!** 
 

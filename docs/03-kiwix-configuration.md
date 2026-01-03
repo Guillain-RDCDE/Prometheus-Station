@@ -40,9 +40,9 @@ We'll accomplish:
 
 ---
 
-## Step 1: install apache web server (10 minutes)
+## Step 1: Install Apache web server (10 minutes)
 
-### Why apache?
+### Why Apache?
 
 Kiwix runs on port 8080, but we want:
 - Clean URLs without port numbers
@@ -54,7 +54,7 @@ Kiwix runs on port 8080, but we want:
 
 ---
 
-### Install apache
+### Install Apache
 
 ```bash
 # Install Apache
@@ -114,7 +114,7 @@ To                         Action      From
 
 ---
 
-### Move kiwix to port 8080
+### Move Kiwix to port 8080
 
 **Edit Kiwix service:**
 
@@ -156,7 +156,7 @@ Should return HTML content.
 
 ---
 
-## Step 2: configure apache reverse proxy (15 minutes)
+## Step 2: Configure Apache reverse proxy (15 minutes)
 
 ### Create apache configuration
 
@@ -237,7 +237,7 @@ Should show Kiwix content library!
 
 ---
 
-## Step 3: add logo/branding (10 minutes)
+## Step 3: Add logo/branding (10 minutes)
 
 ### Transfer your logo
 
@@ -267,7 +267,7 @@ ls -lh /var/www/html/logo.png
 
 ---
 
-## Step 4: create professional landing page (30 minutes)
+## Step 4: Create professional landing page (30 minutes)
 
 ### Create index.html
 
@@ -827,9 +827,9 @@ Common sizes:
 
 ---
 
-## Step 5: install php for dynamic pages (10 minutes)
+## Step 5: Install PHP for dynamic pages (10 minutes)
 
-### Why php?
+### Why PHP?
 
 We need PHP to create the system status monitoring page.
 
@@ -849,7 +849,7 @@ PHP 8.4.16 (cli) (built: Dec 18 2024 21:19:25) (NTS)
 
 ---
 
-### Enable php module
+### Enable PHP module
 
 ```bash
 # Add www-data to video group (for temperature monitoring)
@@ -869,7 +869,7 @@ php_module (shared)
 
 ---
 
-## Step 6: create connection instructions page (15 minutes)
+## Step 6: Create connection instructions page (15 minutes)
 
 ```bash
 sudo nano /var/www/html/connect.html
@@ -1165,7 +1165,7 @@ sudo nano /var/www/html/connect.html
 
 ---
 
-## Step 7: create system status monitor (20 minutes)
+## Step 7: Create system status monitor (20 minutes)
 
 **Download the complete status.php file provided separately, or create it:**
 
@@ -1192,7 +1192,7 @@ sudo chmod 644 /var/www/html/status.php
 
 ---
 
-## Step 8: create auto-update script (15 minutes)
+## Step 8: Create auto-update script (15 minutes)
 
 **This script automatically updates the content index when you add new ZIM files.**
 

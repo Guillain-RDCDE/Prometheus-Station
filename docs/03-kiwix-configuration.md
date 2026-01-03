@@ -1522,11 +1522,10 @@ sudo systemctl reload apache2
 
 **Your web interface is complete!** Time to make the station autonomous:
 
-**→ [Step 4 - System Integration](04-integration.md)**
-- WiFi Access Point configuration
-- Meshtastic LoRa network
-- E-Ink status display
-- Complete system integration
+**→ [Step 4 - WiFi Access Point](04-wifi-access-point.md)**
+- Transform Pi into wireless hotspot
+- Captive portal configuration
+- Network setup and optimization
 
 ---
 

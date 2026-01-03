@@ -9,7 +9,7 @@
 
 ## 📖 Journal Entries
 
-### [Day 0 - December 26, 2025 (Morning)](journal/day-0.md)
+### Day 0 - December 26, 2025 (Morning)
 **Project kickoff**
 - Received all hardware (~570€)
 - Set up GitHub repository
@@ -18,7 +18,7 @@
 
 ---
 
-### [Day 1 - December 26, 2025 (Afternoon)](journal/day-1.md)
+### Day 1 - December 26, 2025 (Afternoon)
 **✅ Raspberry pi setup - COMPLETED**
 - Time: 1h 45min
 - Difficulty: ⭐⭐☆☆☆ Easy
@@ -29,7 +29,7 @@
 
 ---
 
-### [Day 2 - December 26, 2025 (Evening)](journal/day-2.md)
+### Day 2 - December 26, 2025 (Evening)
 **📚 Content strategy research**
 - Time: 2h 45min
 - Difficulty: ⭐⭐⭐☆☆ Medium
@@ -41,7 +41,7 @@
 
 ---
 
-### [Day 3 - December 27, 2025](journal/day-3.md)
+### Day 3 - December 27, 2025
 **⏳ Kiwix installation & medical pack download**
 - Planned: Download Strategy 1 (Emergency Medical Pack)
 - Estimated time: 2-3 hours

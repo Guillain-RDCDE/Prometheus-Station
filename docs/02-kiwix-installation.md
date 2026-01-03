@@ -1348,8 +1348,10 @@ time curl -s "http://localhost:8080/search?content=mdwiki&pattern=fracture" > /d
 
 ### Soon:
 - [ ] **[Step 3 - Kiwix Configuration](03-kiwix-configuration.md)** - Custom landing page, branding
-- [ ] **[Step 4 - Meshtastic Setup](03-meshtastic-setup.md)** - Add long-range messaging
-- [ ] **[Step 5 - System Integration](04-integration.md)** - WiFi AP, E-Ink display
+- [ ] **[Step 4 - WiFi Access Point](04-wifi-access-point.md)** - Transform Pi into wireless hotspot
+- [ ] **[Step 5 - System Maintenance](05-maintenance-updates.md)** - Health monitoring, automated updates
+- [ ] **Step 6 - Solar Power** (coming soon) - Autonomous operation
+- [ ] **Step 7 - Meshtastic Setup** (coming soon) - Add long-range messaging
 
 ### Optional enhancements:
 - [ ] Setup automatic content updates

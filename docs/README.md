@@ -38,15 +38,15 @@ This documentation guides you step-by-step through building your own autonomous 
 
 ### ⏳ Coming soon
 
-**Step 6: Meshtastic setup**
-- LoRa radio configuration
-- Mesh network deployment
-- Mobile terminal setup
-
-**Step 7: Solar power**
+**Step 6: Solar power**
 - Power system wiring
 - Energy monitoring
 - Autonomy optimization
+
+**Step 7: Meshtastic setup**
+- LoRa radio configuration
+- Mesh network deployment
+- Mobile terminal setup
 
 ## 🎯 Where to start?
 

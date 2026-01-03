@@ -1079,17 +1079,17 @@ Congratulations! You now know how to:
 
 **Your WiFi configuration is complete!** Choose your path:
 
-### **Option A: Continue with meshtastic** (recommended)
-→ [Step 5 - Meshtastic Setup](05-meshtastic-setup.md)
-- Long-range LoRa communication
-- Mesh networking (1-15km range)
-- Integration with hotspot
-
-### **Option B: Solar power** (if hardware ready)
-→ [Step 6 - Solar Power Setup](06-solar-power.md)
+### **Option A: Solar power** (if hardware ready)
+→ Step 6 - Solar Power Setup (coming soon)
 - Autonomous operation
 - Battery management
 - Power optimization
+
+### **Option B: Continue with meshtastic** (recommended)
+→ Step 7 - Meshtastic Setup (coming soon)
+- Long-range LoRa communication
+- Mesh networking (1-15km range)
+- Integration with hotspot
 
 ### **Option C: Test current setup**
 - Run for 24-48 hours

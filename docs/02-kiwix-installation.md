@@ -179,9 +179,9 @@ Many tutorials mention downloading "Wikimed" (~50GB). **This project was discont
 
 ---
 
-## Step 1: install kiwix server (10 minutes)
+## Step 1: Install Kiwix server (10 minutes)
 
-### Connect to your pi
+### Connect to your Pi
 
 ```bash
 ssh guillain@prometheus-station
@@ -199,7 +199,7 @@ sudo apt install -y curl wget
 
 ---
 
-### Download kiwix tools
+### Download Kiwix tools
 
 ```bash
 cd ~
@@ -246,7 +246,7 @@ kiwix-serve 3.x.x
 
 ---
 
-## Step 2: create kiwix directory structure (2 minutes)
+## Step 2: Create Kiwix directory structure (2 minutes)
 
 ```bash
 # Create directories for ZIM files
@@ -302,7 +302,7 @@ See **"Troubleshooting: Insufficient Disk Space"** section below BEFORE download
 
 ---
 
-## Step 3: download zim files (based on your strategy)
+## Step 3: Download ZIM files (based on your strategy)
 
 **Navigate to data directory:**
 ```bash
@@ -499,7 +499,7 @@ Look for most recent date (e.g., `2025-11` is newer than `2025-08`)
 
 ---
 
-## Step 4: critical - verify downloaded files (15 minutes)
+## Step 4: Critical - verify downloaded files (15 minutes)
 
 **⚠️ DON'T SKIP THIS STEP!** Corrupted files will cause Kiwix to fail.
 
@@ -745,7 +745,7 @@ Filesystem      Size  Used Avail Use% Mounted on
 
 ---
 
-## Step 5: test kiwix manually (5 minutes)
+## Step 5: Test Kiwix manually (5 minutes)
 
 **Before creating a service, test that Kiwix works:**
 
@@ -808,7 +808,7 @@ Try these URLs (in order of reliability):
 
 ---
 
-## Step 6: create systemd service (15 minutes)
+## Step 6: Create systemd service (15 minutes)
 
 **Why a systemd service?** So Kiwix starts automatically when Pi boots.
 
@@ -980,7 +980,7 @@ Anywhere on tailscale0     ALLOW       Anywhere    (Tailscale VPN)
 
 ---
 
-## Step 7: test final setup (10 minutes)
+## Step 7: Test final setup (10 minutes)
 
 ### Test 1: access from browser
 

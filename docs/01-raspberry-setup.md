@@ -1,4 +1,4 @@
-# Step 1: Raspberry pi setup
+# Step 1: Raspberry Pi setup
 
 **What you'll accomplish:** Transform a blank Raspberry Pi into a configured Linux server ready for Kiwix.
 
@@ -27,7 +27,7 @@ By the end of this guide, you'll have:
 
 Before we start, gather everything:
 
-### Hardware you need:
+### Hardware you need
 - [ ] **Raspberry Pi 4** (ideally 8GB RAM, but 4GB works)
 
 ### 💾 Choose your storage (based on mission):
@@ -52,7 +52,7 @@ Before we start, gather everything:
 
 💡 **Tip:** Start with 64GB. You can always upgrade SD card later if needed.
 
-### Other hardware:
+### Other hardware
 - [ ] **USB-C power supply** (official 5V 3A, or quality equivalent - **don't cheap out!**)
 - [ ] **Your laptop/computer** (Windows, Mac, or Linux)
 - [ ] **SD card reader** (built-in or USB adapter)
@@ -62,11 +62,11 @@ Before we start, gather everything:
 - [ ] **HDMI cable + monitor** (for troubleshooting if SSH fails)
 - [ ] **USB keyboard** (same reason)
 
-### Software you'll download:
+### Software you'll download
 - [ ] **Raspberry Pi Imager** (official tool, free)
 - [ ] **SSH client** (probably already on your computer)
 
-### Network requirements:
+### Network requirements
 - [ ] **WiFi network name (SSID)** you'll connect the Pi to - **case sensitive!**
 - [ ] **WiFi password**
 - [ ] **Your laptop connected to same network**
@@ -120,26 +120,26 @@ Before jumping into commands, let's understand the process:
 
 ## ðŸ”§ Part 1: Preparing the MicroSD Card
 
-### Step 1.1: download raspberry pi imager
+### Step 1.1: Download Raspberry Pi Imager
 
 **What is it?** Official software from Raspberry Pi Foundation that writes operating systems to SD cards.
 
 **Why not just copy files?** Operating systems need special formatting and boot sectors. The Imager handles all the technical stuff automatically.
 
-#### For windows:
+#### For Windows
 1. Go to: https://www.raspberrypi.com/software/
 2. Click **"Download for Windows"**
 3. Run the downloaded `.exe` file
 4. Install like any Windows program (Next â†’ Next â†’ Install)
 
-#### For macos:
+#### For macOS
 1. Same URL: https://www.raspberrypi.com/software/
 2. Click **"Download for macOS"**
 3. Open the `.dmg` file
 4. Drag Raspberry Pi Imager to Applications
 5. Launch from Applications folder
 
-#### For linux:
+#### For Linux
 ```bash
 # Ubuntu/Debian
 sudo apt install rpi-imager
@@ -155,7 +155,7 @@ sudo pacman -S rpi-imager
 
 ---
 
-### Step 1.2: insert your microsd card
+### Step 1.2: Insert your microSD card
 
 1. **Find your SD card reader**
    - Built into laptop? Usually on the side
@@ -177,13 +177,13 @@ sudo pacman -S rpi-imager
 
 ---
 
-### Step 1.3: choose the operating system
+### Step 1.3: Choose the operating system
 
 **Launch Raspberry Pi Imager** and click **"Choose OS"**
 
 You'll see many options. Here's what to pick:
 
-#### Recommended: raspberry pi os lite (64-bit)
+#### Recommended: Raspberry Pi OS Lite (64-bit)
 
 **Path:** 
 ```
@@ -202,7 +202,7 @@ Choose OS
 **"But I'm scared of command line!"**
 Don't be. You'll type maybe 20 commands total. We'll explain every single one.
 
-#### Alternative: raspberry pi os with desktop
+#### Alternative: Raspberry Pi OS with desktop
 
 **Path:**
 ```
@@ -225,7 +225,7 @@ Choose OS
 
 ---
 
-### Step 1.4: choose your microsd card
+### Step 1.4: Choose your microSD card
 
 Click **"Choose Storage"**
 
@@ -243,7 +243,7 @@ Click your microSD card to select it.
 
 ---
 
-### Step 1.5: configure settings (raspberry pi imager v2.0+)
+### Step 1.5: Configure settings (Raspberry Pi Imager v2.0+)
 
 After choosing your OS and storage, you'll see a button **"NEXT"** at the bottom right.
 
@@ -338,7 +338,7 @@ A popup appears asking: **"Would you like to apply OS customisation settings?"**
 
 ---
 
-### Step 1.6: write the os to sd card
+### Step 1.6: Write the OS to SD card
 
 Now that all settings are configured:
 
@@ -399,7 +399,7 @@ Now that all settings are configured:
 
 ## ðŸš€ Part 2: First Boot
 
-### Step 2.1: insert card and power on
+### Step 2.1: Insert card and power on
 
 1. **Remove the microSD card** from your computer
 2. **Find the card slot** on Raspberry Pi (underside, spring-loaded)
@@ -438,11 +438,11 @@ Now that all settings are configured:
 
 ---
 
-### Step 2.2: find your pi's ip address
+### Step 2.2: Find your Pi's IP address
 
 Your Pi is now on your network, but where? You need its IP address to SSH in.
 
-#### Method 1: check your router (easiest)
+#### Method 1: Check your router (easiest)
 
 1. **Open your router's admin page:**
    - Common addresses: `192.168.1.1` or `192.168.0.1`
@@ -459,7 +459,7 @@ Your Pi is now on your network, but where? You need its IP address to SSH in.
    - Or manufacturer: "Raspberry Pi Foundation"
    - Note the IP address (like `192.168.1.42`)
 
-#### Method 2: ping by hostname (macos/linux)
+#### Method 2: Ping by hostname (macOS/Linux)
 
 ```bash
 ping prometheus-station.local
@@ -478,7 +478,7 @@ ping prometheus-station.local
 
 If it works, you'll see the IP.
 
-#### Method 3: network scanner app
+#### Method 3: Network scanner app
 
 **For Android:** Download "Fing" from Play Store
 **For iOS:** Download "Fing" from App Store
@@ -489,7 +489,7 @@ If it works, you'll see the IP.
 3. Look for "Raspberry Pi" or "prometheus-station"
 4. Note the IP address
 
-#### Method 4: connect monitor (last resort)
+#### Method 4: Connect monitor (last resort)
 
 1. Connect HDMI cable to Pi and monitor
 2. Connect USB keyboard
@@ -502,11 +502,11 @@ If it works, you'll see the IP.
 
 ---
 
-### Step 2.3: ssh into your raspberry pi
+### Step 2.3: SSH into your Raspberry Pi
 
 **This is the moment.** You're about to control your Pi remotely for the first time.
 
-#### On windows (powershell or command prompt):
+#### On Windows (PowerShell or Command Prompt)
 
 1. **Open PowerShell:**
    - Press `Win + X`
@@ -543,7 +543,7 @@ If it works, you'll see the IP.
 
 **You're in!** ðŸŽ‰
 
-#### On macos/linux (terminal):
+#### On macOS/Linux (Terminal)
 
 1. **Open Terminal:**
    - macOS: `Cmd + Space` â†’ type "Terminal"
@@ -594,7 +594,7 @@ Everything you type now runs ON THE RASPBERRY PI, not your laptop.
 
 ---
 
-### Phase 3: ssh key authentication setup (10 minutes)
+### Phase 3: SSH key authentication setup (10 minutes)
 
 **⚠️ HIGHLY RECOMMENDED - Don't Skip This!**
 
@@ -612,7 +612,7 @@ Everything you type now runs ON THE RASPBERRY PI, not your laptop.
 
 ---
 
-#### For windows (powershell):
+#### For Windows (PowerShell)
 
 **1. Generate SSH key pair:**
 
@@ -701,7 +701,7 @@ From now on, just type `ssh prometheus` - that's it!
 
 ---
 
-#### For macos/linux:
+#### For macOS/Linux
 
 **1. Generate SSH key:**
 
@@ -772,7 +772,7 @@ When you SSH:
 
 Now that you're logged in, let's configure the Pi properly.
 
-### Step 3.1: update the system
+### Step 3.1: Update the system
 
 **Why?** Your OS image was created weeks/months ago. Security patches and bug fixes have been released since then.
 
@@ -812,7 +812,7 @@ You're back at the prompt, ready for the next command.
 
 ---
 
-### Step 3.2: configure raspberry pi settings
+### Step 3.2: Configure Raspberry Pi settings
 
 ```bash
 sudo raspi-config
@@ -846,7 +846,7 @@ You'll see a blue screen with options:
 
 ---
 
-#### Setting 1: expand filesystem
+#### Setting 1: Expand filesystem
 
 Path: `6 Advanced Options` â†’ `A1 Expand Filesystem`
 
@@ -862,7 +862,7 @@ Why: We need all 256GB for Wikipedia files
 
 ---
 
-#### Setting 2: gpu memory split (may not exist on newer os) (may not be available)
+#### Setting 2: GPU memory split (may not exist on newer OS) (may not be available)
 
 Path: `4 Performance Options` â†’ `P2 GPU Memory` (if available)
 
@@ -890,7 +890,7 @@ Why: We're headless (no monitor), so GPU doesn't need much RAM
 
 ---
 
-#### Setting 3: enable ssh (verify)
+#### Setting 3: Enable SSH (verify)
 
 Path: `3 Interface Options` â†’ `I2 SSH`
 
@@ -907,7 +907,7 @@ Why: Double-check it's on
 
 ---
 
-#### Setting 4: configure hostname (optional)
+#### Setting 4: Configure hostname (optional)
 
 Path: `1 System Options` â†’ `S4 Hostname`
 
@@ -1257,11 +1257,11 @@ By installing Tailscale, you've:
 
 ---
 
-### Step 3.4: configure firewall (security)
+### Step 3.4: Configure firewall (security)
 
 **Why a firewall?** Your Pi is on your network. A firewall blocks unwanted connections.
 
-#### Enable ufw and set rules
+#### Enable UFW and set rules
 
 ```bash
 # Allow SSH (port 22) - CRITICAL, or you'll lock yourself out!
@@ -1302,7 +1302,7 @@ To                         Action      From
 
 ---
 
-### Step 3.5: optimize system performance
+### Step 3.5: Optimize system performance
 
 #### Disable Swap (Optional but Recommended)
 
@@ -1382,7 +1382,7 @@ sudo systemctl status bluetooth.service
 
 ---
 
-### Step 3.6: create a system monitoring script
+### Step 3.6: Create a system monitoring script
 
 This is a handy script to check system health at any time.
 
@@ -1489,30 +1489,30 @@ prometheus pts/0        2025-12-26 08:08 (192.168.1.100)
 
 Before moving to Step 2 (Kiwix), verify everything works:
 
-### System access:
+### System access
 - [ ] Can SSH into Pi from laptop: `ssh prometheus@192.168.1.42`
 - [ ] (If installed) Can SSH via Tailscale: `ssh prometheus@100.x.x.x`
 - [ ] Filesystem expanded (df -h shows full SD card capacity)
 - [ ] System updated (`sudo apt update` shows no pending updates)
 
-### Configuration:
+### Configuration
 - [ ] Hostname set correctly (`hostname` returns `prometheus-station`)
 - [ ] GPU memory set to 16MB (`vcgencmd get_mem gpu` returns `gpu=16M`)
 - [ ] SSH enabled (`sudo systemctl status ssh` shows "active (running)")
 - [ ] (If installed) Tailscale running (`tailscale status` shows connected devices)
 
-### Security:
+### Security
 - [ ] Firewall active (`sudo ufw status` shows "Status: active")
 - [ ] SSH port allowed (port 22 in firewall rules)
 - [ ] Kiwix port allowed (port 80 in firewall rules)
 - [ ] (If installed) Tailscale allowed (`tailscale0` interface in ufw rules)
 
-### Performance:
+### Performance
 - [ ] Swap disabled (`free -h` shows Swap: 0B)
 - [ ] Bluetooth disabled (`systemctl status bluetooth` shows "disabled")
 - [ ] System monitoring script works (`~/system_status.sh` runs without errors)
 
-### System health:
+### System health
 - [ ] Temperature under 60Â°C (`vcgencmd measure_temp`)
 - [ ] Free RAM > 6GB (`free -h`)
 - [ ] CPU load average < 1.0 (`uptime`)
@@ -1564,7 +1564,7 @@ df -h /
 
 ## ðŸ†˜ Troubleshooting
 
-### Problem: can't ssh into pi
+### Problem: Can't SSH into Pi
 
 **Symptom:** `ssh: connect to host 192.168.1.42 port 22: Connection refused`
 
@@ -1588,7 +1588,7 @@ df -h /
 
 ---
 
-### Problem: ssh connection drops immediately
+### Problem: SSH connection drops immediately
 
 **Symptom:** Connects, then disconnects within seconds
 
@@ -1634,7 +1634,7 @@ df -h /
 
 ---
 
-### Problem: filesystem not expanded
+### Problem: Filesystem not expanded
 
 **Symptom:** `df -h` shows only 2GB available
 
@@ -1649,7 +1649,7 @@ sudo reboot
 
 ---
 
-### Problem: temperature too high
+### Problem: Temperature too high
 
 **Symptom:** `vcgencmd measure_temp` shows >70Â°C
 
@@ -1670,7 +1670,7 @@ htop
 
 ---
 
-### Problem: can't remember password
+### Problem: Can't remember password
 
 **Symptom:** SSH asks for password, but you forgot what you set
 
@@ -1693,7 +1693,7 @@ htop
 
 **Based on real experience building this - these mistakes cost me ~30 minutes combined. You can skip them all!**
 
-### 1. Wrong sd card class
+### 1. Wrong SD card class
 - ❌ **Mistake:** Buying cheap A1 or Class 10 card to save 5€
 - ✅ **Solution:** Get A2 class specifically
 - **Impact:** 3-5x slower Wikipedia searches, frustrating user experience
@@ -1705,13 +1705,13 @@ htop
 - **Impact:** Random reboots, "low voltage" warnings, SD card corruption
 - **Why it matters:** Pi 4 needs stable 3A, especially under load
 
-### 3. Wifi network name typos
+### 3. WiFi network name typos
 - ❌ **Mistake:** Typing "MyWiFi" when actual network is "mywifi"  
 - ✅ **Solution:** Copy-paste SSID exactly (it's case sensitive!)
 - **Impact:** Pi won't connect to WiFi, need monitor/keyboard to debug
 - **How to avoid:** Triple-check SSID in Raspberry Pi Imager settings
 
-### 4. Enabling firewall before allowing ssh
+### 4. Enabling firewall before allowing SSH
 - ❌ **Mistake:** Running `sudo ufw enable` before `sudo ufw allow 22/tcp`
 - ✅ **Solution:** ALWAYS allow SSH port first, THEN enable firewall
 - **Impact:** Locked out of your Pi! Need monitor/keyboard to fix
@@ -1723,13 +1723,13 @@ htop
 - **Impact:** Confusing "command not found" errors
 - **Tip:** If guide shows \`\`\`bash, don't copy that line - start after it!
 
-### 6. Powershell command syntax (windows users)
+### 6. PowerShell command syntax (Windows users)
 - ❌ **Mistake:** Using `&&` to chain commands (Bash syntax)
 - ✅ **Solution:** Use `;` in PowerShell instead
 - **Example:** `git add . ; git commit -m "msg" ; git push`
 - **Why:** PowerShell and Bash have different syntax for chaining
 
-### 7. Not setting up ssh keys
+### 7. Not setting up SSH keys
 - ❌ **Mistake:** Skipping SSH key setup to "save time"
 - ✅ **Solution:** Take 10 minutes to set up keys now
 - **Impact:** You'll waste 13+ minutes typing passwords during build
@@ -1870,7 +1870,7 @@ See you there! ðŸ”¥
 
 ---
 
-## 💡 Powershell vs bash quick reference
+## 💡 PowerShell vs Bash quick reference
 
 **For Windows users:** Some command syntax differs from Linux/macOS guides.
 

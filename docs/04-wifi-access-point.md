@@ -1,4 +1,4 @@
-# Step 4: Wifi access point configuration
+# Step 4: WiFi access point configuration
 
 **Goal:** Configure intelligent WiFi that connects to known networks OR creates a hotspot automatically.
 
@@ -413,7 +413,7 @@ We'll create two simple scripts to switch modes.
 
 ---
 
-### Script 1: Switch to home mode (wifi client)
+### Script 1: Switch to home mode (WiFi client)
 
 ```bash
 nano ~/switch-to-home.sh

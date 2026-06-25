@@ -1,5 +1,7 @@
 <div align="center">
 
+![Prometheus Station — a lighthouse when everything burns](social-preview.png)
+
 ![Prometheus Station Logo](logo.png)
 
 # 

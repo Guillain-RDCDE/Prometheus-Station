@@ -36,12 +36,13 @@ This documentation guides you step-by-step through building your own autonomous 
 - Content management and rotation
 - **Time:** 2 hours initial + 30-45 min/month | **Difficulty:** ⭐⭐⭐☆☆
 
-### ⏳ Coming soon
+**[Step 6: Solar power setup](06-solar-power.md)**
+- Panel, charge controller and battery wiring
+- Energy monitoring (INA219 optional) and low-voltage safe shutdown
+- Autonomy planning for cloudy days
+- **Time:** 1-2 hours + 4-8 hours passive calibration | **Difficulty:** ⭐⭐☆☆☆
 
-**Step 6: Solar power**
-- Power system wiring
-- Energy monitoring
-- Autonomy optimization
+### ⏳ Coming soon
 
 **Step 7: Meshtastic setup**
 - LoRa radio configuration

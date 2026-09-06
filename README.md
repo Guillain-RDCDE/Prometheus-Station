@@ -27,6 +27,10 @@ Just the accumulated knowledge of humanity, ready to restart civilization from s
 
 ---
 
+## 📚 More
+
+**[Reference](docs/REFERENCE.md)** — what this actually is, why it exists, what is inside, how to build your own, the philosophy, the technical overview and the project status.
+
 ## 🏥 Medical disclaimer
 
 **Critical notice:**

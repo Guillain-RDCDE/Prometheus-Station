@@ -9,6 +9,14 @@
 
 </div>
 
+<!-- opening -->
+> A solar-powered box that serves all of Wikipedia with no internet and no power grid.
+>
+> A Raspberry Pi with offline Wikipedia and medical references, solar and battery power, optional mesh radio; a build anyone can repeat.
+>
+> Designed for the day the infrastructure isn’t there. Part of the work of [Guillain d’Erceville](https://github.com/Guillain-RDCDE), forward deployed engineer.
+<!-- opening -->
+
 ---
 
 ## The vision

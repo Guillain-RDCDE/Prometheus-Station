@@ -59,7 +59,7 @@ Protected by the password you chose in step 5.
 **Security**
 - **Password**: change it (current one, then new one). This signs out every other device.
 
-**Switch the station off** (red button at the bottom of the Settings): tap twice. The station shuts down cleanly a few seconds later and the e-ink screen says so. To switch it back on, unplug the battery and plug it in again.
+**Restart** and **Switch off** (two buttons at the bottom of the Settings): tap twice. *Restart* brings the station back by itself after about two minutes. *Switch off* shuts it down cleanly and the e-ink screen says so; to switch it back on, unplug the battery and plug it in again.
 
 Most settings have a small **?** that unfolds a short explanation.
 

@@ -56,7 +56,7 @@ So about **2.1 W → 1.9 W**. The price: searching the encyclopedias is 3 to 5 t
 
 ## Switching off by hand
 
-*Settings > Switch the station off* (tap twice) shuts the station down cleanly, like the command `sudo poweroff`. Always prefer it to pulling the battery when you can. To switch it back on: unplug the battery and plug it in again.
+*Settings > Switch off* (tap twice) shuts the station down cleanly, like the command `sudo poweroff`; *Settings > Restart*, next to it, restarts it cleanly. Always prefer it to pulling the battery when you can. To switch it back on: unplug the battery and plug it in again.
 
 ## Battery life
 

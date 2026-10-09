@@ -1,0 +1,34 @@
+/* Prometheus Station - styles communs du registre des personnes et de l'entraide */
+.sous-titre { color: var(--gris); margin: -12px 0 22px; }
+.choix-deux { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choix-deux button { font: inherit; font-weight: 650; font-size: 1rem; padding: 16px 10px; border-radius: var(--rayon); border: 2px solid var(--trait); background: var(--carte); color: var(--encre); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: border-color .15s ease, background .15s ease; }
+.choix-deux button svg { width: 26px; height: 26px; }
+.choix-deux button.vert { color: #2b8a3e; } .choix-deux button.orange { color: #d9480f; }
+.choix-deux button.choisi.vert { border-color: #2b8a3e; background: #ebfbee; }
+.choix-deux button.choisi.orange { border-color: #d9480f; background: #fff4e6; }
+.formulaire { background: var(--carte); border: 1px solid var(--trait); border-radius: var(--rayon); padding: 16px; margin-top: 12px; animation: entree .2s ease; }
+.formulaire[hidden] { display: none; }
+.formulaire label { display: block; font-size: .85rem; font-weight: 600; color: var(--gris); margin: 2px 4px 6px; }
+.formulaire textarea.champ { resize: vertical; min-height: 70px; }
+.formulaire .bouton { margin-top: 4px; }
+@keyframes entree { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.erreur { color: #d62828; font-size: .88rem; margin: 8px 4px 0; }
+.recherche-nom { margin: 26px 0 14px; }
+.fiches { display: grid; gap: 10px; }
+.fiche { background: var(--carte); border: 1px solid var(--trait); border-left: 5px solid var(--pale); border-radius: 14px; padding: 12px 14px; animation: entree .2s ease; }
+.fiche.vert { border-left-color: #2b8a3e; } .fiche.orange { border-left-color: #d9480f; }
+.fiche .haut { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fiche .nom { font-weight: 700; font-size: 1.08rem; }
+.badge { font-size: .72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; }
+.badge.vert { color: #2b8a3e; background: #ebfbee; } .badge.orange { color: #d9480f; background: #fff4e6; }
+.badge.gris { color: var(--gris); background: var(--fond); border: 1px solid var(--trait); }
+.fiche .texte { margin: 6px 0 2px; white-space: pre-wrap; overflow-wrap: break-word; }
+.fiche .detail { color: var(--gris); font-size: .9rem; }
+.fiche .bas { display: flex; align-items: center; gap: 10px; margin-top: 6px; color: var(--pale); font-size: .8rem; }
+.fiche .effacer { margin-left: auto; font: inherit; font-size: .8rem; color: var(--pale); background: none; border: 0; cursor: pointer; padding: 0; }
+.fiche .effacer:hover { color: #d62828; }
+.puces { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; }
+.puces::-webkit-scrollbar { display: none; }
+.puce { flex: none; font: inherit; font-size: .9rem; font-weight: 600; padding: 8px 14px; border-radius: 20px; border: 1px solid var(--trait); background: var(--carte); color: var(--encre); cursor: pointer; }
+.puce.choisie { background: var(--accent); border-color: var(--accent); color: #fff; }
+.eteinte { text-align: center; color: var(--gris); padding: 40px 16px; }

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Find your loved ones">Retrouver ses proches</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/communaute.css">
+<script src="/langue.js"></script>
+<script src="/annonce.js"></script>
+<script>
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+</head>
+<body>
+<main>
+  <a class="retour" id="retour" href="/" data-en="← Home">← Accueil</a>
+  <h1 data-en="Find your loved ones">Retrouver ses proches</h1>
+  <p class="sous-titre" data-en="Say that you are safe, or that you are looking for someone.">Dites que vous allez bien, ou que vous cherchez quelqu’un.</p>
+
+  <div id="ouvert">
+    <div class="choix-deux">
+      <button class="vert" data-type="sauf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-en="I am safe">Je suis sain et sauf</span></button>
+      <button class="orange" data-type="cherche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span data-en="I am looking for someone">Je cherche quelqu’un</span></button>
+    </div>
+
+    <form class="formulaire" id="form" hidden>
+      <label for="nom" id="l-nom"></label>
+      <input class="champ" id="nom" maxlength="60" autocomplete="off">
+      <div id="bloc-lieu">
+        <label for="lieu" id="l-lieu"></label>
+        <input class="champ" id="lieu" maxlength="80" autocomplete="off">
+      </div>
+      <label for="message" data-en="Message (optional)">Message (facultatif)</label>
+      <textarea class="champ" id="message" maxlength="300"></textarea>
+      <button class="bouton" id="envoyer" data-en="Publish">Publier</button>
+      <p class="erreur" id="erreur"></p>
+    </form>
+
+    <input class="recherche recherche-nom" id="cherche" type="search" placeholder="Chercher un nom…" data-en-ph="Search a name…" autocomplete="off">
+    <div class="fiches" id="fiches"></div>
+    <p class="vide" id="vide" hidden></p>
+  </div>
+  <p class="eteinte" id="eteinte" hidden data-en="This feature is not turned on at this station.">Cette fonction n’est pas activée sur cette station.</p>
+</main>
+<script>
+function $(id) { return document.getElementById(id); }
+if (new URLSearchParams(location.search).get('depuis') === 'parametres') {
+  $('retour').href = '/parametres/#registre'; $('retour').dataset.en = '← Settings'; $('retour').textContent = '← Paramètres';
+}
+var donnees = null, type = null, cles = {};
+try { cles = JSON.parse(localStorage.getItem('cles-registre') || '{}'); } catch (e) {}
+
+// Recherche sans tenir compte des accents ni des majuscules
+function simple(s) { return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function quand(t) {
+  var d = new Date(t * 1000), l = LANGUE === 'en' ? 'en-GB' : 'fr-FR';
+  return d.toLocaleDateString(l, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + T(' à ', ', ') +
+         d.toLocaleTimeString(l, { hour: '2-digit', minute: '2-digit' });
+}
+
+function choisir(t) {
+  type = t;
+  document.querySelectorAll('[data-type]').forEach(function (b) { b.classList.toggle('choisi', b.dataset.type === t); });
+  $('form').hidden = false;
+  $('l-nom').textContent = t === 'sauf' ? T('Votre nom et prénom', 'Your full name') : T('Nom et prénom de la personne cherchée', 'Full name of the person you are looking for');
+  $('l-lieu').textContent = t === 'sauf' ? T('Où vous êtes (facultatif)', 'Where you are (optional)') : T('Où elle a été vue pour la dernière fois (facultatif)', 'Where they were last seen (optional)');
+  $('message').placeholder = t === 'sauf' ? T('Ex. : je vais bien, je suis avec ma sœur.', 'E.g. I am fine, I am with my sister.')
+    : T('Ex. : description, comment vous joindre.', 'E.g. description, how to reach you.');
+  $('nom').focus();
+}
+document.querySelectorAll('[data-type]').forEach(function (b) { b.onclick = function () { choisir(b.dataset.type); }; });
+
+function afficher() {
+  var q = simple($('cherche').value.trim()), zone = $('fiches');
+  zone.innerHTML = '';
+  var liste = donnees.fiches.filter(function (f) { return !q || simple(f.nom).indexOf(q) >= 0 || simple(f.lieu).indexOf(q) >= 0; });
+  liste.forEach(function (f) {
+    var vert = f.type === 'sauf';
+    var c = document.createElement('div'); c.className = 'fiche ' + (vert ? 'vert' : 'orange');
+    var haut = document.createElement('div'); haut.className = 'haut';
+    var nom = document.createElement('span'); nom.className = 'nom'; nom.textContent = f.nom;
+    var badge = document.createElement('span'); badge.className = 'badge ' + (vert ? 'vert' : 'orange');
+    badge.textContent = vert ? T('Sain et sauf', 'Safe') : T('Recherché(e)', 'Missing');
+    haut.appendChild(nom); haut.appendChild(badge); c.appendChild(haut);
+    if (f.lieu) { var l = document.createElement('div'); l.className = 'detail'; l.textContent = (vert ? T('Se trouve : ', 'Is at: ') : T('Vu(e) pour la dernière fois : ', 'Last seen: ')) + f.lieu; c.appendChild(l); }
+    if (f.message) { var m = document.createElement('div'); m.className = 'texte'; m.textContent = f.message; c.appendChild(m); }
+    var bas = document.createElement('div'); bas.className = 'bas';
+    bas.appendChild(document.createTextNode(quand(f.heure)));
+    if (cles[f.id] || donnees.admin) {
+      var x = document.createElement('button'); x.className = 'effacer';
+      x.textContent = cles[f.id] ? T('Effacer ma fiche', 'Delete my entry') : T('Effacer', 'Delete');
+      x.onclick = function () {
+        fetch('/api/registre/effacer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: f.id, cle: cles[f.id] || '' }) })
+          .then(function () { delete cles[f.id]; try { localStorage.setItem('cles-registre', JSON.stringify(cles)); } catch (e) {} charger(); });
+      };
+      bas.appendChild(x);
+    }
+    c.appendChild(bas);
+    zone.appendChild(c);
+  });
+  $('vide').hidden = liste.length > 0;
+  $('vide').textContent = q ? T('Personne à ce nom pour l’instant.', 'Nobody with this name yet.') : T('Aucune fiche pour l’instant.', 'No entries yet.');
+}
+
+function charger() {
+  fetch('/api/registre', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    donnees = d;
+    $('ouvert').hidden = !d.active; $('eteinte').hidden = d.active;
+    $('bloc-lieu').hidden = !d.lieu;
+    afficher();
+  }).catch(function () {});
+}
+$('cherche').addEventListener('input', function () { if (donnees) afficher(); });
+
+$('form').onsubmit = function (ev) {
+  ev.preventDefault();
+  $('envoyer').disabled = true; $('erreur').textContent = '';
+  fetch('/api/registre', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: type, nom: $('nom').value, lieu: $('lieu').value, message: $('message').value }) })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (r) {
+      $('envoyer').disabled = false;
+      if (!r.ok) { $('erreur').textContent = TE(r.d.erreur) || T('Erreur.', 'Error.'); return; }
+      cles[r.d.id] = r.d.cle;   // ce telephone pourra effacer sa fiche
+      try { localStorage.setItem('cles-registre', JSON.stringify(cles)); } catch (e) {}
+      $('nom').value = ''; $('lieu').value = ''; $('message').value = '';
+      $('form').hidden = true; type = null;
+      document.querySelectorAll('[data-type]').forEach(function (b) { b.classList.remove('choisi'); });
+      $('cherche').value = ''; charger();
+    })
+    .catch(function () { $('envoyer').disabled = false; $('erreur').textContent = T('La station ne répond pas.', 'The station does not respond.'); });
+};
+
+charger();
+setInterval(charger, 30000);
+</script>
+</body>
+</html>

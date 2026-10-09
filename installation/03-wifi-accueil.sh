@@ -17,7 +17,9 @@ cp "$ICI"/web/themes/*.css "$WEB/themes/"
 THEME=$(cat /srv/prometheus/.admin/theme 2>/dev/null || cat /srv/prometheus/.theme 2>/dev/null || echo ocean)
 [ -f "$WEB/themes/$THEME.css" ] || THEME=ocean
 cp "$WEB/themes/$THEME.css" "$WEB/theme.css"
-cp "$ICI/web/index.html" "$ICI/web/style.css" "$ICI/web/logo.svg" "$ICI/web/connexion.html" "$ICI/web/langue.js" "$ICI/web/panneau.js" "$WEB/"
+cp "$ICI/web/index.html" "$ICI/web/style.css" "$ICI/web/logo.svg" "$ICI/web/connexion.html" "$ICI/web/langue.js" "$ICI/web/panneau.js" "$ICI/web/annonce.js" "$ICI/web/communaute.css" "$WEB/"
+# Annonce, Retrouver ses proches, Entraide, Urgence (eteintes au depart, Parametres > Communaute)
+for P in registre entraide urgence; do mkdir -p "$WEB/$P"; cp "$ICI/web/$P/index.html" "$WEB/$P/"; done
 mkdir -p "$WEB/panneau"
 cp "$ICI/web/panneau/index.html" "$WEB/panneau/"
 rm -f "$WEB/logo.png"   # ancien logo sur fond blanc, remplace par logo.svg
@@ -25,7 +27,7 @@ cp "$ICI/web/bibliotheque/index.html" "$ICI/web/bibliotheque/lire.html" "$WEB/bi
 cp "$ICI/web/ajouter/index.html" "$WEB/ajouter/"
 rm -f "$WEB/ajouter/maj.html"   # remplacee par /parametres/
 mkdir -p "$WEB/parametres"
-cp "$ICI/web/parametres/index.html" "$WEB/parametres/"
+cp "$ICI/web/parametres/index.html" "$ICI/web/parametres/affiche.html" "$WEB/parametres/"
 mkdir -p "$WEB/messages"
 cp "$ICI/web/messages/index.html" "$WEB/messages/"
 mkdir -p "$WEB/encyclopedies"
@@ -33,6 +35,8 @@ cp "$ICI/web/encyclopedies/index.html" "$WEB/encyclopedies/"
 # Lecteur de livres EPUB, garde sur la station pour marcher sans internet
 curl -fsSL -o "$WEB/vendor/epub.min.js" https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js
 curl -fsSL -o "$WEB/vendor/jszip.min.js" https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
+# QR code de l'affiche a imprimer (Parametres > Affiche), lui aussi garde sur la station
+curl -fsSL -o "$WEB/vendor/qrcode.js" https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js
 chown -R root:root "$WEB"
 chown prometheus:prometheus "$WEB/bibliotheque"
 find "$WEB" -type f -exec chmod 644 {} +
@@ -111,6 +115,8 @@ chown prometheus:prometheus /srv/prometheus/messages
 mkdir -p /srv/prometheus/panneau
 [ -f /srv/prometheus/panneau/panneau.txt ] || cp "$ICI/panneau-depart.txt" /srv/prometheus/panneau/panneau.txt
 chown -R prometheus:prometheus /srv/prometheus/panneau
+mkdir -p /srv/prometheus/communaute       # annonce, registre des personnes, entraide
+chown -R prometheus:prometheus /srv/prometheus/communaute
 cat > /etc/systemd/system/prometheus-admin.service <<'EOF'
 [Unit]
 Description=Prometheus Station - mot de passe des pages d'administration
@@ -135,6 +141,14 @@ rm -f /srv/prometheus/.admin/mot-de-passe /srv/prometheus/.admin/sessions.json
 echo "Mot de passe efface. Ouvrez la page Ajouter de la station pour en choisir un nouveau."
 EOF
 chmod 755 /usr/local/bin/prometheus-mot-de-passe
+
+echo "== Encyclopedies : adresses sans date (les raccourcis de la page Urgence survivent aux mises a jour)"
+K=/etc/systemd/system/prometheus-kiwix.service
+if [ -f "$K" ] && ! grep -q -- '--nodatealiases' "$K"; then
+  sed -i 's|kiwix-serve |kiwix-serve --nodatealiases |' "$K"
+  systemctl daemon-reload
+  systemctl restart prometheus-kiwix
+fi
 
 echo "== Configuration du serveur web"
 cat > /etc/nginx/sites-available/prometheus <<'EOF'
@@ -168,7 +182,7 @@ server {
         proxy_read_timeout 300s;
         proxy_set_header Accept-Encoding "";
         sub_filter_once on;
-        sub_filter '</body>' '<a href="/encyclopedies/" aria-label="Rechercher" style="position:fixed;right:18px;bottom:18px;z-index:2147483647;width:52px;height:52px;border-radius:26px;background:#111;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,.25)"><svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="6.5"/><path d="M13.5 13.5 18 18"/></svg></a></body>';
+        sub_filter '</body>' '<a href="/encyclopedies/" aria-label="Rechercher" style="position:fixed;right:18px;bottom:18px;z-index:2147483647;width:52px;height:52px;border-radius:26px;background:#111;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,.25)"><svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="6.5"/><path d="M13.5 13.5 18 18"/></svg></a><script src="/annonce.js"></script></body>';
     }
 
     # Le reste de Kiwix (catalogue, recherche, images)

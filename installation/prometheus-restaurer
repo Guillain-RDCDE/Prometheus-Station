@@ -5,11 +5,12 @@ set -e
 F=${1:?Usage : sudo prometheus-restaurer prometheus-sauvegarde-AAAA-MM-JJ-HHMM.tar.gz}
 [ -f "$F" ] || { echo "Fichier introuvable : $F"; exit 1; }
 # Refuse tout fichier qui ecrirait ailleurs que dans les dossiers attendus
-if tar tzf "$F" | grep -vqE '^(srv/prometheus/(\.admin|messages|panneau|contenus\.txt)|etc/NetworkManager/system-connections)'; then
+if tar tzf "$F" | grep -vqE '^(srv/prometheus/(\.admin|messages|panneau|communaute|contenus\.txt)|etc/NetworkManager/system-connections)'; then
   echo "Ce fichier n'est pas une sauvegarde de la station. Rien n'a change."; exit 1
 fi
 tar xzf "$F" -C /
-chown -R prometheus:prometheus /srv/prometheus/.admin /srv/prometheus/messages /srv/prometheus/panneau
+mkdir -p /srv/prometheus/communaute
+chown -R prometheus:prometheus /srv/prometheus/.admin /srv/prometheus/messages /srv/prometheus/panneau /srv/prometheus/communaute
 chmod 600 /etc/NetworkManager/system-connections/* 2>/dev/null || true
 nmcli connection reload
 systemctl restart prometheus-admin prometheus-sobre

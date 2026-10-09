@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Mutual aid">Entraide</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/communaute.css">
+<script src="/langue.js"></script>
+<script src="/annonce.js"></script>
+<script>
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+</head>
+<body>
+<main>
+  <a class="retour" id="retour" href="/" data-en="← Home">← Accueil</a>
+  <h1 data-en="Mutual aid">Entraide</h1>
+  <p class="sous-titre" data-en="Say what you need, or what you can offer.">Dites ce dont vous avez besoin, ou ce que vous pouvez offrir.</p>
+
+  <div id="ouvert">
+    <div class="choix-deux">
+      <button class="orange" data-type="cherche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span data-en="I need">Je cherche</span></button>
+      <button class="vert" data-type="propose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><span data-en="I can offer">Je propose</span></button>
+    </div>
+
+    <form class="formulaire" id="form" hidden>
+      <label data-en="Category">Catégorie</label>
+      <div class="puces" id="form-categories"></div>
+      <label for="texte" id="l-texte"></label>
+      <textarea class="champ" id="texte" maxlength="300"></textarea>
+      <label for="nom" data-en="Your first name (optional)">Votre prénom (facultatif)</label>
+      <input class="champ" id="nom" maxlength="40" autocomplete="given-name">
+      <label for="contact" data-en="Where to find you (optional)">Où vous trouver (facultatif)</label>
+      <input class="champ" id="contact" maxlength="80" placeholder="Ex. : tente bleue près de la mairie" data-en-ph="E.g. blue tent near the town hall" autocomplete="off">
+      <button class="bouton" id="envoyer" data-en="Publish">Publier</button>
+      <p class="erreur" id="erreur"></p>
+    </form>
+
+    <h2 data-en="Posts">Annonces</h2>
+    <div class="puces" id="filtre-type"></div>
+    <div class="puces" id="filtre-categories"></div>
+    <div class="fiches" id="fiches"></div>
+    <p class="vide" id="vide" hidden data-en="Nothing here yet.">Rien pour l’instant.</p>
+    <p class="note" id="duree"></p>
+  </div>
+  <p class="eteinte" id="eteinte" hidden data-en="This feature is not turned on at this station.">Cette fonction n’est pas activée sur cette station.</p>
+</main>
+<script>
+function $(id) { return document.getElementById(id); }
+if (new URLSearchParams(location.search).get('depuis') === 'parametres') {
+  $('retour').href = '/parametres/#entraide'; $('retour').dataset.en = '← Settings'; $('retour').textContent = '← Paramètres';
+}
+var CATS = {
+  eau: T('Eau', 'Water'), nourriture: T('Nourriture', 'Food'), sante: T('Santé, médicaments', 'Health, medicine'),
+  abri: T('Abri', 'Shelter'), energie: T('Énergie', 'Power'), transport: T('Transport', 'Transport'),
+  outils: T('Outils', 'Tools'), competences: T('Compétences', 'Skills'), autre: T('Autre', 'Other')
+};
+var donnees = null, type = null, categorie = null, filtreType = '', filtreCat = '', cles = {};
+try { cles = JSON.parse(localStorage.getItem('cles-entraide') || '{}'); } catch (e) {}
+try { $('nom').value = localStorage.getItem('nom') || ''; } catch (e) {}
+
+function depuis(t) {
+  var s = Math.max(0, Math.round(donnees.maintenant - t));
+  if (s < 60) return T('à l’instant', 'just now');
+  if (s < 3600) return T('il y a ', '') + Math.round(s / 60) + T(' min', ' min ago');
+  if (s < 86400) return T('il y a ', '') + Math.round(s / 3600) + T(' h', ' h ago');
+  return T('il y a ', '') + Math.round(s / 86400) + T(' j', ' d ago');
+}
+
+function puces(zone, liste, actuel, choisir) {
+  zone.innerHTML = '';
+  liste.forEach(function (p) {
+    var b = document.createElement('button'); b.type = 'button';
+    b.className = 'puce' + (p[0] === actuel ? ' choisie' : ''); b.textContent = p[1];
+    b.onclick = function () { choisir(p[0]); };
+    zone.appendChild(b);
+  });
+}
+
+function choisirType(t) {
+  type = t;
+  document.querySelectorAll('[data-type]').forEach(function (b) { b.classList.toggle('choisi', b.dataset.type === t); });
+  $('form').hidden = false;
+  $('l-texte').textContent = t === 'cherche' ? T('Ce dont vous avez besoin', 'What you need') : T('Ce que vous proposez', 'What you can offer');
+  $('texte').placeholder = t === 'cherche' ? T('Ex. : du lait pour un bébé de 6 mois.', 'E.g. milk for a 6-month-old baby.')
+    : T('Ex. : je suis infirmière, je peux faire des pansements.', 'E.g. I am a nurse, I can dress wounds.');
+}
+document.querySelectorAll('[data-type]').forEach(function (b) { b.onclick = function () { choisirType(b.dataset.type); }; });
+
+function afficher() {
+  var cats = donnees.categories.map(function (c) { return [c, CATS[c]]; });
+  if (categorie && donnees.categories.indexOf(categorie) < 0) categorie = null;
+  puces($('form-categories'), cats, categorie, function (c) { categorie = c; afficher(); });
+  puces($('filtre-type'), [['', T('Tout', 'All')], ['cherche', T('Ils cherchent', 'Needed')], ['propose', T('Ils proposent', 'Offered')]],
+    filtreType, function (t) { filtreType = t; afficher(); });
+  puces($('filtre-categories'), [['', T('Toutes catégories', 'All categories')]].concat(cats), filtreCat, function (c) { filtreCat = c; afficher(); });
+
+  var zone = $('fiches');
+  zone.innerHTML = '';
+  var liste = donnees.annonces.filter(function (a) { return (!filtreType || a.type === filtreType) && (!filtreCat || a.categorie === filtreCat); });
+  liste.forEach(function (a) {
+    var cherche = a.type === 'cherche';
+    var c = document.createElement('div'); c.className = 'fiche ' + (cherche ? 'orange' : 'vert');
+    var haut = document.createElement('div'); haut.className = 'haut';
+    var b1 = document.createElement('span'); b1.className = 'badge ' + (cherche ? 'orange' : 'vert'); b1.textContent = cherche ? T('Cherche', 'Needs') : T('Propose', 'Offers');
+    var b2 = document.createElement('span'); b2.className = 'badge gris'; b2.textContent = CATS[a.categorie] || a.categorie;
+    haut.appendChild(b1); haut.appendChild(b2); c.appendChild(haut);
+    var t = document.createElement('div'); t.className = 'texte'; t.textContent = a.texte; c.appendChild(t);
+    if (a.nom || a.contact) {
+      var dt = document.createElement('div'); dt.className = 'detail';
+      dt.textContent = [a.nom, a.contact].filter(Boolean).join(' · '); c.appendChild(dt);
+    }
+    var bas = document.createElement('div'); bas.className = 'bas';
+    bas.appendChild(document.createTextNode(depuis(a.heure)));
+    if (cles[a.id] || donnees.admin) {
+      var x = document.createElement('button'); x.className = 'effacer';
+      x.textContent = cles[a.id] ? T('Retirer mon annonce', 'Remove my post') : T('Effacer', 'Delete');
+      x.onclick = function () {
+        fetch('/api/entraide/effacer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: a.id, cle: cles[a.id] || '' }) })
+          .then(function () { delete cles[a.id]; try { localStorage.setItem('cles-entraide', JSON.stringify(cles)); } catch (e) {} charger(); });
+      };
+      bas.appendChild(x);
+    }
+    c.appendChild(bas);
+    zone.appendChild(c);
+  });
+  $('vide').hidden = liste.length > 0;
+  var j = { 24: T('1 jour', '1 day'), 72: T('3 jours', '3 days'), 168: T('7 jours', '7 days') }[donnees.duree];
+  $('duree').textContent = j ? T('Les annonces restent visibles ', 'Posts stay visible for ') + j + '.' : '';
+}
+
+function charger() {
+  fetch('/api/entraide', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    donnees = d;
+    $('ouvert').hidden = !d.active; $('eteinte').hidden = d.active;
+    afficher();
+  }).catch(function () {});
+}
+
+$('form').onsubmit = function (ev) {
+  ev.preventDefault();
+  $('erreur').textContent = '';
+  if (!categorie) { $('erreur').textContent = T('Choisissez une catégorie.', 'Choose a category.'); return; }
+  $('envoyer').disabled = true;
+  try { localStorage.setItem('nom', $('nom').value.trim()); } catch (e) {}
+  fetch('/api/entraide', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: type, categorie: categorie, texte: $('texte').value, nom: $('nom').value, contact: $('contact').value }) })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (r) {
+      $('envoyer').disabled = false;
+      if (!r.ok) { $('erreur').textContent = TE(r.d.erreur) || T('Erreur.', 'Error.'); return; }
+      cles[r.d.id] = r.d.cle;   // ce telephone pourra retirer son annonce
+      try { localStorage.setItem('cles-entraide', JSON.stringify(cles)); } catch (e) {}
+      $('texte').value = ''; $('contact').value = ''; $('form').hidden = true; type = null; categorie = null;
+      document.querySelectorAll('[data-type]').forEach(function (b) { b.classList.remove('choisi'); });
+      charger();
+    })
+    .catch(function () { $('envoyer').disabled = false; $('erreur').textContent = T('La station ne répond pas.', 'The station does not respond.'); });
+};
+
+charger();
+setInterval(charger, 30000);
+</script>
+</body>
+</html>

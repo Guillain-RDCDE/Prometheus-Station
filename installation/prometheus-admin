@@ -18,8 +18,18 @@
 #   POST /api/messages/vider    -> effacer tous les messages (administrateur connecte seulement)
 #   POST /api/heure             -> heure du telephone {ms}, pour regler la station quand elle n'a pas internet
 #   GET  /api/panneau           -> le texte du panneau d'accueil {texte}
+#   GET  /api/reglages          -> ce qui est allume : annonce, registre, entraide, urgence (et leurs options)
+#   GET  /api/registre          -> registre « sain et sauf / je cherche quelqu'un » (sans les cles)
+#   POST /api/registre          -> ajouter une fiche {type: sauf|cherche, nom, lieu, message} -> {id, cle}
+#   POST /api/registre/effacer  -> effacer une fiche {id, cle} (sa cle, ou administrateur connecte)
+#   POST /api/registre/vider    -> tout effacer (administrateur connecte)
+#   GET  /api/entraide          -> annonces d'entraide encore valables
+#   POST /api/entraide          -> ajouter {type: cherche|propose, categorie, texte, nom, contact} -> {id, cle}
+#   POST /api/entraide/effacer  -> effacer une annonce {id, cle} (sa cle, ou administrateur connecte)
+#   POST /api/entraide/vider    -> tout effacer (administrateur connecte)
 # Et pour l'administrateur connecte :
 #   POST /panneau   -> enregistrer le texte du panneau d'accueil {texte}
+#   POST /reglages  -> allumer, eteindre, regler une fonction {section, valeurs}
 import hashlib, hmac, json, os, secrets, subprocess, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
@@ -40,6 +50,22 @@ SOBRE = os.path.join(DOSSIER, 'sobre')                  # oui / non, ecrit par p
 EXTINCTION = '/run/prometheus/extinction'               # minutes ; /run est vide a chaque demarrage
 EXTINCTION_RESTANT = '/run/prometheus/extinction-restant'
 PANNEAU = '/srv/prometheus/panneau/panneau.txt'          # texte du panneau d'accueil
+
+# Fonctions « communaute » : annonce, registre des personnes, entraide, page Urgence. Toutes eteintes au depart.
+COMMUNAUTE = '/srv/prometheus/communaute'
+REGLAGES = os.path.join(COMMUNAUTE, 'reglages.json')
+REGISTRE = os.path.join(COMMUNAUTE, 'registre.json')
+ENTRAIDE = os.path.join(COMMUNAUTE, 'entraide.json')
+CATEGORIES = ['eau', 'nourriture', 'sante', 'abri', 'energie', 'transport', 'outils', 'competences', 'autre']
+DEFAUT = {
+    'annonce': {'active': False, 'texte': '', 'couleur': 'info', 'defile': True, 'vitesse': 'normale', 'ecran': False},
+    'registre': {'active': False, 'lieu': True},
+    'entraide': {'active': False, 'categories': CATEGORIES, 'duree': 72},
+    'urgence': {'active': False},
+}
+CHOIX = {'couleur': ('info', 'important', 'urgent'), 'vitesse': ('lente', 'normale', 'rapide'), 'duree': (0, 24, 72, 168)}
+MAX_FICHES = 2000
+DERNIER_ENVOI = {}              # (adresse, fonction) -> heure du dernier envoi (un toutes les 20 s au plus)
 
 
 def hacher(mdp, sel=None):
@@ -102,6 +128,67 @@ def energie():
     return {'sobre': (demande or lire_fichier(SOBRE, 'non')) == 'oui',
             'extinction': int(m) if m.isdigit() else 0,
             'restant': int(r) if r.lstrip('-').isdigit() else None}
+
+
+def reglages():
+    """Les reglages des fonctions communaute, completes par les valeurs par defaut."""
+    r = json.loads(json.dumps(DEFAUT))
+    try:
+        lu = json.load(open(REGLAGES))
+    except (OSError, ValueError):
+        lu = {}
+    for section, valeurs in r.items():
+        if isinstance(lu.get(section), dict):
+            for k in valeurs:
+                if k in lu[section]:
+                    valeurs[k] = lu[section][k]
+    return r
+
+
+def regler(section, valeurs):
+    """Verifie et enregistre une modification. Renvoie la section a jour, ou None si quelque chose est invalide."""
+    tout = reglages()
+    if section not in tout or not isinstance(valeurs, dict):
+        return None
+    s = tout[section]
+    for k, v in valeurs.items():
+        if k not in s:
+            return None
+        if isinstance(DEFAUT[section][k], bool):
+            if not isinstance(v, bool):
+                return None
+        elif k == 'texte':
+            v = ' '.join(str(v).split())[:200]
+        elif k == 'categories':
+            if not isinstance(v, list) or not all(c in CATEGORIES for c in v):
+                return None
+            v = [c for c in CATEGORIES if c in v]
+        elif k in CHOIX:
+            if v not in CHOIX[k] or isinstance(v, bool):
+                return None
+        s[k] = v
+    os.makedirs(COMMUNAUTE, exist_ok=True)
+    ecrire_public(REGLAGES, json.dumps(tout, ensure_ascii=False))
+    return s
+
+
+def lire_liste(chemin):
+    try:
+        return json.load(open(chemin))
+    except (OSError, ValueError):
+        return []
+
+
+def entraide_valables(liste):
+    """Les annonces d'entraide encore dans leur duree d'affichage (0 = sans limite)."""
+    duree = reglages()['entraide']['duree']
+    if not duree:
+        return liste
+    return [a for a in liste if time.time() - a.get('heure', 0) < duree * 3600]
+
+
+def publique(fiche):
+    return {k: v for k, v in fiche.items() if k != 'cle'}
 
 
 def sante():
@@ -178,6 +265,17 @@ class Admin(BaseHTTPRequestHandler):
                                        'admin': self.connecte()})
         if self.path == '/api/panneau':
             return self.repondre(200, {'texte': lire_fichier(PANNEAU)})
+        if self.path == '/api/reglages':
+            return self.repondre(200, reglages())
+        if self.path == '/api/registre':
+            r = reglages()['registre']
+            return self.repondre(200, {'fiches': [publique(f) for f in lire_liste(REGISTRE)], 'maintenant': time.time(),
+                                       'admin': self.connecte(), 'active': r['active'], 'lieu': r['lieu']})
+        if self.path == '/api/entraide':
+            r = reglages()['entraide']
+            return self.repondre(200, {'annonces': [publique(a) for a in entraide_valables(lire_liste(ENTRAIDE))],
+                                       'maintenant': time.time(), 'admin': self.connecte(), 'active': r['active'],
+                                       'categories': r['categories'], 'duree': r['duree']})
         if self.path == '/verif':
             self.repondre(200 if self.connecte() else 401)
         elif self.path == '/etat':
@@ -229,6 +327,60 @@ class Admin(BaseHTTPRequestHandler):
         if self.path == '/api/heure':
             return self.repondre(200, {'regle': regler_heure(d.get('ms'))})
 
+        # ----- Registre « sain et sauf / je cherche quelqu'un » et entraide « je cherche / je propose »
+        if self.path in ('/api/registre', '/api/entraide'):
+            fonction = self.path[5:]
+            r = reglages()[fonction]
+            if not r['active']:
+                return self.repondre(403, {'erreur': 'Cette fonction est désactivée.'})
+            def champ(nom, n):
+                return ' '.join(str(d.get(nom, '')).split())[:n]
+            if fonction == 'registre':
+                fiche = {'type': d.get('type'), 'nom': champ('nom', 60), 'lieu': champ('lieu', 80) if r['lieu'] else '',
+                         'message': champ('message', 300)}
+                if fiche['type'] not in ('sauf', 'cherche') or len(fiche['nom']) < 2:
+                    return self.repondre(400, {'erreur': 'Indiquez un nom.'})
+                chemin = REGISTRE
+            else:
+                fiche = {'type': d.get('type'), 'categorie': d.get('categorie'), 'texte': champ('texte', 300),
+                         'nom': champ('nom', 40), 'contact': champ('contact', 80)}
+                if fiche['type'] not in ('cherche', 'propose') or fiche['categorie'] not in r['categories']:
+                    return self.repondre(400, {'erreur': 'Réglage invalide.'})
+                if not fiche['texte']:
+                    return self.repondre(400, {'erreur': 'Message vide.'})
+                chemin = ENTRAIDE
+            if time.time() - DERNIER_ENVOI.get((ip, fonction), 0) < 20:
+                return self.repondre(429, {'erreur': 'Attendez quelques secondes avant le message suivant.'})
+            DERNIER_ENVOI[(ip, fonction)] = time.time()
+            fiche.update({'id': secrets.token_hex(6), 'cle': secrets.token_urlsafe(16), 'heure': time.time()})
+            with VERROU:
+                liste = lire_liste(chemin)
+                if fonction == 'entraide':
+                    liste = entraide_valables(liste)   # les annonces perimees partent a cette occasion
+                liste.insert(0, fiche)
+                os.makedirs(COMMUNAUTE, exist_ok=True)
+                ecrire_public(chemin, json.dumps(liste[:MAX_FICHES], ensure_ascii=False))
+            return self.repondre(200, {'id': fiche['id'], 'cle': fiche['cle']})
+
+        if self.path in ('/api/registre/effacer', '/api/entraide/effacer'):
+            chemin = REGISTRE if 'registre' in self.path else ENTRAIDE
+            admin = self.connecte()
+            with VERROU:
+                liste = lire_liste(chemin)
+                garde = [f for f in liste if not (f.get('id') == d.get('id') and
+                                                   (admin or hmac.compare_digest(str(f.get('cle', '')), str(d.get('cle', '')))))]
+                if len(garde) == len(liste):
+                    return self.repondre(403, {'erreur': 'Effacement refusé.'})
+                ecrire_public(chemin, json.dumps(garde, ensure_ascii=False))
+            return self.repondre(200)
+
+        if self.path in ('/api/registre/vider', '/api/entraide/vider'):
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            with VERROU:
+                ecrire_public(REGISTRE if 'registre' in self.path else ENTRAIDE, '[]')
+            return self.repondre(200)
+
         echecs, quand = ESSAIS.get(ip, (0, 0))
         if echecs >= 5 and time.time() - quand < 60:
             return self.repondre(429, {'erreur': 'Trop d’essais. Attendez une minute.'})
@@ -277,6 +429,15 @@ class Admin(BaseHTTPRequestHandler):
                 return self.repondre(400, {'erreur': 'Entre 1 et 32 caractères.'})
             ecrire(os.path.join(DOSSIER, 'ssid-demande'), nom)
             return self.repondre(200)
+
+        if self.path == '/reglages':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            with VERROU:
+                s = regler(d.get('section'), d.get('valeurs'))
+            if s is None:
+                return self.repondre(400, {'erreur': 'Réglage invalide.'})
+            return self.repondre(200, s)
 
         if self.path == '/panneau':
             if not self.connecte():

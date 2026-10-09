@@ -14,7 +14,8 @@
     'Au moins 4 caractères.': 'At least 4 characters.', 'Le mot de passe est déjà choisi.': 'The password is already set.',
     'Ancien mot de passe incorrect.': 'Current password is wrong.', 'Entre 1 et 32 caractères.': 'Between 1 and 32 characters.',
     'Couleurs inconnues.': 'Unknown colors.', 'Connectez-vous d’abord.': 'Please sign in first.',
-    'Message vide.': 'Empty message.', 'Réglage invalide.': 'Invalid setting.', 'Texte trop long.': 'Text too long.', 'Attendez quelques secondes avant le message suivant.': 'Wait a few seconds before the next message.'
+    'Message vide.': 'Empty message.', 'Réglage invalide.': 'Invalid setting.', 'Texte trop long.': 'Text too long.',
+    'Cette fonction est désactivée.': 'This feature is turned off.', 'Indiquez un nom.': 'Please enter a name.', 'Effacement refusé.': 'Deletion refused.', 'Attendez quelques secondes avant le message suivant.': 'Wait a few seconds before the next message.'
   };
   window.TE = function (msg) { return (L === 'en' && ERREURS[msg]) || msg; };
 

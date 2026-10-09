@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/theme.css">
 <script src="/langue.js"></script>
 <script src="/panneau.js"></script>
+<script src="/annonce.js"></script>
 <script>
 // Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
 addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
@@ -66,6 +67,10 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   h2.avec-aide .aide-bouton { width: 20px; height: 20px; font-size: .72rem; }
   h1.avec-aide-titre { display: flex; align-items: center; gap: 10px; }
   a.bouton { text-align: center; }
+  .puces { display: flex; gap: 8px; flex-wrap: wrap; }
+  .puce { font: inherit; font-size: .92rem; font-weight: 600; padding: 9px 15px; border-radius: 20px; border: 1px solid var(--trait); background: var(--carte); color: var(--encre); cursor: pointer; }
+  .puce.choisie { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #annonce-texte { resize: vertical; margin-bottom: 0; }
   a.bouton[hidden] { display: none; }
   .valeur.bien { color: #2f9e44; font-weight: 600; }
 
@@ -100,8 +105,32 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     </a>
   </div>
 
+  <h2 data-en="Community">Communauté</h2>
+  <div class="groupe">
+    <button class="ligne" data-vue="annonce">
+      <span class="icone" style="background:#e8590c"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg></span>
+      <span class="nom" data-en="Announcement">Annonce</span><span class="valeur" id="val-annonce">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="registre">
+      <span class="icone" style="background:#2b8a3e"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 11l2 2 4-4"/></svg></span>
+      <span class="nom" data-en="Find your loved ones">Retrouver ses proches</span><span class="valeur" id="val-registre">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="entraide">
+      <span class="icone" style="background:#1971c2"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-9.3-9A5 5 0 0 1 12 6.3 5 5 0 0 1 21.3 12C19 16.6 12 21 12 21z"/></svg></span>
+      <span class="nom" data-en="Mutual aid">Entraide</span><span class="valeur" id="val-entraide">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="urgence">
+      <span class="icone" style="background:#c92a2a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span class="nom" data-en="Emergency page">Page Urgence</span><span class="valeur" id="val-urgence">…</span><span class="chevron">›</span>
+    </button>
+  </div>
+
   <h2 data-en="Station">Station</h2>
   <div class="groupe">
+    <a class="ligne" href="/parametres/affiche.html">
+      <span class="icone" style="background:#343a40"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v8H6z"/></svg></span>
+      <span class="nom" data-en="Poster to print">Affiche à imprimer</span><span class="chevron">›</span>
+    </a>
     <button class="ligne" data-vue="wifi">
       <span class="icone" style="background:#0a84ff"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5 5 0 0 1 7 0"/><path d="M12 19.5h.01"/><path d="M1.5 9a15 15 0 0 1 21 0"/></svg></span>
       <span class="nom" data-en="Station Wi-Fi">Wi-Fi de la station</span><span class="valeur" id="val-wifi">…</span><span class="chevron">›</span>
@@ -173,6 +202,75 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   </div>
   <button class="bouton secondaire" id="bouton-vider" disabled data-en="Delete all messages">Effacer tous les messages</button>
   <p class="note" id="note-messages" data-en="Each message can also be deleted on its own from the message board, once you are signed in.">Chaque message peut aussi être effacé un par un depuis le tableau, une fois connecté.</p>
+</section>
+
+<!-- ===== Annonce ===== -->
+<section class="vue" id="vue-annonce" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Announcement">Annonce</span><button class="aide-bouton" aria-controls="aide-annonce" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-annonce"><div><p data-en="A short message shown in a band at the top of every page, articles included, for every visitor. For example: “Water handed out at 2 pm, church square”.">Un message court, affiché dans un bandeau en haut de toutes les pages, articles compris, pour tous les visiteurs. Par exemple : « Distribution d’eau à 14 h, place de l’église ».</p></div></div>
+  <div class="groupe">
+    <div class="ligne"><label class="nom" for="annonce-active" data-en="Show the announcement">Afficher l’annonce</label><input type="checkbox" class="interrupteur" id="annonce-active"></div>
+  </div>
+  <h2 data-en="Message">Message</h2>
+  <textarea class="champ" id="annonce-texte" maxlength="200" rows="3" placeholder="Distribution d’eau à 14 h, place de l’église" data-en-ph="Water handed out at 2 pm, church square"></textarea>
+  <button class="bouton" id="annonce-enregistrer" disabled data-en="Saved">Enregistré</button>
+  <p class="note" id="annonce-compte"></p>
+  <h2 data-en="Color">Couleur</h2>
+  <div class="puces" id="annonce-couleur"></div>
+  <h2 data-en="Display">Affichage</h2>
+  <div class="groupe">
+    <div class="ligne"><label class="nom" for="annonce-defile" data-en="Scrolling text">Texte qui défile</label><input type="checkbox" class="interrupteur" id="annonce-defile"></div>
+    <div class="ligne"><label class="nom" for="annonce-ecran"><span data-en="Also on the station's screen">Aussi sur l’écran de la station</span><span class="sous" data-en="The e-ink screen, next to the QR code.">L’écran e-ink, à côté du QR code.</span></label><input type="checkbox" class="interrupteur" id="annonce-ecran"></div>
+  </div>
+  <h2 data-en="Scrolling speed">Vitesse du défilement</h2>
+  <div class="puces" id="annonce-vitesse"></div>
+</section>
+
+<!-- ===== Retrouver ses proches ===== -->
+<section class="vue" id="vue-registre" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Find your loved ones">Retrouver ses proches</span><button class="aide-bouton" aria-controls="aide-registre" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-registre"><div><p data-en="A register where anyone can say “I am safe” or “I am looking for someone”, searchable by name. A door appears on the home page. Each person can delete their own entry from their phone.">Un registre où chacun peut dire « je suis sain et sauf » ou « je cherche quelqu’un », avec une recherche par nom. Une porte apparaît sur l’accueil. Chacun peut effacer sa propre fiche depuis son téléphone.</p></div></div>
+  <div class="groupe">
+    <div class="ligne"><label class="nom" for="registre-active" data-en="Turned on">Activé</label><input type="checkbox" class="interrupteur" id="registre-active"></div>
+    <div class="ligne"><label class="nom" for="registre-lieu"><span data-en="Ask where">Demander le lieu</span><span class="sous" data-en="Where the person is, or was last seen.">Où se trouve la personne, ou où elle a été vue.</span></label><input type="checkbox" class="interrupteur" id="registre-lieu"></div>
+  </div>
+  <div class="groupe" style="margin-top:14px">
+    <a class="ligne" href="/registre/?depuis=parametres"><span class="nom" data-en="Open the register">Ouvrir le registre</span><span class="valeur" id="registre-nombre"></span><span class="chevron">›</span></a>
+  </div>
+  <button class="bouton secondaire" id="registre-vider" disabled data-en="Delete all entries">Effacer toutes les fiches</button>
+</section>
+
+<!-- ===== Entraide ===== -->
+<section class="vue" id="vue-entraide" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Mutual aid">Entraide</span><button class="aide-bouton" aria-controls="aide-entraide" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-entraide"><div><p data-en="Visitors post what they need or what they can offer, by category. Posts disappear by themselves after the chosen time. A door appears on the home page.">Les visiteurs publient ce qu’ils cherchent ou ce qu’ils proposent, par catégorie. Les annonces disparaissent seules après la durée choisie. Une porte apparaît sur l’accueil.</p></div></div>
+  <div class="groupe">
+    <div class="ligne"><label class="nom" for="entraide-active" data-en="Turned on">Activée</label><input type="checkbox" class="interrupteur" id="entraide-active"></div>
+  </div>
+  <h2 data-en="Categories offered">Catégories proposées</h2>
+  <div class="puces enroule" id="entraide-categories"></div>
+  <h2 data-en="Posts stay visible">Les annonces restent visibles</h2>
+  <div class="puces" id="entraide-duree"></div>
+  <div class="groupe" style="margin-top:14px">
+    <a class="ligne" href="/entraide/?depuis=parametres"><span class="nom" data-en="Open mutual aid">Ouvrir l’entraide</span><span class="valeur" id="entraide-nombre"></span><span class="chevron">›</span></a>
+  </div>
+  <button class="bouton secondaire" id="entraide-vider" disabled data-en="Delete all posts">Effacer toutes les annonces</button>
+</section>
+
+<!-- ===== Page Urgence ===== -->
+<section class="vue" id="vue-urgence" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Emergency page">Page Urgence</span><button class="aide-bouton" aria-controls="aide-urgence" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-urgence"><div><p data-en="A red door at the top of the home page, with large buttons (cardiac arrest, bleeding, burn, safe water…) that open the right article in the encyclopedias straight away.">Une porte rouge en haut de l’accueil, avec de gros boutons (arrêt cardiaque, hémorragie, brûlure, eau potable…) qui ouvrent tout de suite le bon article des encyclopédies.</p></div></div>
+  <div class="groupe">
+    <div class="ligne"><label class="nom" for="urgence-active" data-en="Turned on">Activée</label><input type="checkbox" class="interrupteur" id="urgence-active"></div>
+  </div>
+  <div class="groupe" style="margin-top:14px">
+    <a class="ligne" href="/urgence/"><span class="nom" data-en="Open the page">Ouvrir la page</span><span class="chevron">›</span></a>
+  </div>
 </section>
 
 <!-- ===== Wi-Fi ===== -->
@@ -585,6 +683,106 @@ document.querySelectorAll('[data-minutes]').forEach(function (b) {
 });
 energie();
 setInterval(energie, 60000);
+// ----- Communaute : annonce, retrouver ses proches, entraide, page Urgence (toutes eteintes au depart)
+var CATS = [['eau', T('Eau', 'Water')], ['nourriture', T('Nourriture', 'Food')], ['sante', T('Santé, médicaments', 'Health, medicine')],
+  ['abri', T('Abri', 'Shelter')], ['energie', T('Énergie', 'Power')], ['transport', T('Transport', 'Transport')],
+  ['outils', T('Outils', 'Tools')], ['competences', T('Compétences', 'Skills')], ['autre', T('Autre', 'Other')]];
+var reg = null;
+function marche(b) { return b ? T('Activée', 'On') : T('Désactivée', 'Off'); }
+function puces(zone, liste, estChoisie, choisir) {
+  zone.innerHTML = '';
+  liste.forEach(function (p) {
+    var b = el('button', 'puce' + (estChoisie(p[0]) ? ' choisie' : ''), p[1]);
+    b.onclick = function () { choisir(p[0]); };
+    zone.appendChild(b);
+  });
+}
+function regler(section, valeurs) {
+  return poster('reglages', { section: section, valeurs: valeurs }).then(function (r) {
+    if (r.ok) { reg[section] = r.d; afficherCommunaute(); if (section === 'annonce' && window.prometheusAnnonce) prometheusAnnonce(); }
+    else communaute();
+    return r;
+  });
+}
+function afficherCommunaute() {
+  var a = reg.annonce, rg = reg.registre, e = reg.entraide, u = reg.urgence;
+  $('val-annonce').textContent = a.active && a.texte ? T('Affichée', 'Shown') : T('Aucune', 'None');
+  $('val-registre').textContent = marche(rg.active);
+  $('val-entraide').textContent = marche(e.active);
+  $('val-urgence').textContent = marche(u.active);
+
+  $('annonce-active').checked = a.active;
+  var z = $('annonce-texte');
+  if (document.activeElement !== z && !z.dataset.touche) z.value = a.texte;
+  $('annonce-compte').textContent = z.value.length + ' / 200';
+  puces($('annonce-couleur'), [['info', T('Information', 'Information')], ['important', T('Important', 'Important')], ['urgent', T('Urgent', 'Urgent')]],
+    function (v) { return v === a.couleur; }, function (v) { regler('annonce', { couleur: v }); });
+  $('annonce-defile').checked = a.defile;
+  $('annonce-ecran').checked = a.ecran;
+  puces($('annonce-vitesse'), [['lente', T('Lente', 'Slow')], ['normale', T('Normale', 'Normal')], ['rapide', T('Rapide', 'Fast')]],
+    function (v) { return v === a.vitesse; }, function (v) { regler('annonce', { vitesse: v }); });
+
+  $('registre-active').checked = rg.active;
+  $('registre-lieu').checked = rg.lieu;
+
+  $('entraide-active').checked = e.active;
+  puces($('entraide-categories'), CATS, function (c) { return e.categories.indexOf(c) >= 0; }, function (c) {
+    var l = e.categories.indexOf(c) >= 0 ? e.categories.filter(function (x) { return x !== c; }) : e.categories.concat([c]);
+    if (l.length) regler('entraide', { categories: l });   // au moins une categorie
+  });
+  puces($('entraide-duree'), [[24, T('1 jour', '1 day')], [72, T('3 jours', '3 days')], [168, T('7 jours', '7 days')], [0, T('Sans limite', 'No limit')]],
+    function (v) { return v === e.duree; }, function (v) { regler('entraide', { duree: v }); });
+
+  $('urgence-active').checked = u.active;
+}
+function compter(fonction, champ) {
+  fetch('/api/' + fonction, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    var n = d[champ].length;
+    $(fonction + '-nombre').textContent = n || '';
+    var b = $(fonction + '-vider');
+    b.disabled = !n; delete b.dataset.confirmer;
+    b.textContent = fonction === 'registre' ? T('Effacer toutes les fiches', 'Delete all entries') : T('Effacer toutes les annonces', 'Delete all posts');
+  }).catch(function () {});
+}
+function communaute() {
+  fetch('/api/reglages', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) { reg = d; afficherCommunaute(); }).catch(function () {});
+  compter('registre', 'fiches'); compter('entraide', 'annonces');
+}
+// Interrupteurs : effet immediat
+[['annonce-active', 'annonce', 'active'], ['annonce-defile', 'annonce', 'defile'], ['annonce-ecran', 'annonce', 'ecran'],
+ ['registre-active', 'registre', 'active'], ['registre-lieu', 'registre', 'lieu'],
+ ['entraide-active', 'entraide', 'active'], ['urgence-active', 'urgence', 'active']].forEach(function (x) {
+  $(x[0]).onchange = function () { var v = {}; v[x[2]] = this.checked; regler(x[1], v); };
+});
+// Texte de l'annonce : bouton Enregistrer
+$('annonce-texte').addEventListener('input', function () {
+  this.dataset.touche = '1';
+  $('annonce-compte').textContent = this.value.length + ' / 200';
+  var b = $('annonce-enregistrer'); b.disabled = false; b.textContent = T('Enregistrer', 'Save');
+});
+$('annonce-enregistrer').onclick = function () {
+  var b = this; b.disabled = true;
+  regler('annonce', { texte: $('annonce-texte').value }).then(function (r) {
+    if (r.ok) { delete $('annonce-texte').dataset.touche; b.textContent = T('Enregistré', 'Saved'); }
+    else { b.disabled = false; b.textContent = T('Enregistrer', 'Save'); }
+  });
+};
+// Tout effacer : en deux temps
+['registre', 'entraide'].forEach(function (f) {
+  $(f + '-vider').onclick = function () {
+    var b = this;
+    if (!b.dataset.confirmer) {
+      b.dataset.confirmer = '1'; b.textContent = T('Toucher encore pour confirmer', 'Tap again to confirm');
+      setTimeout(function () { if (b.dataset.confirmer) compter(f, f === 'registre' ? 'fiches' : 'annonces'); }, 5000);
+      return;
+    }
+    b.disabled = true;
+    fetch('/api/' + f + '/vider', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(function () { compter(f, f === 'registre' ? 'fiches' : 'annonces'); });
+  };
+});
+communaute();
+
 // ----- Etat de la station : temperature, alimentation, duree depuis l'allumage
 function sante() {
   fetch('/admin-api/sante', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {

@@ -2,7 +2,7 @@
 # Prometheus Station - ecran e-ink (Waveshare 2.13" V4, 250x122).
 # Affiche comment se connecter. Ne redessine que si quelque chose change.
 # prometheus-ecran --si-extinction : affiche « Station eteinte » si la station est en train de s'eteindre.
-import subprocess, sys, time
+import json, subprocess, sys, time
 sys.path.insert(0, '/opt/prometheus')
 from PIL import Image, ImageDraw, ImageFont
 import qrcode
@@ -20,11 +20,20 @@ def cmd(*a):
         return ''
 
 
+def annonce():
+    """Le texte de l'annonce, si elle est allumee avec « Aussi sur l'ecran de la station » (Parametres > Annonce)."""
+    try:
+        a = json.load(open('/srv/prometheus/communaute/reglages.json'))['annonce']
+        return a['texte'] if a.get('active') and a.get('ecran') and a.get('texte') else ''
+    except (OSError, ValueError, KeyError, TypeError):
+        return ''
+
+
 def etat():
     """Ce qu'il faut afficher, sous forme de tuple (sert aussi a detecter un changement)."""
     connexion = cmd('nmcli', '-g', 'GENERAL.CONNECTION', 'device', 'show', 'wlan0')
     if connexion == AP:
-        return ('station', cmd('nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', AP) or 'Prometheus-Station')
+        return ('station', cmd('nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', AP) or 'Prometheus-Station', annonce())
     ip = cmd('nmcli', '-g', 'IP4.ADDRESS', 'device', 'show', 'wlan0').split('/')[0]
     if not ip:
         ip = cmd('nmcli', '-g', 'IP4.ADDRESS', 'device', 'show', 'eth0').split('/')[0]
@@ -45,36 +54,54 @@ def qr(texte, cote):
     return img.resize((cote, cote), Image.NEAREST)
 
 
+def couper(d, texte, police, largeur):
+    """Coupe un texte en lignes a la largeur donnee, entre les mots (au caractere si un mot est trop long)."""
+    lignes, ligne = [], ''
+    for mot in texte.split(' '):
+        essai = (ligne + ' ' + mot).strip()
+        if d.textlength(essai, font=police) <= largeur:
+            ligne = essai
+            continue
+        if ligne:
+            lignes.append(ligne)
+        ligne = ''
+        for c in mot:   # mot trop long a lui seul : coupe au caractere
+            if d.textlength(ligne + c, font=police) > largeur:
+                lignes.append(ligne); ligne = ''
+            ligne += c
+    lignes.append(ligne)
+    return lignes
+
+
 def dessiner(e, l, h):
     img = Image.new('1', (l, h), 255)
     d = ImageDraw.Draw(img)
     g16, g13, n12 = ImageFont.truetype(GRAS, 16), ImageFont.truetype(GRAS, 13), ImageFont.truetype(NORMAL, 12)
     if e[0] == 'station':
-        ssid = e[1]
+        ssid, texte = e[1], e[2]
         echap = ''.join('\\' + c if c in '\\;,:"' else c for c in ssid)
         img.paste(qr('WIFI:T:nopass;S:%s;;' % echap, 116), (3, 3))
         x = 126
+        largeur = l - x - 2
         d.text((x, 6), 'PROMETHEUS', font=g16, fill=0)
+        if texte:
+            # L'annonce a la place des explications (3 lignes au plus), puis le nom du wifi comme d'habitude
+            lignes = couper(d, texte, n12, largeur)
+            if len(lignes) > 3:
+                lignes = lignes[:3]
+                while lignes[2] and d.textlength(lignes[2] + '…', font=n12) > largeur:
+                    lignes[2] = lignes[2][:-1]
+                lignes[2] += '…'
+            for i, t in enumerate(lignes):
+                d.text((x, 28 + 15 * i), t, font=n12, fill=0)
+            for i, t in enumerate(couper(d, ssid, g13, largeur)[:2]):
+                d.text((x, 81 + 15 * i), t, font=g13, fill=0)
+            return img
         d.text((x, 30), 'Flashez pour', font=n12, fill=0)
         d.text((x, 45), 'vous connecter', font=n12, fill=0)
         d.text((x, 66), 'Wi-Fi ouvert :', font=n12, fill=0)
         # Le nom sur deux lignes au plus, coupe a la largeur de l'ecran
-        largeur = l - x - 2
-        lignes, ligne = [], ''
-        for mot in ssid.split(' '):
-            essai = (ligne + ' ' + mot).strip()
-            if d.textlength(essai, font=g13) <= largeur:
-                ligne = essai
-                continue
-            if ligne:
-                lignes.append(ligne)
-            ligne = ''
-            for c in mot:   # mot trop long a lui seul : coupe au caractere
-                if d.textlength(ligne + c, font=g13) > largeur:
-                    lignes.append(ligne); ligne = ''
-                ligne += c
-        lignes.append(ligne)
-        for i, t in enumerate(lignes[:2]):
+        for i, t in enumerate(couper(d, ssid, g13, largeur)[:2]):
             d.text((x, 81 + 15 * i), t, font=g13, fill=0)
     elif e[0] in ('maison', 'cable'):
         _, ssid, ip, ts = e

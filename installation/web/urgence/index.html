@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Emergency">Urgence</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script src="/annonce.js"></script>
+<script>
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+<style>
+  h1 { color: #c92a2a; }
+  .sous-titre { color: var(--gris); margin: -12px 0 22px; }
+  .urgences { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .urgence { display: flex; flex-direction: column; justify-content: center; min-height: 86px; padding: 14px; border-radius: var(--rayon); background: var(--carte); border: 1px solid var(--trait); border-top: 4px solid #c92a2a; font-weight: 700; font-size: 1.05rem; line-height: 1.25; transition: transform .12s ease, background .15s ease; }
+  .urgence:active { transform: scale(.97); }
+  .urgence:hover { background: #fff5f5; }
+  .urgence small { display: block; font-weight: 400; font-size: .82rem; color: var(--gris); margin-top: 4px; }
+  .urgence[hidden] { display: none; }
+  .tout { margin-top: 22px; }
+</style>
+</head>
+<body>
+<main>
+  <a class="retour" href="/" data-en="← Home">← Accueil</a>
+  <h1 data-en="Emergency">Urgence</h1>
+  <p class="sous-titre" data-en="Tap a situation to open the right article straight away.">Touchez une situation pour ouvrir tout de suite le bon article.</p>
+  <div class="urgences" id="urgences"></div>
+  <p class="eteinte vide" id="eteinte" hidden data-en="This page is not turned on at this station.">Cette page n’est pas activée sur cette station.</p>
+  <div class="tout" id="tout"></div>
+</main>
+<script>
+// Chaque raccourci : [francais, anglais, sous-titre fr, sous-titre en, article en francais (Wikipedia), article en anglais (MDWiki ou Wikipedia)]
+// Tous verifies dans les encyclopedies de la station le 09/10/2026.
+var FR = 'wikipedia_fr_all_maxi/', MD = 'mdwiki_en_all_maxi/', EN = 'wikipedia_en_all_maxi/';
+var LISTE = [
+  ['Arrêt cardiaque', 'Cardiac arrest', 'massage cardiaque', 'CPR', FR + 'Réanimation_cardio-pulmonaire', MD + 'Cardiopulmonary_resuscitation'],
+  ['Hémorragie', 'Severe bleeding', 'saignement important', 'stop the bleeding', FR + 'Hémorragie', MD + 'Bleeding'],
+  ['Étouffement', 'Choking', 'méthode de Heimlich', 'something stuck in the throat', FR + 'Manœuvre_de_Heimlich', MD + 'Choking'],
+  ['Inconscient qui respire', 'Unconscious, breathing', 'position latérale de sécurité', 'recovery position', FR + 'Position_latérale_de_sécurité', MD + 'Recovery_position'],
+  ['Brûlure', 'Burn', '', '', FR + 'Brûlure', MD + 'Burn'],
+  ['Fracture', 'Broken bone', '', '', FR + 'Fracture_osseuse', MD + 'Bone_fracture'],
+  ['AVC', 'Stroke', 'visage, bras, parole', 'face, arm, speech', FR + 'Accident_vasculaire_cérébral', MD + 'Stroke'],
+  ['Allergie grave', 'Severe allergy', 'choc anaphylactique', 'anaphylaxis', FR + 'Choc_anaphylactique', MD + 'Anaphylaxis'],
+  ['Hypothermie', 'Hypothermia', 'froid', 'cold', FR + 'Hypothermie', MD + 'Hypothermia'],
+  ['Coup de chaleur', 'Heat stroke', '', '', FR + 'Coup_de_chaleur', MD + 'Heat_stroke'],
+  ['Déshydratation, diarrhée', 'Dehydration, diarrhoea', 'solution de réhydratation', 'oral rehydration', FR + 'Solution_de_réhydratation_orale', MD + 'Oral_rehydration_therapy'],
+  ['Morsure de serpent', 'Snakebite', '', '', FR + 'Morsure_de_serpent', MD + 'Snakebite'],
+  ['Rendre l’eau potable', 'Make water safe', '', '', FR + 'Potabilisation', EN + 'Portable_water_purification']
+];
+function lien(article) { return '/encyclopedies/content/' + article.split('/').map(encodeURIComponent).join('/'); }
+
+// On ne montre que les raccourcis dont l'encyclopedie est bien sur la station
+Promise.all([
+  fetch('/api/reglages', { cache: 'no-store' }).then(function (r) { return r.json(); }),
+  fetch('/encyclopedies/catalog/v2/entries?count=200', { cache: 'no-store' }).then(function (r) { return r.text(); }).catch(function () { return ''; })
+]).then(function (res) {
+  var actif = res[0].urgence && res[0].urgence.active;
+  document.getElementById('eteinte').hidden = actif;
+  if (!actif) return;
+  var catalogue = res[1];
+  function present(article) { return catalogue.indexOf('/content/' + article.split('/')[0] + '_') >= 0; }
+  var zone = document.getElementById('urgences');
+  LISTE.forEach(function (u) {
+    var article = LANGUE === 'en' ? u[5] : u[4];
+    if (!present(article)) article = LANGUE === 'en' ? u[4] : u[5];   // l'autre langue, a defaut
+    if (!present(article)) return;
+    var a = document.createElement('a'); a.className = 'urgence'; a.href = lien(article);
+    a.textContent = T(u[0], u[1]);
+    var sous = T(u[2], u[3]);
+    if (sous) { var s = document.createElement('small'); s.textContent = sous; a.appendChild(s); }
+    zone.appendChild(a);
+  });
+  // Les encyclopedies medicales en entier
+  var tout = document.getElementById('tout');
+  [['mdwiki_en_all_maxi', T('Toute la médecine (MDWiki, anglais)', 'All of medicine (MDWiki)')],
+   ['wikem_en_all_maxi', T('Médecine d’urgence (WikEM, anglais)', 'Emergency medicine (WikEM)')]].forEach(function (c) {
+    if (!present(c[0] + '/')) return;
+    var a = document.createElement('a'); a.className = 'bouton secondaire'; a.style.textAlign = 'center';
+    a.href = '/encyclopedies/content/' + c[0] + '/'; a.textContent = c[1];
+    tout.appendChild(a);
+  });
+});
+</script>
+</body>
+</html>

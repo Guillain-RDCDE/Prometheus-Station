@@ -26,6 +26,10 @@ h2 { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spaci
 .porte strong { display: block; font-size: 1.45rem; font-weight: 700; letter-spacing: -.01em; color: var(--accent); }
 .porte span { color: var(--gris); }
 .porte strong::after { content: " →"; }
+.porte[hidden] { display: none; }
+.porte-urgence { border-left-color: #c92a2a; background: #fff5f5; }
+.porte-urgence strong { color: #c92a2a; }
+.porte-urgence:hover { background: #ffe3e3; }
 
 .retour { display: inline-block; color: var(--gris); font-size: .95rem; margin-bottom: 8px; }
 .retour:hover { color: var(--encre); }

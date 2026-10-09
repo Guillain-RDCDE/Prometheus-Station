@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prometheus Station — affiche</title>
+<script src="/langue.js"></script>
+<script src="/vendor/qrcode.js"></script>
+<style>
+  /* Affiche A4 a imprimer : noir sur blanc, lisible de loin, dans les deux langues */
+  @page { size: A4 portrait; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9ecef; color: #111; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .outils { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #dee2e6; }
+  .outils a { color: #495057; text-decoration: none; }
+  .outils button { margin-left: auto; font: inherit; font-weight: 600; font-size: 1rem; padding: 10px 22px; border: 0; border-radius: 12px; background: #111; color: #fff; cursor: pointer; }
+  .feuille { width: 186mm; min-height: 273mm; margin: 16px auto; padding: 14mm 12mm; background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,.12); display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .logo { width: 62mm; height: auto; }
+  .titre { font-size: 15mm; font-weight: 800; letter-spacing: -.02em; line-height: 1; margin: 7mm 0 2mm; }
+  .titre span { display: block; font-size: 7mm; font-weight: 600; color: #555; margin-top: 2mm; letter-spacing: 0; }
+  .devise { font-size: 5mm; color: #333; margin: 3mm 0 7mm; }
+  .qr { width: 82mm; height: 82mm; padding: 3mm; border: 1.2mm solid #111; border-radius: 6mm; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .scan { font-size: 6mm; font-weight: 700; margin: 5mm 0 1mm; }
+  .scan span { font-weight: 500; color: #555; }
+  .reseau { font-size: 5mm; margin: 3mm 0 0; }
+  .reseau b { font-size: 6mm; }
+  .sinon { font-size: 4mm; color: #444; margin: 2mm 0 8mm; }
+  .contenu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; width: 100%; margin-top: auto; }
+  .contenu div { border: .5mm solid #ced4da; border-radius: 4mm; padding: 4mm 3mm; font-size: 4.2mm; font-weight: 700; }
+  .contenu div span { display: block; font-weight: 500; color: #555; font-size: 3.4mm; margin-top: 1mm; }
+  .pied { margin-top: 6mm; font-size: 3.4mm; color: #777; }
+  @media print {
+    body { background: #fff; }
+    .outils { display: none; }
+    .feuille { margin: 0; box-shadow: none; width: auto; min-height: 270mm; padding: 4mm 2mm; }
+  }
+  @media (max-width: 760px) { .feuille { transform-origin: top center; } }
+</style>
+</head>
+<body>
+<div class="outils">
+  <a href="/parametres/#affiche" data-en="‹ Settings">‹ Paramètres</a>
+  <button onclick="print()" data-en="Print">Imprimer</button>
+</div>
+<div class="feuille" id="feuille">
+  <img class="logo" src="/logo.svg" alt="Prometheus Station">
+  <div class="titre">Wi-Fi gratuit<span>Free Wi-Fi</span></div>
+  <div class="devise">Le savoir, même sans internet · Knowledge, even without internet</div>
+  <div class="qr" id="qr"></div>
+  <div class="scan">Scannez pour vous connecter <span>· Scan to connect</span></div>
+  <div class="reseau">Réseau · Network : <b id="ssid">Prometheus-Station</b><br>sans mot de passe · no password</div>
+  <div class="sinon">La page s’ouvre toute seule. Sinon, ouvrez · The page opens by itself. Otherwise, open: <b>http://10.42.0.1</b></div>
+  <div class="contenu" id="contenu"></div>
+  <div class="pied">Prometheus Station</div>
+</div>
+<script>
+// La feuille garde sa taille A4 ; sur un telephone on la reduit pour la voir en entier
+function ajuster() {
+  var f = document.getElementById('feuille'), l = innerWidth - 16, w = f.offsetWidth;
+  f.style.transform = l < w ? 'scale(' + (l / w) + ')' : '';
+  f.style.marginBottom = l < w ? (-(1 - l / w) * f.offsetHeight + 16) + 'px' : '';
+}
+addEventListener('resize', ajuster);
+
+function dessiner(ssid, reglages) {
+  document.getElementById('ssid').textContent = ssid;
+  // Meme format que l'ecran e-ink : WIFI:T:nopass;S:<nom>;;
+  var echap = ssid.replace(/([\\;,:"])/g, '\\$1');
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+  var q = qrcode(0, 'M');
+  q.addData('WIFI:T:nopass;S:' + echap + ';;');
+  q.make();
+  document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 8, margin: 0, scalable: true });
+
+  var cases = [['Encyclopédies', 'Encyclopedias', 'Wikipédia, médecine, réparations'],
+               ['Livres', 'Books', 'à lire sur le téléphone'],
+               ['Messages', 'Message board', 'pour tous']];
+  if (reglages.urgence && reglages.urgence.active) cases.unshift(['Urgence', 'Emergency', 'premiers secours']);
+  if (reglages.registre && reglages.registre.active) cases.push(['Retrouver ses proches', 'Find your loved ones', 'sain et sauf']);
+  if (reglages.entraide && reglages.entraide.active) cases.push(['Entraide', 'Mutual aid', 'je cherche, je propose']);
+  var zone = document.getElementById('contenu');
+  zone.innerHTML = '';
+  cases.forEach(function (c) {
+    var d = document.createElement('div'); d.textContent = c[0];
+    var s = document.createElement('span'); s.textContent = c[1]; d.appendChild(s);
+    zone.appendChild(d);
+  });
+  ajuster();
+}
+
+Promise.all([
+  fetch('/ajouter/etat.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+  fetch('/api/reglages', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return {}; })
+]).then(function (r) { dessiner(r[0].ssid || 'Prometheus-Station', r[1]); });
+</script>
+</body>
+</html>

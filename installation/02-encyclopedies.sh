@@ -141,7 +141,7 @@ After=network.target
 [Service]
 User=prometheus
 ExecStartPre=/usr/local/bin/prometheus-catalogue
-ExecStart=/usr/bin/kiwix-serve --address=127.0.0.1 --port=8080 --urlRootLocation=/encyclopedies --monitorLibrary --library /srv/prometheus/encyclopedies/library.xml
+ExecStart=/usr/bin/kiwix-serve --nodatealiases --address=127.0.0.1 --port=8080 --urlRootLocation=/encyclopedies --monitorLibrary --library /srv/prometheus/encyclopedies/library.xml
 Restart=always
 RestartSec=5
 

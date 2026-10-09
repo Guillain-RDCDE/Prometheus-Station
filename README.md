@@ -10,9 +10,9 @@
 </div>
 
 <!-- opening -->
-> A solar-powered box that serves all of Wikipedia with no internet and no power grid.
+> A battery-powered box that serves all of Wikipedia with no internet and no network at all.
 >
-> A Raspberry Pi with offline Wikipedia and medical references, solar and battery power, optional mesh radio; a build anyone can repeat.
+> A Raspberry Pi with offline Wikipedia, medical and repair references, books and a message board, on its own Wi-Fi; solar power and mesh radio come next; a build anyone can repeat.
 >
 > Designed for the day the infrastructure isn’t there. Part of the work of [Guillain d’Erceville](https://github.com/Guillain-RDCDE), forward deployed engineer.
 <!-- opening -->
@@ -25,7 +25,7 @@ When civilization's infrastructure collapses—whether by earthquake, war, censo
 
 **Prometheus Station is a seed vault for human knowledge.**
 
-A solar-powered, self-sufficient knowledge hub that works when the internet doesn't. When cell towers are rubble. When libraries are ash. When asking Google isn't an option.
+A self-sufficient knowledge hub that works when the internet doesn't. When cell towers are rubble. When libraries are ash. When asking Google isn't an option.
 
 This is more than emergency medicine. It's the collective wisdom needed to rebuild: how to purify water, grow food, generate power, treat illness, educate children, and maintain the thin veneer we call civilization.
 
@@ -35,9 +35,14 @@ Just the accumulated knowledge of humanity, ready to restart civilization from s
 
 ---
 
-## 📚 More
+## 🛠️ Build your own
 
-**[Reference](docs/REFERENCE.md)** — what this actually is, why it exists, what is inside, how to build your own, the philosophy, the technical overview and the project status.
+**[Step-by-step build guide](docs/README.md)** — written for people who have never used Linux: from an empty memory card to a working station, every command given in full, every check shown.
+
+- **[Hardware](HARDWARE.md)** — what it is made of, why, and what it costs.
+- **[Reference](docs/REFERENCE.md)** — what is inside, how it works, and the project status.
+
+**Status (October 2026):** the knowledge station works and passed its crisis test (on battery, phone in airplane mode, no internet). Solar power and Meshtastic long-range radio are the next phases.
 
 ## 🏥 Medical disclaimer
 
@@ -53,7 +58,7 @@ Medical content provided by Prometheus Station is for **reference and educationa
 
 **In emergencies:** Seek professional medical help when available. This system is a lifeline when nothing else exists, not a replacement for proper medical care.
 
-Content sources: WHO, MSF, ICRC field guidelines. Verify critical information from multiple sources.
+Medical content comes from MDWiki, WikEM and Wikipedia, through Kiwix. Verify critical information from multiple sources.
 
 ---
 
@@ -85,7 +90,7 @@ MSF, ICRC, Red Cross, and all humanitarian organizations: You have explicit perm
 - **[Meshtastic](https://meshtastic.org)** - Resilient mesh communication
 - **[Raspberry Pi Foundation](https://www.raspberrypi.org)** - Accessible computing
 - **Wikipedia contributors** - Humanity's knowledge, freely shared
-- **WHO, MSF, ICRC** - Medical protocols that save lives
+- **MDWiki, WikEM, iFixit, Project Gutenberg** - Medicine, repairs and books, freely shared
 - **Open-source community** - Collective brilliance
 - **Emergency responders worldwide** - Inspiration and purpose
 
@@ -93,12 +98,9 @@ MSF, ICRC, Red Cross, and all humanitarian organizations: You have explicit perm
 
 ## 📞 Contact & community
 
-- **GitHub:** [@GuillainM](https://github.com/GuillainM)
-- **Issues:** [Report problems or suggest improvements](https://github.com/GuillainM/Prometheus-Station/issues)
-- **Discussions:** [Share your deployment stories](https://github.com/GuillainM/Prometheus-Station/discussions)
+- **GitHub:** [@Guillain-RDCDE](https://github.com/Guillain-RDCDE)
+- **Issues:** [Report problems or suggest improvements](https://github.com/Guillain-RDCDE/Prometheus-Station/issues)
 
 **If you build this, share your experience.** Every deployment teaches us something.
 
 ---
-
-<div align="center">

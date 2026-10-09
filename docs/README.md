@@ -1,74 +1,35 @@
-# Prometheus Station Documentation
+# Prometheus Station — build guide
 
-This documentation guides you step-by-step through building your own autonomous and resilient knowledge station.
+A step-by-step guide for people who have **never used Linux**. Every command is given in full, with what you should see.
 
-## 📚 Setup guides
+Start here: **[0. Before you start](00-before-you-start.md)**
 
-### ✅ Complete & tested guides
+| | Step | Script |
+|---|---|---|
+| 0 | [Before you start](00-before-you-start.md) — what you need, how to read the guide | — |
+| 1 | [Prepare the SD card](01-prepare-the-sd-card.md) | — |
+| 2 | [First boot](02-first-boot.md) | — |
+| 3 | [Base system](03-base-system.md) | `01-systeme.sh` |
+| 4 | [Encyclopedias](04-encyclopedias.md) | `02-encyclopedies.sh` |
+| 5 | [Web portal and Wi-Fi](05-portal-and-hotspot.md) | `03-wifi-accueil.sh` |
+| 6 | [Remote access](06-remote-access.md) *(optional)* | `04-tailscale.sh` |
+| 7 | [Automatic Wi-Fi](07-automatic-wifi.md) | `05-wifi-auto.sh` |
+| 8 | [E-ink screen](08-eink-screen.md) *(optional)* | `06-ecran.sh` |
+| 9 | [Power](09-power.md) | `07-energie.sh` |
+| 10 | [Security](10-security.md) | `08-securite.sh` |
+| 11 | [Backup](11-backup.md) | `09-sauvegarde.sh` |
+| 12 | [Using the station](12-using-the-station.md) | — |
+| 13 | [The crisis test](13-crisis-test.md) | — |
+| 14 | [Troubleshooting](14-troubleshooting.md) | — |
 
-**[Step 1: Raspberry Pi setup](01-raspberry-setup.md)**
-- Headless configuration (no monitor needed)
-- SSH access with key authentication
-- System optimization for 24/7 operation
-- **Time:** 1h 45min | **Difficulty:** ⭐⭐☆☆☆
+How it works inside, and what comes next: **[Reference](REFERENCE.md)**. The hardware: **[HARDWARE.md](../HARDWARE.md)**.
 
-**[Step 2: Kiwix installation](02-kiwix-installation.md)**
-- Content strategy selection
-- ZIM file downloads (Wikipedia, medical content)
-- Server configuration and optimization
-- **Time:** 2-4 hours (mostly downloads) | **Difficulty:** ⭐⭐☆☆☆
+## How this guide was written
 
-**[Step 3: Kiwix configuration](03-kiwix-configuration.md)**
-- Advanced server configuration
-- Performance optimization
-- Content management
-- **Time:** 1-2 hours | **Difficulty:** ⭐⭐☆☆☆
+The station was rebuilt from an empty card in October 2026. Every step was run on the real station, and every check shown is one that passed. What has **not** been tested is said so, where it matters.
 
-**[Step 4: WiFi access point](04-wifi-access-point.md)**
-- Transform Pi into wireless hotspot
-- Captive portal configuration
-- Network setup and optimization
-- **Time:** 1-2 hours | **Difficulty:** ⭐⭐⭐☆☆
+Later, a ready-made card image may make all this unnecessary. For now, you build it yourself.
 
-**[Step 5: System maintenance and updates](05-maintenance-updates.md)**
-- Health monitoring dashboard
-- Automated update procedures
-- Content management and rotation
-- **Time:** 2 hours initial + 30-45 min/month | **Difficulty:** ⭐⭐⭐☆☆
+## Contributing
 
-**[Step 6: Solar power setup](06-solar-power.md)**
-- Panel, charge controller and battery wiring
-- Energy monitoring (INA219 optional) and low-voltage safe shutdown
-- Autonomy planning for cloudy days
-- **Time:** 1-2 hours + 4-8 hours passive calibration | **Difficulty:** ⭐⭐☆☆☆
-
-### ⏳ Coming soon
-
-**Step 7: Meshtastic setup**
-- LoRa radio configuration
-- Mesh network deployment
-- Mobile terminal setup
-
-## 🎯 Where to start?
-
-1. **Get hardware** - See [HARDWARE.md](../HARDWARE.md) for complete list (~500€)
-2. **Follow guides** - Start with [Step 1](01-raspberry-setup.md)
-3. **Choose content** - Select strategy based on your mission
-4. **Deploy** - Field test, iterate, improve
-
-## 📖 Documentation philosophy
-
-- Written by a beginner, for beginners
-- Every step explained, no assumed knowledge
-- Real-world tested on actual hardware
-- Troubleshooting based on actual problems encountered
-- No marketing fluff - just what works
-
-## 🤝 Contributing
-
-Found an error? A better way to do things?
-Open an issue or pull request on the [main repo](https://github.com/GuillainM/Prometheus-Station).
-
----
-
-**Back to [main README](../README.md)**
+Found a mistake, built one, adapted it to another language? Open an issue or a pull request on [the repository](https://github.com/Guillain-RDCDE/Prometheus-Station).

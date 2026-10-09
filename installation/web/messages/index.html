@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title data-en="Messages">Messages</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+<style>
+  main { padding-bottom: 150px; }
+  .sous-titre { color: var(--gris); margin: -12px 0 22px; }
+
+  /* Fil des messages : le plus recent en bas, comme une messagerie */
+  .fil { display: flex; flex-direction: column; gap: 18px; }
+  .msg { display: flex; gap: 12px; align-items: flex-start; animation: arrivee .25s ease; }
+  @keyframes arrivee { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1rem; }
+  .corps { flex: 1; min-width: 0; }
+  .entete-msg { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .entete-msg b { font-weight: 650; }
+  .entete-msg time { color: var(--pale); font-size: .82rem; }
+  .bulle { display: inline-block; max-width: 100%; background: var(--carte); border: 1px solid var(--trait); border-radius: 4px 18px 18px 18px; padding: 10px 14px; white-space: pre-wrap; word-wrap: break-word; font-size: 1.02rem; line-height: 1.45; }
+  .msg.moi .bulle { background: var(--accent-pale); border-color: transparent; }
+  .date { display: block; margin: 4px 0 0 4px; font-size: .72rem; color: var(--pale); }
+  .effacer { margin-left: auto; font: inherit; font-size: .8rem; color: var(--pale); background: none; border: 0; cursor: pointer; padding: 0 2px; }
+  .effacer:hover { color: var(--accent); }
+
+  .vide-fil { text-align: center; color: var(--gris); padding: 48px 16px; }
+  .vide-fil svg { display: block; margin: 0 auto 12px; color: var(--pale); }
+
+  /* Barre d'ecriture fixee en bas */
+  .barre { position: fixed; left: 0; right: 0; bottom: 0; background: var(--fond); border-top: 1px solid var(--trait); padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .barre .interieur { max-width: 680px; margin: 0 auto; }
+  .qui { font-size: .85rem; color: var(--gris); margin: 0 4px 8px; display: flex; gap: 6px; align-items: center; }
+  .qui button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; }
+  .qui input { font: inherit; font-size: .9rem; color: var(--encre); background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 5px 10px; width: 180px; outline: none; }
+  .saisie { display: flex; gap: 8px; align-items: flex-end; }
+  .saisie textarea { flex: 1; resize: none; font: inherit; font-size: 1.02rem; color: var(--encre); background: var(--carte); border: 1px solid var(--trait); border-radius: 22px; padding: 11px 16px; max-height: 140px; outline: none; line-height: 1.35; }
+  .saisie textarea:focus { border-color: var(--accent); }
+  .envoyer { width: 46px; height: 46px; flex: none; border-radius: 50%; border: 0; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform .15s ease, opacity .15s ease; }
+  .envoyer:disabled { opacity: .35; cursor: default; }
+  .envoyer:not(:disabled):active { transform: scale(.92); }
+  .erreur { color: #d62828; font-size: .85rem; margin: 6px 4px 0; min-height: 0; }
+</style>
+</head>
+<body>
+<main>
+  <a class="retour" id="retour" href="/" data-en="← Home">← Accueil</a>
+  <h1 data-en="Messages">Messages</h1>
+  <p class="sous-titre" data-en="Visible to everyone connected to the station.">Visibles par tous ceux qui sont connectés à la station.</p>
+  <div class="fil" id="fil"></div>
+  <div class="vide-fil" id="vide" hidden>
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <span data-en="No messages yet. Write the first one below.">Aucun message pour l’instant. Écrivez le premier ci-dessous.</span>
+  </div>
+</main>
+
+<div class="barre">
+  <div class="interieur">
+    <div class="qui" id="qui">
+      <span id="qui-texte"></span>
+      <button id="qui-changer" type="button" data-en="change">changer</button>
+      <input id="nom" maxlength="40" placeholder="Votre prénom" data-en-ph="Your first name" autocomplete="given-name" hidden>
+    </div>
+    <form class="saisie" id="form">
+      <textarea id="texte" rows="1" maxlength="500" placeholder="Écrire un message…" data-en-ph="Write a message…"></textarea>
+      <button class="envoyer" id="envoyer" disabled aria-label="Envoyer" data-en-aria="Send">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+      </button>
+    </form>
+    <p class="erreur" id="erreur"></p>
+  </div>
+</div>
+
+<script>
+function $(id) { return document.getElementById(id); }
+// Ouverte depuis les Parametres : le lien de retour y ramene
+if (new URLSearchParams(location.search).get('depuis') === 'parametres') {
+  $('retour').href = '/parametres/#messages';
+  $('retour').dataset.en = '← Settings';
+  $('retour').textContent = '← Paramètres';
+}
+var ecart = 0, nom = '', dernierId = null;
+var COULEURS = ['#1d6fd6', '#1f8a4c', '#d62828', '#d9750a', '#6a4fd6', '#0e7490', '#be185d', '#4d7c0f'];
+
+function couleur(n) {
+  var h = 0;
+  for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
+  return COULEURS[h % COULEURS.length];
+}
+
+function depuis(t) {
+  var s = Math.max(0, Math.round((Date.now() / 1000 + ecart) - t));
+  if (s < 60) return T('à l’instant', 'just now');
+  if (s < 3600) return T('il y a ', '') + Math.round(s / 60) + T(' min', ' min ago');
+  if (s < 86400) return T('il y a ', '') + Math.round(s / 3600) + T(' h', ' h ago');
+  var d = new Date(t * 1000), l = LANGUE === 'en' ? 'en-GB' : 'fr-FR';
+  return d.toLocaleDateString(l, { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString(l, { hour: '2-digit', minute: '2-digit' });
+}
+
+// Date et heure completes, en petit sous chaque message (utile des mois plus tard)
+function dateComplete(t) {
+  var d = new Date(t * 1000), l = LANGUE === 'en' ? 'en-GB' : 'fr-FR';
+  return d.toLocaleDateString(l, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + T(' à ', ', ') +
+         d.toLocaleTimeString(l, { hour: '2-digit', minute: '2-digit' });
+}
+
+function afficherNom() {
+  $('qui-texte').innerHTML = '';
+  if (nom) {
+    $('qui-texte').appendChild(document.createTextNode(T('Vous écrivez en tant que ', 'Writing as ')));
+    var b = document.createElement('b'); b.textContent = nom; $('qui-texte').appendChild(b);
+    $('qui-changer').hidden = false; $('nom').hidden = true;
+  } else {
+    $('qui-texte').textContent = T('Votre prénom :', 'Your first name:');
+    $('qui-changer').hidden = true; $('nom').hidden = false;
+  }
+}
+
+function charger() {
+  fetch('/api/messages', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    ecart = d.maintenant - Date.now() / 1000;
+    var messages = d.messages.slice().reverse();   // le plus ancien en haut, le plus recent en bas
+    var fil = $('fil'), basAvant = innerHeight + scrollY >= document.body.scrollHeight - 80;
+    fil.innerHTML = '';
+    messages.forEach(function (m) {
+      var qui = m.nom || T('Anonyme', 'Anonymous');
+      var msg = document.createElement('div'); msg.className = 'msg' + (nom && m.nom === nom ? ' moi' : '');
+      var av = document.createElement('div'); av.className = 'avatar'; av.style.background = couleur(qui);
+      av.textContent = qui.charAt(0).toUpperCase();
+      var corps = document.createElement('div'); corps.className = 'corps';
+      var tete = document.createElement('div'); tete.className = 'entete-msg';
+      var b = document.createElement('b'); b.textContent = qui;
+      var t = document.createElement('time'); t.textContent = depuis(m.heure);
+      tete.appendChild(b); tete.appendChild(t);
+      if (d.admin) {
+        var x = document.createElement('button'); x.className = 'effacer'; x.textContent = T('Effacer', 'Delete');
+        x.onclick = function () {
+          fetch('/api/messages/effacer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: m.id }) }).then(charger);
+        };
+        tete.appendChild(x);
+      }
+      var bulle = document.createElement('div'); bulle.className = 'bulle'; bulle.textContent = m.texte;
+      var date = document.createElement('time'); date.className = 'date'; date.textContent = dateComplete(m.heure);
+      corps.appendChild(tete); corps.appendChild(bulle); corps.appendChild(date);
+      msg.appendChild(av); msg.appendChild(corps);
+      fil.appendChild(msg);
+    });
+    $('vide').hidden = messages.length > 0;
+    // On descend au plus recent a l'ouverture, ou quand un nouveau message arrive alors qu'on etait en bas
+    var nouveau = messages.length ? messages[messages.length - 1].id : null;
+    if (dernierId === null || (nouveau !== dernierId && basAvant)) scrollTo(0, document.body.scrollHeight);
+    dernierId = nouveau;
+  }).catch(function () {});
+}
+
+// Le champ grandit avec le texte
+$('texte').addEventListener('input', function () {
+  this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 140) + 'px';
+  $('envoyer').disabled = !this.value.trim();
+});
+// Entree envoie (Maj + Entree = retour a la ligne)
+$('texte').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('form').requestSubmit(); }
+});
+$('qui-changer').onclick = function () { $('nom').hidden = false; $('nom').value = nom; $('nom').focus(); this.hidden = true; $('qui-texte').textContent = T('Votre prénom :', 'Your first name:'); };
+$('nom').addEventListener('change', function () { nom = this.value.trim(); try { localStorage.setItem('nom', nom); } catch (e) {} afficherNom(); charger(); });
+
+$('form').onsubmit = function (ev) {
+  ev.preventDefault();
+  var texte = $('texte').value.trim();
+  if (!texte) return;
+  if (!$('nom').hidden) { nom = $('nom').value.trim(); try { localStorage.setItem('nom', nom); } catch (e) {} }
+  $('envoyer').disabled = true; $('erreur').textContent = '';
+  fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom: nom, texte: texte }) })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (r) {
+      if (r.ok) { $('texte').value = ''; $('texte').style.height = 'auto'; afficherNom(); dernierId = 'x'; charger(); setTimeout(function () { scrollTo(0, document.body.scrollHeight); }, 300); }
+      else { $('erreur').textContent = TE(r.d.erreur) || T('Erreur.', 'Error.'); $('envoyer').disabled = false; }
+    })
+    .catch(function () { $('erreur').textContent = T('La station ne répond pas.', 'The station does not respond.'); $('envoyer').disabled = false; });
+};
+
+try { nom = localStorage.getItem('nom') || ''; } catch (e) {}
+afficherNom();
+charger();
+setInterval(charger, 15000);   // les nouveaux messages arrivent tout seuls
+</script>
+</body>
+</html>

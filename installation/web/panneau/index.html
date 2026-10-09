@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="About this station">À propos de la station</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script src="/panneau.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+</head>
+<body>
+<main>
+  <a class="retour" href="/" data-en="← Home">← Accueil</a>
+  <div class="panneau" id="panneau"></div>
+  <p class="vide" id="vide" hidden data-en="Nothing here yet.">Rien pour l’instant.</p>
+</main>
+<script>
+fetch('/api/panneau', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+  var html = miseEnForme(d.texte);
+  document.getElementById('panneau').innerHTML = html;
+  document.getElementById('vide').hidden = !!html;
+}).catch(function () { document.getElementById('vide').hidden = false; });
+</script>
+</body>
+</html>

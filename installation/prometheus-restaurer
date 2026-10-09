@@ -1,0 +1,16 @@
+#!/bin/bash
+# Prometheus Station - remettre une sauvegarde des reglages : sudo prometheus-restaurer <fichier.tar.gz>
+# A utiliser sur une station reinstallee (etapes 1 a 9 faites), avec un fichier telecharge depuis Parametres > Sauvegarde.
+set -e
+F=${1:?Usage : sudo prometheus-restaurer prometheus-sauvegarde-AAAA-MM-JJ-HHMM.tar.gz}
+[ -f "$F" ] || { echo "Fichier introuvable : $F"; exit 1; }
+# Refuse tout fichier qui ecrirait ailleurs que dans les dossiers attendus
+if tar tzf "$F" | grep -vqE '^(srv/prometheus/(\.admin|messages|panneau|contenus\.txt)|etc/NetworkManager/system-connections)'; then
+  echo "Ce fichier n'est pas une sauvegarde de la station. Rien n'a change."; exit 1
+fi
+tar xzf "$F" -C /
+chown -R prometheus:prometheus /srv/prometheus/.admin /srv/prometheus/messages /srv/prometheus/panneau
+chmod 600 /etc/NetworkManager/system-connections/* 2>/dev/null || true
+nmcli connection reload
+systemctl restart prometheus-admin prometheus-sobre
+echo "Sauvegarde remise. Les wifis connus et le nom du wifi de la station sont repris au prochain demarrage : sudo reboot"

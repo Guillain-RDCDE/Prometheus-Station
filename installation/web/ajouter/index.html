@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Add files">Ajouter des fichiers</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+</head>
+<body>
+<main>
+  <a class="retour" href="/parametres/" data-en="← Settings">← Paramètres</a>
+  <h1 data-en="Add files">Ajouter des fichiers</h1>
+  <label class="depot" id="depot">
+    <strong data-en="Drop your files here">Glissez vos fichiers ici</strong><br>
+    <span class="sous" data-en="or tap to choose them — EPUB or PDF books, ZIM encyclopedias">ou touchez pour les choisir — livres EPUB ou PDF, encyclopédies ZIM</span>
+    <input type="file" id="choix" multiple hidden accept=".epub,.pdf,.zim">
+  </label>
+  <ul class="envois" id="envois"></ul>
+</main>
+<script>
+var acceptes = /\.(epub|pdf|zim)$/i;
+
+function envoyer(f) {
+  var li = document.createElement('li');
+  var nom = document.createElement('div');
+  nom.textContent = f.name;
+  var barre = document.createElement('progress');
+  barre.max = 100; barre.value = 0;
+  var etat = document.createElement('div');
+  etat.className = 'sous';
+  li.appendChild(nom); li.appendChild(barre); li.appendChild(etat);
+  document.getElementById('envois').appendChild(li);
+
+  if (!acceptes.test(f.name)) {
+    barre.remove();
+    etat.textContent = T('Refusé : seuls les fichiers EPUB, PDF et ZIM sont acceptés.', 'Refused: only EPUB, PDF and ZIM files are accepted.');
+    return;
+  }
+  var x = new XMLHttpRequest();
+  x.open('PUT', '/ajouter/depot/' + encodeURIComponent(f.name));
+  x.upload.onprogress = function (e) { if (e.lengthComputable) barre.value = e.loaded / e.total * 100; };
+  x.onload = function () {
+    barre.value = 100;
+    etat.textContent = (x.status >= 200 && x.status < 300)
+      ? T('Reçu. Il sera rangé dans un instant.', 'Received. It will be filed in a moment.')
+      : T('Échec de l’envoi (erreur ', 'Upload failed (error ') + x.status + ').';
+  };
+  x.onerror = function () { etat.textContent = T('Échec de l’envoi : la connexion a été coupée.', 'Upload failed: the connection was lost.'); };
+  x.send(f);
+}
+
+var depot = document.getElementById('depot');
+document.getElementById('choix').addEventListener('change', function (e) {
+  Array.prototype.forEach.call(e.target.files, envoyer);
+  e.target.value = '';
+});
+['dragenter', 'dragover'].forEach(function (t) {
+  depot.addEventListener(t, function (e) { e.preventDefault(); depot.classList.add('survol'); });
+});
+['dragleave', 'drop'].forEach(function (t) {
+  depot.addEventListener(t, function (e) { e.preventDefault(); depot.classList.remove('survol'); });
+});
+depot.addEventListener('drop', function (e) { Array.prototype.forEach.call(e.dataTransfer.files, envoyer); });
+</script>
+</body>
+</html>

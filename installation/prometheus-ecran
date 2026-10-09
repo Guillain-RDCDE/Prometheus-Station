@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+# Prometheus Station - ecran e-ink (Waveshare 2.13" V4, 250x122).
+# Affiche comment se connecter. Ne redessine que si quelque chose change.
+# prometheus-ecran --si-extinction : affiche « Station eteinte » si la station est en train de s'eteindre.
+import subprocess, sys, time
+sys.path.insert(0, '/opt/prometheus')
+from PIL import Image, ImageDraw, ImageFont
+import qrcode
+from waveshare_epd import epd2in13_V4
+
+AP = 'prometheus-wifi'
+GRAS = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+NORMAL = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+
+
+def cmd(*a):
+    try:
+        return subprocess.run(a, capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception:
+        return ''
+
+
+def etat():
+    """Ce qu'il faut afficher, sous forme de tuple (sert aussi a detecter un changement)."""
+    connexion = cmd('nmcli', '-g', 'GENERAL.CONNECTION', 'device', 'show', 'wlan0')
+    if connexion == AP:
+        return ('station', cmd('nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', AP) or 'Prometheus-Station')
+    ip = cmd('nmcli', '-g', 'IP4.ADDRESS', 'device', 'show', 'wlan0').split('/')[0]
+    if not ip:
+        ip = cmd('nmcli', '-g', 'IP4.ADDRESS', 'device', 'show', 'eth0').split('/')[0]
+    ts = cmd('tailscale', 'ip', '-4')
+    if connexion:
+        ssid = cmd('nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', connexion)
+        return ('maison', ssid, ip, ts)
+    if ip:
+        return ('cable', '', ip, ts)
+    return ('attente',)
+
+
+def qr(texte, cote):
+    q = qrcode.QRCode(border=1, error_correction=qrcode.constants.ERROR_CORRECT_L)
+    q.add_data(texte)
+    q.make(fit=True)
+    img = q.make_image(fill_color='black', back_color='white').convert('1')
+    return img.resize((cote, cote), Image.NEAREST)
+
+
+def dessiner(e, l, h):
+    img = Image.new('1', (l, h), 255)
+    d = ImageDraw.Draw(img)
+    g16, g13, n12 = ImageFont.truetype(GRAS, 16), ImageFont.truetype(GRAS, 13), ImageFont.truetype(NORMAL, 12)
+    if e[0] == 'station':
+        ssid = e[1]
+        echap = ''.join('\\' + c if c in '\\;,:"' else c for c in ssid)
+        img.paste(qr('WIFI:T:nopass;S:%s;;' % echap, 116), (3, 3))
+        x = 126
+        d.text((x, 6), 'PROMETHEUS', font=g16, fill=0)
+        d.text((x, 30), 'Flashez pour', font=n12, fill=0)
+        d.text((x, 45), 'vous connecter', font=n12, fill=0)
+        d.text((x, 66), 'Wi-Fi ouvert :', font=n12, fill=0)
+        # Le nom sur deux lignes au plus, coupe a la largeur de l'ecran
+        largeur = l - x - 2
+        lignes, ligne = [], ''
+        for mot in ssid.split(' '):
+            essai = (ligne + ' ' + mot).strip()
+            if d.textlength(essai, font=g13) <= largeur:
+                ligne = essai
+                continue
+            if ligne:
+                lignes.append(ligne)
+            ligne = ''
+            for c in mot:   # mot trop long a lui seul : coupe au caractere
+                if d.textlength(ligne + c, font=g13) > largeur:
+                    lignes.append(ligne); ligne = ''
+                ligne += c
+        lignes.append(ligne)
+        for i, t in enumerate(lignes[:2]):
+            d.text((x, 81 + 15 * i), t, font=g13, fill=0)
+    elif e[0] in ('maison', 'cable'):
+        _, ssid, ip, ts = e
+        url = 'http://%s/' % ip
+        img.paste(qr(url, 116), (3, 3))
+        x = 126
+        d.text((x, 6), 'PROMETHEUS', font=g16, fill=0)
+        d.text((x, 28), 'Wi-Fi maison :' if ssid else 'Par cable :', font=n12, fill=0)
+        nom = ssid
+        while nom and d.textlength(nom, font=g13) > l - x - 2:
+            nom = nom[:-1]
+        if nom:
+            d.text((x, 42), nom, font=g13, fill=0)
+        d.text((x, 60), ip, font=g13, fill=0)
+        if ts:
+            d.text((x, 82), 'Tailscale :', font=n12, fill=0)
+            d.text((x, 96), ts, font=g13, fill=0)
+    else:
+        d.text((10, 10), 'PROMETHEUS', font=g16, fill=0)
+        d.text((10, 50), 'Demarrage en cours...', font=n12, fill=0)
+    return img
+
+
+def dessiner_eteinte(l, h):
+    img = Image.new('1', (l, h), 255)
+    d = ImageDraw.Draw(img)
+    d.text((10, 8), 'PROMETHEUS', font=ImageFont.truetype(GRAS, 16), fill=0)
+    d.text((10, 40), 'Station éteinte', font=ImageFont.truetype(GRAS, 22), fill=0)
+    n = ImageFont.truetype(NORMAL, 13)
+    d.text((10, 78), 'Rebranchez la batterie', font=n, fill=0)
+    d.text((10, 95), 'pour la rallumer.', font=n, fill=0)
+    return img
+
+
+def si_extinction():
+    """Appele quand le service s'arrete (ExecStopPost) : si la station s'eteint (et ne redemarre pas),
+    l'ecran le dit, car il garde son image sans courant."""
+    jobs = cmd('systemctl', 'list-jobs', '--no-legend')
+    if 'poweroff.target' not in jobs and 'halt.target' not in jobs:
+        return
+    epd = epd2in13_V4.EPD()
+    epd.init()
+    epd.display(epd.getbuffer(dessiner_eteinte(epd.height, epd.width)))
+    epd.sleep()
+
+
+def main():
+    if sys.argv[1:] == ['--si-extinction']:
+        return si_extinction()
+    epd = epd2in13_V4.EPD()
+    precedent = None
+    while True:
+        e = etat()
+        if e != precedent:
+            epd.init()
+            epd.display(epd.getbuffer(dessiner(e, epd.height, epd.width)))
+            epd.sleep()   # l'ecran garde l'image sans courant
+            precedent = e
+        time.sleep(20)
+
+
+if __name__ == '__main__':
+    main()

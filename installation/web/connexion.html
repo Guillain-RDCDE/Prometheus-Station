@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Sign in">Connexion</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+<style>
+  .erreur { color: #d62828; min-height: 1.5em; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <a class="retour" href="/" data-en="← Home">← Accueil</a>
+  <h1 id="titre">Administration</h1>
+  <p class="sous" id="aide"></p>
+  <form id="form">
+    <input class="champ" id="mdp" type="password" placeholder="Mot de passe" data-en-ph="Password" autocomplete="current-password" autofocus>
+    <input class="champ" id="mdp2" type="password" placeholder="Encore une fois" data-en-ph="Once again" autocomplete="new-password" hidden>
+    <button class="bouton" id="bouton" data-en="Enter">Entrer</button>
+    <p class="erreur" id="erreur"></p>
+  </form>
+</main>
+<script>
+var retour = new URLSearchParams(location.search).get('retour') || '/parametres/';
+if (retour.charAt(0) !== '/' || retour.charAt(1) === '/') retour = '/parametres/';
+var premier = false;
+
+fetch('/admin-api/etat', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (e) {
+  if (e.connecte) { location.replace(retour); return; }
+  if (!e.defini) {
+    premier = true;
+    document.getElementById('titre').textContent = T('Choisissez un mot de passe', 'Choose a password');
+    document.getElementById('aide').textContent = T('Il protège les paramètres et l’ajout de fichiers. Vous pourrez le changer plus tard.', 'It protects the settings and adding files. You can change it later.');
+    document.getElementById('mdp').autocomplete = 'new-password';
+    document.getElementById('mdp2').hidden = false;
+    document.getElementById('bouton').textContent = T('Valider', 'Confirm');
+  }
+});
+
+document.getElementById('form').addEventListener('submit', function (ev) {
+  ev.preventDefault();
+  var mdp = document.getElementById('mdp').value, erreur = document.getElementById('erreur');
+  erreur.textContent = '';
+  if (premier && mdp !== document.getElementById('mdp2').value) { erreur.textContent = T('Les deux ne sont pas identiques.', 'The two do not match.'); return; }
+  fetch(premier ? '/admin-api/premier' : '/admin-api/connexion', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(premier ? { nouveau: mdp } : { mdp: mdp })
+  }).then(function (r) {
+    if (r.ok) { location.replace(retour); return; }
+    return r.json().then(function (d) { erreur.textContent = TE(d.erreur) || T('Erreur.', 'Error.'); });
+  }).catch(function () { erreur.textContent = T('La station ne répond pas.', 'The station does not respond.'); });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Reading">Lecture</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+<style>
+  body { height: 100vh; display: flex; flex-direction: column; }
+  .barre { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--trait); background: var(--carte); }
+  .barre select { flex: 1; min-width: 0; font-size: 1rem; padding: 6px; }
+  .barre button { font-size: 1rem; padding: 6px 12px; border: 1px solid var(--trait); border-radius: 8px; background: var(--fond); }
+  #livre { flex: 1; min-height: 0; }
+  .pages { display: flex; border-top: 1px solid var(--trait); }
+  .pages button { flex: 1; font-size: 1.3rem; padding: 14px; border: 0; background: var(--carte); color: var(--rouge); }
+</style>
+</head>
+<body>
+  <div class="barre">
+    <a href="/bibliotheque/">←</a>
+    <select id="sommaire" aria-label="Sommaire" data-en-aria="Contents"><option data-en="Contents">Sommaire</option></select>
+    <button id="moins" aria-label="Texte plus petit" data-en-aria="Smaller text">A-</button>
+    <button id="plus" aria-label="Texte plus grand" data-en-aria="Larger text">A+</button>
+  </div>
+  <div id="livre"><p id="chargement" style="text-align:center;color:var(--gris);margin-top:40vh" data-en="Loading the book…">Chargement du livre…</p></div>
+  <div class="pages">
+    <button id="avant" aria-label="Page précédente" data-en-aria="Previous page">‹</button>
+    <button id="apres" aria-label="Page suivante" data-en-aria="Next page">›</button>
+  </div>
+<script src="/vendor/jszip.min.js"></script>
+<script src="/vendor/epub.min.js"></script>
+<script>
+var fichier = new URLSearchParams(location.search).get('f') || '';
+var livre = ePub('/bibliotheque/livres/' + encodeURIComponent(fichier));
+var rendu = livre.renderTo('livre', { width: '100%', height: '100%', spread: 'none' });
+var taille = 100;
+var cle = 'page:' + fichier;
+var memoire = null;
+try { memoire = localStorage.getItem(cle); } catch (e) {}
+rendu.display(memoire || undefined).then(function () {
+  var c = document.getElementById('chargement'); if (c) c.remove();
+});
+
+rendu.on('relocated', function (lieu) {
+  try { localStorage.setItem(cle, lieu.start.cfi); } catch (e) {}
+});
+
+livre.loaded.navigation.then(function (nav) {
+  var choix = document.getElementById('sommaire');
+  nav.toc.forEach(function (ch) {
+    var o = document.createElement('option');
+    o.value = ch.href;
+    o.textContent = ch.label.trim();
+    choix.appendChild(o);
+  });
+  choix.addEventListener('change', function () { if (choix.value) rendu.display(choix.value); });
+});
+
+livre.loaded.metadata.then(function (m) { if (m.title) document.title = m.title; });
+
+document.getElementById('avant').onclick = function () { rendu.prev(); };
+document.getElementById('apres').onclick = function () { rendu.next(); };
+document.getElementById('plus').onclick = function () { taille += 10; rendu.themes.fontSize(taille + '%'); };
+document.getElementById('moins').onclick = function () { taille = Math.max(60, taille - 10); rendu.themes.fontSize(taille + '%'); };
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'ArrowLeft') rendu.prev();
+  if (e.key === 'ArrowRight') rendu.next();
+});
+</script>
+</body>
+</html>

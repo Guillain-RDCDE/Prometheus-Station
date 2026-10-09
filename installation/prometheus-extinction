@@ -1,0 +1,49 @@
+#!/bin/bash
+# Prometheus Station - extinction apres un temps sans visiteur (Parametres > Energie).
+# Le reglage (en minutes, 0 = jamais) vit dans /run/prometheus/extinction, ecrit par prometheus-admin.
+# /run est vide a chaque demarrage : une station rallumee repart toujours SANS extinction programmee.
+# Visiteur = un telephone connecte au wifi de la station, une page ouverte, ou une connexion a distance (SSH).
+# Les durees sont comptees depuis le demarrage (/proc/uptime) : un changement d'heure ne fausse rien.
+# Pour l'essayer sans rien eteindre : PROMETHEUS_EXTINCTION_ESSAI=1 prometheus-extinction
+REGLAGE=/run/prometheus/extinction
+RESTANT=/run/prometheus/extinction-restant   # secondes avant l'extinction, lu par la page
+AP=prometheus-wifi
+PRECEDENT=
+DERNIERE=0
+
+visiteurs() {
+  local n=0
+  # Telephones sur le wifi de la station (seulement quand c'est lui qui est ouvert)
+  if [ "$(nmcli -g GENERAL.CONNECTION device show wlan0 2>/dev/null)" = "$AP" ]; then
+    n=$(iw dev wlan0 station dump 2>/dev/null | grep -c '^Station')
+  fi
+  # Pages ouvertes (nginx) et connexions a distance (SSH)
+  n=$((n + $(ss -Htn state established '( sport = :80 or sport = :22 )' 2>/dev/null | wc -l)))
+  echo "$n"
+}
+
+while true; do
+  M=$(cat "$REGLAGE" 2>/dev/null)
+  [[ "$M" =~ ^[0-9]+$ ]] || M=0
+  T=$(cut -d. -f1 /proc/uptime)
+  # Nouveau reglage : le compte repart de maintenant
+  if [ "$M" != "$PRECEDENT" ]; then
+    DERNIERE=$T; PRECEDENT=$M
+    if [ "$M" -gt 0 ]; then echo "Extinction programmee : apres $M min sans visiteur"; else echo "Pas d'extinction programmee"; fi
+  fi
+  [ "$(visiteurs)" -gt 0 ] && DERNIERE=$T
+  if [ "$M" -gt 0 ]; then
+    RESTE=$((M * 60 - (T - DERNIERE)))
+    echo "$RESTE" > "$RESTANT"
+    # Jamais au milieu d'une mise a jour du systeme : elle laisserait la station abimee
+    if [ "$RESTE" -le 0 ] && ! systemctl is-active --quiet prometheus-maj-systeme; then
+      echo "Personne depuis $M min : extinction"
+      if [ -n "$PROMETHEUS_EXTINCTION_ESSAI" ]; then echo "(essai : la station ne s'eteint pas)"; exit 0; fi
+      systemctl poweroff
+      exit 0
+    fi
+  else
+    rm -f "$RESTANT"
+  fi
+  sleep 30
+done

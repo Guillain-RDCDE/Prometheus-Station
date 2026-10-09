@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Encyclopedias">Encyclopédies</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+</head>
+<body>
+<main>
+  <a class="retour" href="/" data-en="← Home">← Accueil</a>
+  <h1 data-en="Encyclopedias">Encyclopédies</h1>
+  <input class="recherche" id="recherche" type="search" placeholder="Rechercher un sujet" data-en-ph="Search a topic" autocomplete="off" autofocus>
+  <div id="resultats"></div>
+  <div id="collections">
+    <h2>Collections</h2>
+    <ul class="liste" id="liste"></ul>
+  </div>
+</main>
+<script>
+// Noms et descriptions en francais des collections connues ; les autres gardent ceux de Kiwix.
+var NOMS = {
+  'wikipedia_fr_all': [T('Wikipédia', 'Wikipedia'), T('L’encyclopédie complète, en français', 'The complete encyclopedia, in French')],
+  'wikipedia_en_all': ['Wikipedia', T('L’encyclopédie complète, en anglais', 'The complete encyclopedia, in English')],
+  'mdwiki_en_all': ['MDWiki', T('Encyclopédie médicale (anglais)', 'Medical encyclopedia')],
+  'wikem_en_all': ['WikEM', T('Médecine d’urgence (anglais)', 'Emergency medicine')],
+  'zimgit-post-disaster_en': [T('Après la catastrophe', 'Post-disaster'), T('Guides pour survivre et reconstruire (anglais)', 'Guides to survive and rebuild')],
+  'zimgit-water_en': [T('Eau potable', 'Drinking water'), T('Trouver, traiter et conserver l’eau (anglais)', 'Find, treat and store water')],
+  'zimgit-food-preparation_en': [T('Nourriture', 'Food'), T('Préparer et conserver les aliments (anglais)', 'Prepare and preserve food')],
+  'ifixit_fr_all': ['iFixit', T('Réparer soi-même : appareils, outils, véhicules', 'Repair it yourself: devices, tools, vehicles (French)')],
+  'gutenberg_fr_all': [T('Projet Gutenberg', 'Project Gutenberg'), T('Des milliers de livres libres, en français', 'Thousands of free books, in French')],
+  'gutenberg_en_all': [T('Projet Gutenberg', 'Project Gutenberg'), T('Des milliers de livres libres, en anglais', 'Thousands of free books, in English')]
+};
+var ORDRE = ['wikipedia_fr_all', 'wikipedia_en_all', 'mdwiki_en_all', 'wikem_en_all', 'zimgit-post-disaster_en', 'zimgit-water_en', 'zimgit-food-preparation_en', 'ifixit_fr_all'];
+var LANGUES = { fra: 'FR', eng: 'EN' };
+var livres = [];
+
+function el(tag, classe, texte) {
+  var e = document.createElement(tag);
+  if (classe) e.className = classe;
+  if (texte) e.textContent = texte;
+  return e;
+}
+
+function ligne(lien, icone, titre, sous, etiquette) {
+  var li = el('li'), a = el('a'), t = el('div', 'texte');
+  a.href = lien;
+  if (icone) { var img = el('img'); img.src = icone; img.alt = ''; img.loading = 'lazy'; a.appendChild(img); }
+  t.appendChild(el('div', 'titre', titre));
+  if (sous) t.appendChild(el('div', 'sous', sous));
+  a.appendChild(t);
+  if (etiquette) a.appendChild(el('span', 'etiquette', etiquette));
+  li.appendChild(a);
+  return li;
+}
+
+function nombre(n) {
+  n = +n;
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace('.', T(',', '.')) + ' M articles';
+  if (n >= 1e3) return Math.round(n / 1e3) + ' k articles';
+  return '';
+}
+
+// Liste des collections, lue dans le catalogue de Kiwix
+fetch('/encyclopedies/catalog/v2/entries?count=500')
+  .then(function (r) { return r.text(); })
+  .then(function (xml) {
+    var doc = new DOMParser().parseFromString(xml, 'application/xml');
+    Array.prototype.forEach.call(doc.getElementsByTagName('entry'), function (e) {
+      var val = function (t) { var x = e.getElementsByTagName(t)[0]; return x ? x.textContent : ''; };
+      var lien = '', icone = '';
+      Array.prototype.forEach.call(e.getElementsByTagName('link'), function (l) {
+        if (l.getAttribute('type') === 'text/html') lien = l.getAttribute('href');
+        if ((l.getAttribute('rel') || '').indexOf('thumbnail') >= 0) icone = l.getAttribute('href');
+      });
+      var nom = val('name'), fr = NOMS[nom];
+      livres.push({
+        nom: nom, id: lien.split('/').pop(), lien: lien + '/', icone: icone,
+        titre: fr ? fr[0] : val('title'), sous: fr ? fr[1] : val('summary'),
+        langue: LANGUES[val('language')] || val('language').slice(0, 2).toUpperCase(),
+        articles: nombre(val('articleCount'))
+      });
+    });
+    livres.sort(function (a, b) {
+      var ia = ORDRE.indexOf(a.nom), ib = ORDRE.indexOf(b.nom);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.titre.localeCompare(b.titre);
+    });
+    var liste = document.getElementById('liste');
+    livres.forEach(function (b) {
+      liste.appendChild(ligne(b.lien, b.icone, b.titre, [b.sous, b.articles].filter(Boolean).join(' · '), b.langue));
+    });
+    if (!livres.length) liste.appendChild(el('li', 'vide', T('Les encyclopédies sont en cours de téléchargement.', 'The encyclopedias are being downloaded.')));
+  });
+
+// Recherche dans toutes les collections a la fois, pendant la frappe
+var minuteur, tour = 0;
+document.getElementById('recherche').addEventListener('input', function (ev) {
+  clearTimeout(minuteur);
+  var q = ev.target.value.trim();
+  minuteur = setTimeout(function () { chercher(q); }, 200);
+});
+
+function chercher(q) {
+  var zone = document.getElementById('resultats');
+  document.getElementById('collections').hidden = !!q;
+  zone.innerHTML = '';
+  if (!q) return;
+  var ce = ++tour;
+  Promise.all(livres.map(function (b) {
+    return fetch('/encyclopedies/suggest?content=' + encodeURIComponent(b.id) + '&term=' + encodeURIComponent(q) + '&count=6')
+      .then(function (r) { return r.json(); })
+      .then(function (s) { return { livre: b, articles: s.filter(function (x) { return x.kind === 'path'; }) }; })
+      .catch(function () { return { livre: b, articles: [] }; });
+  })).then(function (groupes) {
+    if (ce !== tour) return;   // une recherche plus recente est deja partie
+    var trouve = false;
+    groupes.forEach(function (g) {
+      if (!g.articles.length) return;
+      trouve = true;
+      zone.appendChild(el('h2', '', g.livre.titre + ' · ' + g.livre.langue));
+      var ul = el('ul', 'liste');
+      g.articles.forEach(function (x) {
+        ul.appendChild(ligne(g.livre.lien + x.path.split('/').map(encodeURIComponent).join('/'), null, x.value));
+      });
+      zone.appendChild(ul);
+    });
+    if (!trouve) zone.appendChild(el('p', 'vide', T('Aucun article ne porte ce titre. Essayez un autre mot.', 'No article has this title. Try another word.')));
+  });
+}
+</script>
+</body>
+</html>

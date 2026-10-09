@@ -1,0 +1,89 @@
+/* Prometheus Station - style commun. Aucun fichier externe : tout marche hors ligne. */
+:root {
+  /* Jeu de couleurs par defaut (Ocean). La page Mises a jour peut en choisir un autre : /theme.css */
+  --accent: #1d6fd6; --accent-pale: #e3eefb;
+  --encre: #14202e; --gris: #5f6b7a; --pale: #98a2b0;
+  --fond: #f6f9fd; --carte: #ffffff; --trait: #e3e9f1; --logo-fond: transparent;
+  --rayon: 18px;
+  /* compatibilite : l'ancien nom de la couleur d'accent */
+  --rouge: var(--accent);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--fond); color: var(--encre); line-height: 1.45; -webkit-font-smoothing: antialiased; }
+main { max-width: 680px; margin: 0 auto; padding: 28px 20px 64px; }
+a { color: inherit; text-decoration: none; }
+.logo { display: block; margin: 12px auto 6px; width: 72%; max-width: 280px; height: auto; color: var(--encre); }
+.devise { text-align: center; color: var(--gris); margin: 0 0 36px; font-size: 1.05rem; }
+h1 { color: var(--encre); font-size: 2.1rem; font-weight: 700; letter-spacing: -.02em; margin: 8px 0 20px; }
+h2 { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--pale); margin: 36px 0 12px; }
+
+/* Grandes portes de l'accueil */
+.portes { display: grid; gap: 14px; }
+.porte { display: block; background: var(--carte); border: 1px solid var(--trait); border-left: 6px solid var(--accent); border-radius: var(--rayon); padding: 26px 24px; transition: transform .15s ease, background .15s ease; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.porte:active { transform: scale(.98); }
+.porte:hover { background: var(--accent-pale); }
+.porte strong { display: block; font-size: 1.45rem; font-weight: 700; letter-spacing: -.01em; color: var(--accent); }
+.porte span { color: var(--gris); }
+.porte strong::after { content: " →"; }
+
+.retour { display: inline-block; color: var(--gris); font-size: .95rem; margin-bottom: 8px; }
+.retour:hover { color: var(--encre); }
+
+/* Champ de recherche */
+.recherche { width: 100%; font: inherit; color: var(--encre); font-size: 1.15rem; padding: 16px 20px 16px 50px; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--carte) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%236e6e73' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='8.5' cy='8.5' r='6.5'/%3E%3Cpath d='M13.5 13.5 18 18'/%3E%3C/svg%3E") no-repeat 18px center; outline: none; -webkit-appearance: none; }
+.recherche:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-pale); }
+
+/* Listes (livres, collections, resultats) */
+.liste { list-style: none; padding: 0 14px; margin: 0; background: var(--carte); border: 1px solid var(--trait); border-radius: var(--rayon); }
+.liste li + li { border-top: 1px solid var(--trait); }
+.liste a { display: flex; align-items: center; gap: 14px; padding: 14px 4px; }
+.liste a:hover .titre { color: var(--accent); }
+.liste img { width: 44px; height: 44px; border-radius: 10px; flex: none; background: #fff; }
+.liste .texte { flex: 1; min-width: 0; }
+.titre { font-weight: 600; transition: color .15s ease; }
+.sous { color: var(--gris); font-size: .92rem; }
+.etiquette { flex: none; font-size: .7rem; font-weight: 700; letter-spacing: .04em; color: var(--accent); background: var(--accent-pale); border-radius: 6px; padding: 3px 7px; }
+.vide { color: var(--gris); padding: 14px 4px; }
+
+footer { margin-top: 56px; text-align: center; font-size: .85rem; color: var(--pale); }
+footer a { color: var(--gris); }
+
+/* Page Ajouter */
+.depot { display: block; border: 2px dashed var(--trait); border-radius: var(--rayon); padding: 48px 20px; text-align: center; cursor: pointer; transition: border-color .15s ease, background .15s ease; background: var(--carte); }
+.depot.survol, .depot:hover { border-color: var(--accent); background: var(--accent-pale); }
+.depot strong { font-size: 1.2rem; }
+.envois { list-style: none; padding: 0; margin: 20px 0 0; }
+.envois li { padding: 12px 0; border-bottom: 1px solid var(--trait); }
+progress { width: 100%; height: 6px; accent-color: var(--accent); }
+
+/* Boutons et champs des pages d'administration */
+.bouton { display: block; width: 100%; font: inherit; font-size: 1.1rem; font-weight: 600; padding: 16px; border: 0; border-radius: var(--rayon); background: var(--accent); color: #fff; cursor: pointer; margin-top: 8px; }
+.bouton:disabled { background: var(--trait); color: var(--pale); cursor: default; }
+.bouton.secondaire { background: var(--carte); color: var(--accent); border: 1px solid var(--trait); }
+.bouton.secondaire:disabled { color: var(--pale); }
+.champ { width: 100%; font: inherit; color: var(--encre); font-size: 1.1rem; padding: 15px 18px; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--carte); margin-bottom: 8px; outline: none; }
+.champ:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-pale); }
+.ok { color: #1f8a4c; } .nouveau { color: var(--accent); }
+
+/* Panneau d'accueil : le texte de la station (page /panneau/ et apercu dans les Parametres) */
+.panneau { background: var(--carte); border: 1px solid var(--trait); border-radius: var(--rayon); padding: 6px 22px 10px; line-height: 1.6; overflow-wrap: break-word; }
+.panneau h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; text-transform: none; color: var(--accent); line-height: 1.25; margin: 18px 0 8px; }
+.panneau h3 { font-size: 1.12rem; font-weight: 700; color: var(--encre); margin: 20px 0 6px; }
+.panneau p { margin: 10px 0; }
+.panneau ul { margin: 8px 0; padding-left: 22px; }
+.panneau li { margin: 4px 0; }
+.panneau li::marker { color: var(--accent); }
+.panneau u { text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.panneau:empty { display: none; }
+a.logo-lien { display: block; }
+.apropos { display: block; width: max-content; margin: -26px auto 30px; font-size: .9rem; color: var(--accent); }
+
+/* Drapeaux du choix de langue, en haut de l'accueil */
+.langues { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: -8px; }
+/* Roue dentee des parametres, sur la meme ligne que les drapeaux */
+.reglages { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin-left: 4px; border-radius: 50%; color: var(--gris); transition: color .15s ease, transform .3s ease; }
+.reglages:hover { color: var(--accent); transform: rotate(45deg); }
+.drapeau { padding: 4px; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; line-height: 0; opacity: .55; transition: opacity .15s ease; }
+.drapeau svg { border-radius: 3px; box-shadow: 0 0 0 1px var(--trait); }
+.drapeau.choisi { opacity: 1; border-color: var(--accent); }

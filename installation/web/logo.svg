@@ -1,0 +1,17 @@
+<svg viewBox="24 14 310 190" role="img" aria-label="Prometheus Station" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#e8211c" fill-rule="evenodd">
+    <path d="M181.5 21.5 L168.8 28.6 H194.2 Z"/>
+    <rect x="168.8" y="28.4" width="25.4" height="3.8" rx=".4"/>
+    <path d="M170.6 32 h1.7 v10.2 h-1.7z M177.6 32 h1.6 v10.2 h-1.6z M183.7 32 h1.6 v10.2 h-1.6z M190.6 32 h1.7 v10.2 h-1.7z"/>
+    <rect x="166" y="42" width="31" height="6.2" rx=".6"/>
+    <path d="M170 48 H193 V61 Q193 63.4 189.5 63.4 H173.5 Q170 63.4 170 61 Z M179.9 52.8 V59.8 H183.1 V52.8 Z"/>
+    <rect x="180" y="68" width="3" height="6.4" rx=".4"/>
+    <path d="M169 77.4 Q181.5 78.6 194.6 77.4 L195 90 Q195 92.4 190 92.4 H174 Q169 92.4 168.6 90 Z M180.9 82.2 V89.4 H184 V82.2 Z"/>
+    <rect x="180" y="98" width="3" height="6.2" rx=".4"/>
+    <path d="M167.2 107.4 Q181.5 109.6 196 107.4 L196.8 124.6 H166.2 Z M179.2 115 V124.6 H184.2 V115 Z"/>
+  </g>
+  <text x="178.5" y="172" text-anchor="middle" textLength="295" lengthAdjust="spacingAndGlyphs"
+        font-family="'Avenir Next Condensed','Arial Narrow','Roboto Condensed',sans-serif-condensed,'Helvetica Neue',Arial,sans-serif" font-weight="700" font-size="36" fill="#111111">PROMETHEUS STATION</text>
+  <text x="180.5" y="196.4" text-anchor="middle" textLength="253" lengthAdjust="spacingAndGlyphs"
+        font-family="'Helvetica Neue',Arial,sans-serif" font-weight="400" font-size="13.6" fill="#e8211c">EMERGENCY KNOWLEDGE HUB</text>
+</svg>

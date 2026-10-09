@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Settings">Paramètres</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script src="/panneau.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+<style>
+  .vue { animation: entree .22s ease; }
+  .vue[hidden] { display: none; }
+  @keyframes entree { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+
+  .groupe { background: var(--carte); border: 1px solid var(--trait); border-radius: var(--rayon); overflow: hidden; }
+  .ligne { display: flex; align-items: center; gap: 14px; padding: 13px 16px; width: 100%; font: inherit; color: inherit; background: none; border: 0; text-align: left; cursor: pointer; }
+  .ligne + .ligne { border-top: 1px solid var(--trait); }
+  button.ligne:hover, a.ligne:hover { background: var(--accent-pale); }
+  .icone { width: 32px; height: 32px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .icone svg { width: 18px; height: 18px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ligne .nom { flex: 1; min-width: 0; font-weight: 500; }
+  .ligne .valeur { color: var(--gris); font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+  .ligne .valeur.alerte { color: var(--accent); font-weight: 600; }
+  .chevron { color: var(--pale); flex: none; }
+  .pastille { display: inline-block; min-width: 20px; padding: 1px 7px; border-radius: 10px; background: var(--accent); color: #fff; font-size: .78rem; font-weight: 700; text-align: center; }
+
+  .entete { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+  .entete button { font: inherit; color: var(--accent); background: none; border: 0; padding: 4px 0; cursor: pointer; font-size: 1rem; }
+  .note { color: var(--gris); font-size: .88rem; margin: 10px 4px 0; }
+  .jauge { height: 10px; border-radius: 5px; background: var(--trait); overflow: hidden; margin: 6px 0 4px; }
+  .jauge i { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
+
+  .couleurs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .couleur { font: inherit; font-size: .9rem; font-weight: 600; padding: 16px 6px 12px; border-radius: 16px; border: 2px solid transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .couleur i { width: 30px; height: 30px; border-radius: 50%; display: block; }
+  .couleur.choisie { border-color: currentColor; }
+  .part { height: 4px; border-radius: 2px; background: var(--trait); margin-top: 7px; overflow: hidden; }
+  .part i { display: block; height: 100%; background: var(--accent); border-radius: 2px; min-width: 2px; }
+  .supprimer { flex: none; font: inherit; font-size: .85rem; font-weight: 600; color: #d62828; background: none; border: 1px solid transparent; border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+  .supprimer.confirmer { color: #fff; background: #d62828; }
+  .supprimer:disabled { color: var(--pale); background: none; }
+  .drapeau-grand svg { display: block; border-radius: 4px; box-shadow: 0 0 0 1px var(--trait); }
+  .coche { color: var(--accent); font-weight: 700; visibility: hidden; }
+  .ligne.choisi .coche { visibility: visible; }
+  .ligne .nom .sous { display: block; font-weight: 400; }
+  .interrupteur { -webkit-appearance: none; appearance: none; flex: none; width: 50px; height: 30px; border-radius: 15px; background: var(--trait); position: relative; cursor: pointer; transition: background .2s ease; margin: 0; }
+  .interrupteur::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s ease; }
+  .interrupteur:checked { background: var(--accent); }
+  .interrupteur:checked::after { transform: translateX(20px); }
+
+  /* Aide : un « ? » qui deplie une explication courte */
+  .ligne label.nom { cursor: pointer; }
+  .aide-bouton { flex: none; width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 1.5px solid var(--pale); background: none; color: var(--gris); font: 700 .8rem/1 system-ui, sans-serif; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease; }
+  .aide-bouton[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .aide { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
+  .aide.ouverte { grid-template-rows: 1fr; }
+  .aide > div { overflow: hidden; }
+  .aide p { margin: 0 16px 14px; padding: 12px 14px; border-radius: 12px; background: var(--accent-pale); font-size: .92rem; line-height: 1.5; }
+  .aide.seule p { margin: 0 0 12px; }
+  h2.avec-aide { display: flex; align-items: center; gap: 8px; }
+  h2.avec-aide .aide-bouton { width: 20px; height: 20px; font-size: .72rem; }
+  h1.avec-aide-titre { display: flex; align-items: center; gap: 10px; }
+  a.bouton { text-align: center; }
+  a.bouton[hidden] { display: none; }
+  .valeur.bien { color: #2f9e44; font-weight: 600; }
+
+  /* Panneau d'accueil : barre de mise en forme et zone d'ecriture */
+  .outils { display: flex; gap: 6px; margin-bottom: 8px; }
+  .outils button { width: 44px; height: 40px; font: inherit; font-size: 1.05rem; color: var(--encre); background: var(--carte); border: 1px solid var(--trait); border-radius: 12px; cursor: pointer; }
+  .outils button:active { background: var(--accent-pale); }
+  .editeur { display: block; min-height: 260px; resize: vertical; font-size: 1rem; line-height: 1.5; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+</style>
+</head>
+<body>
+<main>
+
+<!-- ===== Ecran principal ===== -->
+<section class="vue" id="vue-accueil">
+  <a class="retour" href="/" data-en="← Home">← Accueil</a>
+  <h1 data-en="Settings">Paramètres</h1>
+
+  <h2 data-en="Content">Contenu</h2>
+  <div class="groupe">
+    <button class="ligne" data-vue="contenus">
+      <span class="icone" style="background:#1d6fd6"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></span>
+      <span class="nom" data-en="Encyclopedias">Encyclopédies</span><span class="valeur" id="val-contenus">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="messages">
+      <span class="icone" style="background:#be185d"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span class="nom" data-en="Messages">Messages</span><span class="valeur" id="val-messages">…</span><span class="chevron">›</span>
+    </button>
+    <a class="ligne" href="/ajouter/">
+      <span class="icone" style="background:#1f8a4c"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span class="nom" data-en="Add files">Ajouter des fichiers</span><span class="chevron">›</span>
+    </a>
+  </div>
+
+  <h2 data-en="Station">Station</h2>
+  <div class="groupe">
+    <button class="ligne" data-vue="wifi">
+      <span class="icone" style="background:#0a84ff"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5 5 0 0 1 7 0"/><path d="M12 19.5h.01"/><path d="M1.5 9a15 15 0 0 1 21 0"/></svg></span>
+      <span class="nom" data-en="Station Wi-Fi">Wi-Fi de la station</span><span class="valeur" id="val-wifi">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="panneau">
+      <span class="icone" style="background:#e8211c"><svg viewBox="0 0 24 24"><path d="M12 3l-3 2h6z"/><path d="M10 7h4l1 14H9z"/><path d="M5 9l-2-1M5 13H3M19 9l2-1M19 13h2"/></svg></span>
+      <span class="nom" data-en="Welcome board">Panneau d’accueil</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="couleurs">
+      <span class="icone" style="background:#c2410c"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1 0 1.5-.8 1.5-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-4.9-4.5-8.6-10-8.6z"/></svg></span>
+      <span class="nom" data-en="Colors">Couleurs</span><span class="valeur" id="val-couleurs">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="langue">
+      <span class="icone" style="background:#0e7490"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/></svg></span>
+      <span class="nom">Langue · Language</span><span class="valeur" data-en="English">Français</span><span class="chevron">›</span>
+    </button>
+  </div>
+
+  <h2 data-en="System">Système</h2>
+  <div class="groupe">
+    <button class="ligne" data-vue="logiciels">
+      <span class="icone" style="background:#6e6e73"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></span>
+      <span class="nom" data-en="Software">Logiciels</span><span class="valeur" id="val-logiciels">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="stockage">
+      <span class="icone" style="background:#8e44ad"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+      <span class="nom" data-en="Storage">Stockage</span><span class="valeur" id="val-stockage">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="energie">
+      <span class="icone" style="background:#2f9e44"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4M9.5 10v4"/></svg></span>
+      <span class="nom" data-en="Energy">Énergie</span><span class="valeur" id="val-energie">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="sante">
+      <span class="icone" style="background:#e67700"><svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
+      <span class="nom" data-en="Station health">État de la station</span><span class="valeur" id="val-sante">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="sauvegarde">
+      <span class="icone" style="background:#0b7285"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
+      <span class="nom" data-en="Backup">Sauvegarde</span><span class="valeur" id="val-sauvegarde">…</span><span class="chevron">›</span>
+    </button>
+  </div>
+
+  <h2 data-en="Security">Sécurité</h2>
+  <div class="groupe">
+    <button class="ligne" data-vue="motdepasse">
+      <span class="icone" style="background:#d62828"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+      <span class="nom" data-en="Password">Mot de passe</span><span class="chevron">›</span>
+    </button>
+  </div>
+  <p class="note" id="verifie"></p>
+</section>
+
+<!-- ===== Encyclopedies ===== -->
+<section class="vue" id="vue-contenus" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 data-en="Encyclopedias">Encyclopédies</h1>
+  <button class="bouton" id="bouton-contenus" disabled data-en="Checking…">Vérification…</button>
+  <p class="note" id="note-contenus"></p>
+  <h2 data-en="Installed content">Contenus installés</h2>
+  <div class="groupe" id="liste-contenus"></div>
+</section>
+
+<!-- ===== Messages ===== -->
+<section class="vue" id="vue-messages" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 data-en="Messages">Messages</h1>
+  <div class="groupe">
+    <a class="ligne" href="/messages/?depuis=parametres"><span class="nom" data-en="Open the message board">Ouvrir le tableau des messages</span><span class="valeur" id="nb-messages"></span><span class="chevron">›</span></a>
+  </div>
+  <button class="bouton secondaire" id="bouton-vider" disabled data-en="Delete all messages">Effacer tous les messages</button>
+  <p class="note" id="note-messages" data-en="Each message can also be deleted on its own from the message board, once you are signed in.">Chaque message peut aussi être effacé un par un depuis le tableau, une fois connecté.</p>
+</section>
+
+<!-- ===== Wi-Fi ===== -->
+<section class="vue" id="vue-wifi" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 data-en="Station Wi-Fi">Wi-Fi de la station</h1>
+  <form id="form-wifi">
+    <input class="champ" id="ssid" maxlength="32" placeholder="Nom du wifi" data-en-ph="Wi-Fi name" autocomplete="off">
+    <button class="bouton" data-en="Rename">Renommer</button>
+  </form>
+  <p class="note" id="note-wifi" data-en="This is the open Wi-Fi the station creates when it is far from your own Wi-Fi networks. The station screen shows this name and its QR code.">C’est le wifi ouvert que la station crée quand elle est loin de vos wifis. L’écran de la station affiche ce nom et son QR code.</p>
+</section>
+
+<!-- ===== Panneau d'accueil ===== -->
+<section class="vue" id="vue-panneau" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Welcome board">Panneau d’accueil</span><button class="aide-bouton" aria-controls="aide-panneau" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-panneau"><div><p data-en="This text opens when someone taps the lighthouse on the home page: present the station, its rules, its hours. Use the buttons to format it.">Ce texte s’ouvre quand on touche le phare de l’accueil : présentez la station, ses règles, ses horaires. Les boutons servent à le mettre en forme.</p></div></div>
+  <div class="outils" id="outils">
+    <button data-outil="titre" aria-label="Titre" data-en-aria="Title">T</button>
+    <button data-outil="gras" aria-label="Gras" data-en-aria="Bold"><b>B</b></button>
+    <button data-outil="italique" aria-label="Italique" data-en-aria="Italic"><i>I</i></button>
+    <button data-outil="souligne" aria-label="Souligné" data-en-aria="Underline"><u>U</u></button>
+    <button data-outil="liste" aria-label="Liste" data-en-aria="List" style="font-size:1.5rem;line-height:1">•</button>
+  </div>
+  <textarea class="champ editeur" id="texte-panneau" spellcheck="true"></textarea>
+  <button class="bouton" id="bouton-panneau" disabled data-en="Saved">Enregistré</button>
+  <p class="note" id="note-panneau"></p>
+  <h2 data-en="Preview">Aperçu</h2>
+  <div class="panneau" id="apercu"></div>
+  <p class="note"><a href="/panneau/" style="color:var(--accent)" data-en="Open the board as visitors see it ›">Voir le panneau comme les visiteurs ›</a></p>
+</section>
+
+<!-- ===== Couleurs ===== -->
+<section class="vue" id="vue-couleurs" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 data-en="Colors">Couleurs</h1>
+  <div class="couleurs" id="couleurs"></div>
+  <p class="note" data-en="This choice applies to every page and every visitor.">Le choix vaut pour toutes les pages et tous les visiteurs.</p>
+</section>
+
+<!-- ===== Langue ===== -->
+<section class="vue" id="vue-langue" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1>Langue · Language</h1>
+  <div class="groupe">
+    <button class="ligne" data-langue="fr"><span class="drapeau-grand"><svg viewBox="0 0 3 2" width="28" height="19"><rect width="1" height="2" fill="#002395"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ed2939"/></svg></span><span class="nom">Français</span><span class="coche">✓</span></button>
+    <button class="ligne" data-langue="en"><span class="drapeau-grand"><svg viewBox="0 0 60 30" width="28" height="19"><clipPath id="uk2"><path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z"/></clipPath><path d="M0,0v30h60v-30z" fill="#012169"/><path d="M0,0L60,30M60,0L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0L60,30M60,0L0,30" clip-path="url(#uk2)" stroke="#C8102E" stroke-width="4"/><path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></svg></span><span class="nom">English</span><span class="coche">✓</span></button>
+  </div>
+  <p class="note" data-en="Each phone keeps its own language. By default, the station uses the phone's language.">Chaque téléphone garde sa propre langue. Par défaut, la station prend celle du téléphone.</p>
+</section>
+
+<!-- ===== Logiciels ===== -->
+<section class="vue" id="vue-logiciels" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 data-en="Software">Logiciels</h1>
+  <div class="groupe">
+    <div class="ligne"><span class="nom" data-en="Station software">Programmes de la station</span><span class="valeur" id="etat-logiciels">…</span></div>
+  </div>
+  <button class="bouton" id="bouton-systeme" disabled data-en="Update">Mettre à jour</button>
+  <button class="bouton secondaire" id="bouton-redemarrer" hidden data-en="Restart the station">Redémarrer la station</button>
+  <p class="note" id="note-logiciels" data-en="System, web server, Kiwix, Tailscale… Your settings are kept.">Système, serveur web, Kiwix, Tailscale… Vos réglages sont conservés.</p>
+</section>
+
+<!-- ===== Stockage ===== -->
+<section class="vue" id="vue-stockage" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 data-en="Storage">Stockage</h1>
+  <div class="groupe" style="padding:16px">
+    <div class="jauge"><i id="jauge"></i></div>
+    <div class="note" id="note-stockage" style="margin:6px 0 0"></div>
+  </div>
+  <h2 data-en="What takes up space">Ce qui occupe la place</h2>
+  <div class="groupe" id="liste-fichiers"></div>
+  <p class="note" data-en="A deleted encyclopedia is no longer downloaded automatically.">Une encyclopédie supprimée n’est plus téléchargée automatiquement.</p>
+</section>
+
+<!-- ===== Energie ===== -->
+<section class="vue" id="vue-energie" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 data-en="Energy">Énergie</h1>
+  <div class="groupe">
+    <div class="ligne">
+      <label class="nom" for="sobre"><span data-en="Low-power mode">Mode sobre</span><span class="sous" data-en="Lights off, slower processor, USB ports off.">Voyants éteints, processeur ralenti, prises USB coupées.</span></label>
+      <button class="aide-bouton" aria-controls="aide-sobre" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button>
+      <input type="checkbox" class="interrupteur" id="sobre">
+    </div>
+    <div class="aide" id="aide-sobre"><div><p data-en="The station uses a little less power, so the battery lasts a little longer. In return, searching the encyclopedias is a bit slower and USB ports stop working.">La station consomme un peu moins, la batterie tient donc un peu plus longtemps. En échange, la recherche dans les encyclopédies est un peu plus lente et les prises USB ne marchent plus.</p></div></div>
+  </div>
+  <h2 class="avec-aide"><span data-en="Automatic shutdown">Extinction automatique</span><button class="aide-bouton" aria-controls="aide-extinction" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
+  <div class="aide seule" id="aide-extinction"><div><p data-en="If nobody connects for that long, the station switches itself off to save the battery. To switch it back on, unplug the battery and plug it in again: it then starts with no shutdown planned.">Si personne ne se connecte pendant ce temps, la station s’éteint toute seule pour garder la batterie. Pour la rallumer, débranchez puis rebranchez la batterie : elle repart alors sans extinction prévue.</p></div></div>
+  <div class="groupe" id="choix-extinction">
+    <button class="ligne" data-minutes="0"><span class="nom" data-en="Never">Jamais</span><span class="coche">✓</span></button>
+    <button class="ligne" data-minutes="60"><span class="nom" data-en="After 1 hour without visitors">Après 1 h sans visiteur</span><span class="coche">✓</span></button>
+    <button class="ligne" data-minutes="120"><span class="nom" data-en="After 2 hours without visitors">Après 2 h sans visiteur</span><span class="coche">✓</span></button>
+    <button class="ligne" data-minutes="240"><span class="nom" data-en="After 4 hours without visitors">Après 4 h sans visiteur</span><span class="coche">✓</span></button>
+    <button class="ligne" data-minutes="480"><span class="nom" data-en="After 8 hours without visitors">Après 8 h sans visiteur</span><span class="coche">✓</span></button>
+  </div>
+  <p class="note" id="note-extinction"></p>
+</section>
+
+<!-- ===== Etat de la station ===== -->
+<section class="vue" id="vue-sante" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Station health">État de la station</span><button class="aide-bouton" aria-controls="aide-sante" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-sante"><div><p data-en="Above 80 °C the station slows down to cool off: give it some shade and air. If the power has been too low, the battery or its cable is too weak: the station may switch off by itself.">Au-delà de 80 °C, la station ralentit pour refroidir : mettez-la à l’ombre et à l’air. Si l’alimentation a été trop faible, la batterie ou son câble sont trop justes : la station peut s’éteindre seule.</p></div></div>
+  <div class="groupe">
+    <div class="ligne"><span class="nom" data-en="Temperature">Température</span><span class="valeur" id="sante-temperature">…</span></div>
+    <div class="ligne"><span class="nom" data-en="Power supply">Alimentation</span><span class="valeur" id="sante-tension">…</span></div>
+    <div class="ligne"><span class="nom" data-en="Switched on for">Allumée depuis</span><span class="valeur" id="sante-allumee">…</span></div>
+  </div>
+</section>
+
+<!-- ===== Sauvegarde ===== -->
+<section class="vue" id="vue-sauvegarde" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Backup">Sauvegarde</span><button class="aide-bouton" aria-controls="aide-sauvegarde" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-sauvegarde"><div><p data-en="Every day the station keeps a copy of its settings: password, messages, welcome board, known Wi-Fi networks. Download it and keep it safe: it brings everything back after a reinstall. Encyclopedias and books are not included.">Chaque jour, la station garde une copie de ses réglages : mot de passe, messages, panneau d’accueil, wifis connus. Téléchargez-la et rangez-la : elle remet tout en place après une réinstallation. Les encyclopédies et les livres n’y sont pas.</p></div></div>
+  <div class="groupe">
+    <div class="ligne"><span class="nom" data-en="Last backup">Dernière sauvegarde</span><span class="valeur" id="sauvegarde-date">…</span></div>
+  </div>
+  <a class="bouton" id="bouton-telecharger" hidden data-en="Download">Télécharger</a>
+  <button class="bouton secondaire" id="bouton-sauvegarder" data-en="Back up now">Sauvegarder maintenant</button>
+  <p class="note" data-en="The file contains your Wi-Fi passwords: keep it private.">Le fichier contient vos mots de passe wifi : gardez-le pour vous.</p>
+</section>
+
+<!-- ===== Mot de passe ===== -->
+<section class="vue" id="vue-motdepasse" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 data-en="Password">Mot de passe</h1>
+  <form id="form-mdp">
+    <input class="champ" id="ancien" type="password" placeholder="Mot de passe actuel" data-en-ph="Current password" autocomplete="current-password">
+    <input class="champ" id="nouveau" type="password" placeholder="Nouveau mot de passe" data-en-ph="New password" autocomplete="new-password">
+    <button class="bouton" data-en="Change password">Changer le mot de passe</button>
+  </form>
+  <p class="note" id="note-mdp" data-en="It protects the settings and adding files.">Il protège les paramètres et l’ajout de fichiers.</p>
+</section>
+
+</main>
+<script>
+var NOMS = {
+  'wikipedia_fr_all_maxi': T('Wikipédia (français)', 'Wikipedia (French)'), 'wikipedia_en_all_maxi': T('Wikipedia (anglais)', 'Wikipedia (English)'),
+  'mdwiki_en_all_maxi': T('MDWiki — médecine', 'MDWiki — medicine'), 'wikem_en_all_maxi': T('WikEM — urgences', 'WikEM — emergencies'),
+  'zimgit-post-disaster_en': T('Après la catastrophe', 'Post-disaster'), 'zimgit-water_en': T('Eau potable', 'Drinking water'),
+  'zimgit-food-preparation_en': T('Nourriture', 'Food'), 'gutenberg_fr_all': T('Projet Gutenberg (français)', 'Project Gutenberg (French)'),
+  'ifixit_fr_all': T('iFixit — réparations', 'iFixit — repairs')
+};
+var THEMES = [
+  ['ocean', T('Océan', 'Ocean'), '#1d6fd6', '#e3eefb', '#14202e'], ['foret', T('Forêt', 'Forest'), '#1f8a4c', '#e2f3e8', '#16241b'],
+  ['braise', T('Braise', 'Ember'), '#d62828', '#fbe6e4', '#2a1715'], ['soleil', T('Soleil', 'Sun'), '#d9750a', '#fdeed9', '#2b2013'],
+  ['lavande', T('Lavande', 'Lavender'), '#6a4fd6', '#ece8fc', '#1e1a2e'], ['nuit', T('Nuit', 'Night'), '#5ea8ff', '#18202a', '#eef2f7']
+];
+var MOIS = LANGUE === 'en'
+  ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  : ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+function date(v) { return v ? MOIS[+v.slice(5, 7) - 1] + ' ' + v.slice(0, 4) : ''; }
+function $(id) { return document.getElementById(id); }
+function el(tag, classe, texte) { var e = document.createElement(tag); if (classe) e.className = classe; if (texte) e.textContent = texte; return e; }
+function poster(route, donnees) {
+  return fetch('/admin-api/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); });
+}
+function ordre(nom) { return fetch('/ajouter/commande/' + nom, { method: 'PUT', body: '' }); }
+function lire() { return fetch('/ajouter/etat.json', { cache: 'no-store' }).then(function (r) { return r.json(); }); }
+
+// ----- Navigation entre les ecrans (l'adresse garde l'ecran : #wifi, #couleurs...)
+function montrer() {
+  var nom = location.hash.slice(1) || 'accueil';
+  if (!$('vue-' + nom)) nom = 'accueil';
+  document.querySelectorAll('.vue').forEach(function (v) { v.hidden = v.id !== 'vue-' + nom; });
+  scrollTo(0, 0);
+}
+addEventListener('hashchange', montrer);
+document.querySelectorAll('[data-vue]').forEach(function (b) { b.onclick = function () { location.hash = b.dataset.vue; }; });
+// « ‹ Parametres » ramene toujours au menu des parametres (jamais a la page precedente du navigateur)
+document.querySelectorAll('[data-retour]').forEach(function (b) { b.onclick = function () { history.replaceState(null, '', location.pathname); montrer(); }; });
+montrer();
+
+// ----- Affichage de l'etat
+var etat = null;
+function afficher(e) {
+  etat = e;
+  // Encyclopedies
+  var aFaire = 0, liste = $('liste-contenus');
+  liste.innerHTML = '';
+  e.contenus.forEach(function (c) {
+    var texte, classe = 'valeur';
+    var detail = c.installe ? T('Installé : ', 'Installed: ') + date(c.installe) : T('Pas encore installé', 'Not installed yet');
+    if (c.etat === 'en_cours') {
+      var p = (c.progression || '').split(' — ');
+      texte = p[0] || T('En cours', 'In progress'); classe += ' alerte';
+      if (p[1]) detail = T('Téléchargement, ', 'Downloading, ') + p[1].replace('encore', T('encore', 'remaining'));
+    }
+    else if (c.etat === 'a_jour') texte = T('À jour', 'Up to date');
+    else if (c.etat === 'nouvelle') { texte = e.telechargement ? T('En attente', 'Waiting') : T('Nouvelle : ', 'New: ') + date(c.disponible); classe += ' alerte'; aFaire++; }
+    else if (c.etat === 'place') texte = T('Pas assez de place', 'Not enough space');
+    else texte = '?';
+    var ligne = el('div', 'ligne'), nom = el('span', 'nom');
+    nom.appendChild(el('div', '', NOMS[c.nom] || c.nom));
+    nom.appendChild(el('div', 'sous', detail));
+    ligne.appendChild(nom); ligne.appendChild(el('span', classe, texte));
+    liste.appendChild(ligne);
+  });
+  var b = $('bouton-contenus');
+  if (!e.internet) { b.textContent = T('Pas d’internet', 'No internet'); b.disabled = true; }
+  else if (e.telechargement) { b.textContent = T('Téléchargement en cours…', 'Downloading…'); b.disabled = true; }
+  else if (aFaire) { b.textContent = T('Tout mettre à jour (', 'Update all (') + aFaire + ')'; b.disabled = false; }
+  else { b.textContent = T('Tout est à jour', 'Everything is up to date'); b.disabled = true; }
+  var enCours = e.contenus.filter(function (c) { return c.etat === 'en_cours'; })[0];
+  $('val-contenus').textContent = enCours ? '↓ ' + ((enCours.progression || '').split(' — ')[0] || '…') : aFaire ? aFaire + T(' à faire', ' to do') : T('À jour', 'Up to date');
+  $('val-contenus').className = 'valeur' + (enCours || aFaire ? ' alerte' : '');
+
+  // Wi-Fi
+  $('val-wifi').textContent = e.ssid || '';
+  var champ = $('ssid');
+  if (e.ssid && document.activeElement !== champ && !champ.dataset.touche) champ.value = e.ssid;
+
+  // Couleurs
+  var t = THEMES.filter(function (x) { return x[0] === (e.theme || 'ocean'); })[0] || THEMES[0];
+  $('val-couleurs').textContent = t[1];
+  couleurs(t[0]);
+
+  // Logiciels
+  var s = e.systeme || {};
+  var texte = s.en_cours ? T('Mise à jour…', 'Updating…') : s.a_jour ? s.a_jour + T(' mise(s) à jour', ' update(s)') : s.echec ? T('Échec de la dernière mise à jour', 'Last update failed') : T('À jour', 'Up to date');
+  $('etat-logiciels').textContent = texte;
+  $('val-logiciels').textContent = s.redemarrage && !s.en_cours ? T('Redémarrage requis', 'Restart required') : texte;
+  $('val-logiciels').className = 'valeur' + (s.a_jour || s.echec || s.redemarrage || s.en_cours ? ' alerte' : '');
+  $('bouton-systeme').disabled = !s.a_jour || s.en_cours || !e.internet;
+  $('bouton-systeme').textContent = s.en_cours ? T('Mise à jour en cours…', 'Updating…') : T('Mettre à jour', 'Update');
+  $('bouton-redemarrer').hidden = !s.redemarrage || s.en_cours;
+
+  // Stockage
+  var total = e.total_go || 0, libre = e.libre_go || 0;
+  var GO = T(' Go', ' GB');
+  $('val-stockage').textContent = libre + GO + T(' libres', ' free');
+  if (total) $('jauge').style.width = Math.round((total - libre) / total * 100) + '%';
+  $('note-stockage').textContent = (total ? (total - libre) + GO + T(' utilisés sur ', ' used of ') + total + GO + ' · ' : '') + libre + GO + T(' libres', ' free');
+
+  fichiersOccupes(e.fichiers || [], (e.total_go || 0) * 1e9);
+
+  // Sauvegarde
+  var sv = e.sauvegarde;
+  $('val-sauvegarde').textContent = sv ? sv.date.split(' a ')[0] : T('Aucune', 'None');
+  $('sauvegarde-date').textContent = sv ? sv.date.replace(' a ', T(' à ', ' at ')) + ' · ' + poids(sv.octets) : T('Aucune', 'None');
+  $('bouton-telecharger').hidden = !sv;
+  if (sv) { $('bouton-telecharger').href = '/parametres/sauvegardes/' + sv.fichier; $('bouton-telecharger').setAttribute('download', sv.fichier); }
+
+  $('verifie').textContent = T('Vérifié le ', 'Checked on ') + e.verifie.replace(' a ', T(' à ', ' at '));
+}
+
+// ----- Stockage : ce qui occupe la carte, avec suppression (en deux temps)
+function poids(o) {
+  if (o >= 1e9) return (o / 1e9).toFixed(o >= 1e10 ? 0 : 1).replace('.', T(',', '.')) + T(' Go', ' GB');
+  if (o >= 1e6) return Math.round(o / 1e6) + T(' Mo', ' MB');
+  return Math.max(1, Math.round(o / 1e3)) + T(' Ko', ' KB');
+}
+function fichiersOccupes(liste, total) {
+  var zone = $('liste-fichiers');
+  zone.innerHTML = '';
+  liste.forEach(function (f) {
+    var ligne = el('div', 'ligne'), nom = el('span', 'nom');
+    var titre = f.genre === 'encyclopedie' ? (NOMS[f.nom] || f.nom) : f.nom;
+    nom.appendChild(el('div', '', titre));
+    var pct = total ? f.octets / total * 100 : 0;
+    nom.appendChild(el('div', 'sous', (f.genre === 'encyclopedie' ? T('Encyclopédie', 'Encyclopedia') : T('Livre', 'Book')) + ' · ' + poids(f.octets) +
+      (pct >= 1 ? ' · ' + Math.round(pct) + T('\u00a0%', '%') : '')));
+    var part = el('div', 'part'), barre = el('i'); barre.style.width = pct.toFixed(2) + '%'; part.appendChild(barre);
+    nom.appendChild(part);
+    var b = el('button', 'supprimer', T('Supprimer', 'Delete'));
+    b.onclick = function () {
+      if (!b.classList.contains('confirmer')) {
+        b.classList.add('confirmer'); b.textContent = T('Confirmer', 'Confirm');
+        setTimeout(function () { if (b.classList.contains('confirmer')) { b.classList.remove('confirmer'); b.textContent = T('Supprimer', 'Delete'); } }, 5000);
+        return;
+      }
+      b.classList.remove('confirmer'); b.disabled = true; b.textContent = T('Suppression…', 'Deleting…');
+      fetch('/ajouter/commande/supprimer-' + Date.now(), { method: 'PUT', body: f.fichier })
+        .then(function () { setTimeout(verifier, 2500); });
+    };
+    ligne.appendChild(nom); ligne.appendChild(b);
+    zone.appendChild(ligne);
+  });
+  if (!liste.length) zone.appendChild(el('div', 'ligne', T('Rien pour l’instant.', 'Nothing yet.')));
+}
+
+function couleurs(actuel) {
+  var zone = $('couleurs');
+  zone.innerHTML = '';
+  THEMES.forEach(function (t) {
+    var b = el('button', 'couleur' + (t[0] === actuel ? ' choisie' : ''));
+    b.style.background = t[3]; b.style.color = t[4];
+    var p = el('i'); p.style.background = t[2];
+    b.appendChild(p); b.appendChild(document.createTextNode(t[1]));
+    b.onclick = function () {
+      poster('theme', { nom: t[0] }).then(function (r) {
+        if (!r.ok) return;
+        document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now();
+        $('val-couleurs').textContent = t[1];
+        couleurs(t[0]);
+      });
+    };
+    zone.appendChild(b);
+  });
+}
+
+// ----- Rafraichissement : a l'ouverture, puis chaque minute pendant un telechargement ou une mise a jour
+function suivre() {
+  lire().then(function (e) {
+    afficher(e);
+    if (e.telechargement || (e.systeme && e.systeme.en_cours)) setTimeout(function () { ordre('verifier'); setTimeout(suivre, 8000); }, 52000);
+  }).catch(function () { setTimeout(suivre, 3000); });
+}
+function verifier() {
+  var avant = null;
+  lire().then(function (e) { avant = e.horodatage; afficher(e); }).catch(function () {});
+  ordre('verifier').then(function () {
+    var essais = 0;
+    (function attendre() {
+      lire().then(function (e) {
+        if (e.horodatage !== avant || ++essais > 20) suivre(); else setTimeout(attendre, 2000);
+      }).catch(function () { setTimeout(attendre, 2000); });
+    })();
+  });
+}
+
+// ----- Messages : nombre, et tout effacer (en deux temps pour eviter une fausse manoeuvre)
+function compterMessages() {
+  fetch('/api/messages', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    var n = d.messages.length;
+    $('val-messages').textContent = n ? n + ' message' + (n > 1 ? 's' : '') : T('Aucun', 'None');
+    $('nb-messages').textContent = n || '';
+    var b = $('bouton-vider');
+    b.disabled = !n; b.dataset.confirmer = ''; b.textContent = T('Effacer tous les messages', 'Delete all messages');
+  }).catch(function () {});
+}
+$('bouton-vider').onclick = function () {
+  var b = this;
+  if (!b.dataset.confirmer) {
+    b.dataset.confirmer = '1';
+    b.textContent = T('Toucher encore pour confirmer', 'Tap again to confirm');
+    setTimeout(function () { if (b.dataset.confirmer) compterMessages(); }, 5000);
+    return;
+  }
+  b.disabled = true;
+  fetch('/api/messages/vider', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(function (r) { $('note-messages').textContent = r.ok ? T('Tous les messages ont été effacés.', 'All messages have been deleted.') : T('Erreur.', 'Error.'); compterMessages(); });
+};
+compterMessages();
+
+// ----- Boutons
+$('bouton-contenus').onclick = function () {
+  this.disabled = true; this.textContent = T('Lancement…', 'Starting…');
+  ordre('mettre-a-jour').then(function () { setTimeout(suivre, 8000); });
+};
+$('bouton-systeme').onclick = function () {
+  this.disabled = true; this.textContent = T('Lancement…', 'Starting…');
+  ordre('systeme').then(function () { setTimeout(suivre, 8000); });
+};
+$('bouton-redemarrer').onclick = function () {
+  this.disabled = true; this.textContent = T('Redémarrage… revenez dans 2 minutes', 'Restarting… come back in 2 minutes');
+  ordre('redemarrer');
+};
+$('ssid').addEventListener('input', function () { this.dataset.touche = '1'; });
+$('form-wifi').onsubmit = function (ev) {
+  ev.preventDefault();
+  var nom = $('ssid').value.trim();
+  poster('wifi', { nom: nom }).then(function (r) {
+    $('note-wifi').textContent = r.ok
+      ? T('C’est fait : le wifi s’appelle maintenant « ' + nom + ' ». Si vous êtes connecté dessus, reconnectez-vous à ce nouveau nom.',
+          'Done: the Wi-Fi is now called “' + nom + '”. If you are connected to it, reconnect to this new name.')
+      : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+    if (r.ok) { delete $('ssid').dataset.touche; $('val-wifi').textContent = nom; }
+  });
+};
+$('form-mdp').onsubmit = function (ev) {
+  ev.preventDefault();
+  poster('changer', { ancien: $('ancien').value, nouveau: $('nouveau').value }).then(function (r) {
+    $('note-mdp').textContent = r.ok ? T('Mot de passe changé.', 'Password changed.') : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+    if (r.ok) { $('ancien').value = ''; $('nouveau').value = ''; }
+  });
+};
+
+// ----- Energie : mode sobre et extinction automatique (reglages immediats, sans la file des ordres)
+function duree(s) {
+  var h = Math.floor(s / 3600), m = Math.round(s % 3600 / 60);
+  if (m === 60) { h++; m = 0; }
+  return h ? h + ' h' + (m ? ' ' + (m < 10 ? '0' : '') + m : '') : Math.max(1, m) + ' min';
+}
+function afficherEnergie(d) {
+  $('sobre').checked = d.sobre;
+  $('val-energie').textContent = (d.sobre ? T('Sobre', 'Low power') : T('Normal', 'Normal')) +
+    (d.extinction ? ' · ' + T('extinction ', 'shutdown ') + duree(d.extinction * 60) : '');
+  document.querySelectorAll('[data-minutes]').forEach(function (b) { b.classList.toggle('choisi', +b.dataset.minutes === d.extinction); });
+  $('note-extinction').textContent = d.extinction && d.restant !== null
+    ? T('Extinction dans ', 'Shutdown in ') + duree(Math.max(0, d.restant)) + T(' si personne ne vient.', ' if nobody comes.') : '';
+}
+function energie() {
+  fetch('/admin-api/energie', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(afficherEnergie).catch(function () {});
+}
+$('sobre').onchange = function () {
+  poster('energie', { sobre: this.checked }).then(function (r) { if (r.ok) afficherEnergie(r.d); else energie(); });
+};
+document.querySelectorAll('[data-minutes]').forEach(function (b) {
+  b.onclick = function () {
+    poster('energie', { extinction: +b.dataset.minutes }).then(function (r) {
+      if (r.ok) afficherEnergie(r.d); else energie();
+    });
+  };
+});
+energie();
+setInterval(energie, 60000);
+// ----- Etat de la station : temperature, alimentation, duree depuis l'allumage
+function sante() {
+  fetch('/admin-api/sante', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    var t = $('sante-temperature');
+    t.textContent = d.temperature === null ? '?' : d.temperature + ' °C';
+    t.className = 'valeur' + (d.temperature >= 80 ? ' alerte' : '');
+    var v = $('sante-tension');
+    v.textContent = d.tension === 'ok' ? T('Bonne', 'Good') : d.tension === 'basse' ? T('Trop faible en ce moment', 'Too low right now')
+      : d.tension === 'basse_avant' ? T('A été trop faible', 'Has been too low') : '?';
+    v.className = 'valeur' + (d.tension === 'ok' ? ' bien' : d.tension ? ' alerte' : '');
+    var j = Math.floor(d.allumee / 86400);
+    $('sante-allumee').textContent = (j ? j + T(' j ', ' d ') : '') + duree(d.allumee % 86400);
+    $('val-sante').textContent = (d.temperature === null ? '' : d.temperature + ' °C') + (d.tension && d.tension !== 'ok' ? ' · ⚠' : '');
+    $('val-sante').className = 'valeur' + (d.temperature >= 80 || (d.tension && d.tension !== 'ok') ? ' alerte' : '');
+  }).catch(function () {});
+}
+sante();
+setInterval(sante, 60000);
+
+// ----- Sauvegarde maintenant (la file des ordres, puis on relit l'etat)
+$('bouton-sauvegarder').onclick = function () {
+  var b = this;
+  b.disabled = true; b.textContent = T('Sauvegarde…', 'Backing up…');
+  ordre('sauvegarder').then(function () {
+    setTimeout(function () { verifier(); b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now'); }, 3000);
+  });
+};
+
+// ----- Panneau d'accueil : texte, apercu en direct, boutons de mise en forme
+var zone = $('texte-panneau');
+function apercu() { $('apercu').innerHTML = miseEnForme(zone.value); }
+function modifie() {
+  apercu();
+  var b = $('bouton-panneau');
+  b.disabled = false; b.textContent = T('Enregistrer', 'Save');
+}
+fetch('/api/panneau', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+  zone.value = d.texte || ''; apercu();
+}).catch(function () {});
+zone.addEventListener('input', modifie);
+$('bouton-panneau').onclick = function () {
+  var b = this;
+  b.disabled = true; b.textContent = T('Enregistrement…', 'Saving…');
+  poster('panneau', { texte: zone.value }).then(function (r) {
+    if (r.ok) { b.textContent = T('Enregistré', 'Saved'); $('note-panneau').textContent = ''; }
+    else { b.disabled = false; b.textContent = T('Enregistrer', 'Save'); $('note-panneau').textContent = TE(r.d.erreur) || T('Erreur.', 'Error.'); }
+  });
+};
+// Gras, italique, souligne : entoure la selection (ou place le curseur entre les deux signes)
+function entourer(signe) {
+  var d = zone.selectionStart, f = zone.selectionEnd, choix = zone.value.slice(d, f);
+  zone.setRangeText(signe + choix + signe, d, f, 'end');
+  if (!choix) zone.selectionStart = zone.selectionEnd = d + signe.length;
+}
+// Titre et liste : agit sur les lignes selectionnees
+function lignes(changer) {
+  var v = zone.value, d = v.lastIndexOf('\n', zone.selectionStart - 1) + 1, f = v.indexOf('\n', zone.selectionEnd);
+  if (f < 0) f = v.length;
+  var bloc = v.slice(d, f).split('\n').map(changer).join('\n');
+  zone.setRangeText(bloc, d, f, 'end');
+}
+document.querySelectorAll('[data-outil]').forEach(function (b) {
+  b.onclick = function () {
+    var o = b.dataset.outil;
+    zone.focus();
+    if (o === 'gras') entourer('**');
+    else if (o === 'italique') entourer('*');
+    else if (o === 'souligne') entourer('__');
+    else if (o === 'titre') lignes(function (l) { return /^# /.test(l) ? '#' + l : /^## /.test(l) ? l.slice(3) : '# ' + l; });
+    else if (o === 'liste') lignes(function (l) { return /^- /.test(l) ? l.slice(2) : '- ' + l; });
+    modifie();
+  };
+});
+
+document.querySelectorAll('.aide-bouton').forEach(function (b) {
+  b.onclick = function () {
+    var ouverte = $(b.getAttribute('aria-controls')).classList.toggle('ouverte');
+    b.setAttribute('aria-expanded', ouverte);
+  };
+});
+
+verifier();
+</script>
+</body>
+</html>

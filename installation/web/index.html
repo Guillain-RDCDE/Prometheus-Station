@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prometheus Station</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+</head>
+<body>
+<main>
+  <div class="langues"><button class="drapeau" data-langue="fr" aria-label="Français"><svg viewBox="0 0 3 2" width="28" height="19"><rect width="1" height="2" fill="#002395"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ed2939"/></svg></button><button class="drapeau" data-langue="en" aria-label="English"><svg viewBox="0 0 60 30" width="28" height="19"><clipPath id="uk"><path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z"/></clipPath><path d="M0,0v30h60v-30z" fill="#012169"/><path d="M0,0L60,30M60,0L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0L60,30M60,0L0,30" clip-path="url(#uk)" stroke="#C8102E" stroke-width="4"/><path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></svg></button><a class="reglages" href="/parametres/" aria-label="Paramètres" data-en-aria="Settings">
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </a></div>
+  <a class="logo-lien" href="/panneau/"><svg class="logo" data-en-aria="Prometheus Station" viewBox="24 14 310 190" role="img" aria-label="Prometheus Station" xmlns="http://www.w3.org/2000/svg">
+    <g fill="#e8211c" fill-rule="evenodd">
+      <path d="M181.5 21.5 L168.8 28.6 H194.2 Z"/>
+      <rect x="168.8" y="28.4" width="25.4" height="3.8" rx=".4"/>
+      <path d="M170.6 32 h1.7 v10.2 h-1.7z M177.6 32 h1.6 v10.2 h-1.6z M183.7 32 h1.6 v10.2 h-1.6z M190.6 32 h1.7 v10.2 h-1.7z"/>
+      <rect x="166" y="42" width="31" height="6.2" rx=".6"/>
+      <path d="M170 48 H193 V61 Q193 63.4 189.5 63.4 H173.5 Q170 63.4 170 61 Z M179.9 52.8 V59.8 H183.1 V52.8 Z"/>
+      <rect x="180" y="68" width="3" height="6.4" rx=".4"/>
+      <path d="M169 77.4 Q181.5 78.6 194.6 77.4 L195 90 Q195 92.4 190 92.4 H174 Q169 92.4 168.6 90 Z M180.9 82.2 V89.4 H184 V82.2 Z"/>
+      <rect x="180" y="98" width="3" height="6.2" rx=".4"/>
+      <path d="M167.2 107.4 Q181.5 109.6 196 107.4 L196.8 124.6 H166.2 Z M179.2 115 V124.6 H184.2 V115 Z"/>
+    </g>
+    <text x="178.5" y="172" text-anchor="middle" textLength="295" lengthAdjust="spacingAndGlyphs"
+          font-family="'Avenir Next Condensed','Arial Narrow','Roboto Condensed',sans-serif-condensed,'Helvetica Neue',Arial,sans-serif" font-weight="700" font-size="36" fill="currentColor">PROMETHEUS STATION</text>
+    <text x="180.5" y="196.4" text-anchor="middle" textLength="253" lengthAdjust="spacingAndGlyphs"
+          font-family="'Helvetica Neue',Arial,sans-serif" font-weight="400" font-size="13.6" fill="#e8211c">EMERGENCY KNOWLEDGE HUB</text>
+  </svg></a>
+  <p class="devise" data-en="Knowledge, even when everything goes dark.">Le savoir, même quand tout s'éteint.</p>
+  <a class="apropos" href="/panneau/" data-en="About this station and its rules">À propos et règles de la station</a>
+  <div class="portes">
+    <a class="porte" href="/encyclopedies/">
+      <strong data-en="Encyclopedias">Encyclopédies</strong>
+      <span data-en="Wikipedia, medicine, survival, water, food, repairs">Wikipédia, médecine, survie, eau, nourriture, réparations</span>
+    </a>
+    <a class="porte" href="/bibliotheque/">
+      <strong data-en="Library">Bibliothèque</strong>
+      <span data-en="Books to read on your phone">Des livres à lire sur votre téléphone</span>
+    </a>
+    <a class="porte" href="/messages/">
+      <strong data-en="Messages">Messages</strong>
+      <span data-en="Read and leave messages for everyone connected">Lire et laisser des messages à tous ceux qui sont connectés</span>
+    </a>
+  </div>
+</main>
+<script>
+// Sans internet, la station ne connait pas l'heure : le telephone lui donne la sienne (une fois par visite)
+try {
+  if (!sessionStorage.getItem('heure')) {
+    sessionStorage.setItem('heure', '1');
+    fetch('/api/heure', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ms: Date.now() }) });
+  }
+} catch (e) {}
+</script>
+</body>
+</html>

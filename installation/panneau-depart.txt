@@ -1,0 +1,11 @@
+# Bienvenue sur Prometheus Station
+
+Cette station marche **sans internet**. Elle offre à tous ceux qui sont à portée des encyclopédies, des livres et un tableau de messages.
+
+## Les règles
+- Respectez les autres sur le tableau des messages.
+- Ne déplacez pas la station et ne débranchez pas sa batterie.
+- Elle est à tout le monde : *partagez-la*.
+
+## Les horaires
+La station est allumée **tous les jours**. Elle peut s'éteindre la nuit pour garder sa batterie.

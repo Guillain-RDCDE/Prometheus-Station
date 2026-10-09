@@ -1,0 +1,37 @@
+#!/bin/bash
+# Prometheus Station - surveillant de tension.
+# Si l'alimentation faiblit (tension trop basse signalee par le Pi) pendant 30 secondes de suite,
+# la station s'eteint proprement avant que la batterie ne coupe net.
+# Pour l'essayer sans rien eteindre :
+#   PROMETHEUS_TENSION_SOURCE=/tmp/faux PROMETHEUS_TENSION_ESSAI=1 prometheus-tension
+#   (le fichier /tmp/faux contient ce que le Pi repondrait, par exemple 0x50005 = tension basse en ce moment)
+SEUIL=30   # secondes de tension basse avant d'eteindre
+PAS=5      # verification toutes les 5 secondes
+DEBUT=0    # heure du premier releve de tension basse (0 = tension normale)
+
+lire() {
+  if [ -n "$PROMETHEUS_TENSION_SOURCE" ]; then cat "$PROMETHEUS_TENSION_SOURCE"
+  else vcgencmd get_throttled | cut -d= -f2; fi
+}
+
+while true; do
+  ETAT=$(lire)
+  MAINTENANT=$(date +%s)
+  # Pour Parametres > Etat de la station (le service web n'a pas le droit de le demander lui-meme)
+  [ -d /run/prometheus ] && echo "$ETAT" > /run/prometheus/tension
+  # Bit 0 = tension trop basse EN CE MOMENT (les autres bits racontent le passe : on les ignore)
+  if [ -n "$ETAT" ] && (( ETAT & 0x1 )); then
+    if [ "$DEBUT" -eq 0 ]; then DEBUT=$MAINTENANT; echo "Tension trop basse detectee ($ETAT)"; fi
+    DUREE=$((MAINTENANT - DEBUT))
+    if [ "$DUREE" -ge "$SEUIL" ]; then
+      echo "Tension trop basse depuis $DUREE secondes : extinction propre"
+      if [ -n "$PROMETHEUS_TENSION_ESSAI" ]; then echo "(essai : la station ne s'eteint pas)"; exit 0; fi
+      systemctl poweroff
+      exit 0
+    fi
+  else
+    [ "$DEBUT" -gt 0 ] && echo "Tension revenue a la normale apres $((MAINTENANT - DEBUT)) secondes"
+    DEBUT=0
+  fi
+  sleep "$PAS"
+done

@@ -1,0 +1,33 @@
+#!/bin/bash
+# Prometheus Station - mode sobre (Parametres > Energie).
+# Actif : voyants eteints, processeur au ralenti, prises USB coupees. Inactif : tout revient a la normale.
+# Le choix (oui / non) est garde dans /srv/prometheus/.admin/sobre et reapplique a chaque demarrage.
+# La page depose sa demande dans /srv/prometheus/.admin/sobre-demande (ecrite par prometheus-admin).
+CHOIX=/srv/prometheus/.admin/sobre
+DEMANDE=/srv/prometheus/.admin/sobre-demande
+USB=0000:01:00.0                       # la puce des 4 prises USB (VL805)
+XHCI=/sys/bus/pci/drivers/xhci_hcd
+
+# On boucle : une demande arrivee pendant qu'on traitait la precedente n'est pas perdue
+while [ -s "$DEMANDE" ]; do
+  V=$(head -c 3 "$DEMANDE")
+  rm -f "$DEMANDE"
+  case "$V" in oui|non) echo "$V" > "$CHOIX" ;; esac
+done
+
+if [ "$(cat "$CHOIX" 2>/dev/null)" = oui ]; then
+  for L in ACT PWR; do
+    echo none > /sys/class/leds/$L/trigger
+    echo 0 > /sys/class/leds/$L/brightness
+  done
+  for G in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo powersave > "$G"; done
+  [ -e "$XHCI/$USB" ] && echo "$USB" > "$XHCI/unbind"
+  echo "Mode sobre actif : voyants eteints, processeur au ralenti, USB coupe"
+else
+  echo mmc0 > /sys/class/leds/ACT/trigger          # voyant vert : clignote quand la carte travaille
+  echo default-on > /sys/class/leds/PWR/trigger    # voyant rouge : allume
+  for G in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo ondemand > "$G"; done
+  [ -e "$XHCI/$USB" ] || echo "$USB" > "$XHCI/bind"
+  echo "Mode normal"
+fi
+exit 0

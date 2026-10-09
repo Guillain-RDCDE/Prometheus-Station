@@ -1,0 +1,312 @@
+#!/usr/bin/env python3
+# Prometheus Station - mot de passe des pages d'administration (Ajouter, Mises a jour).
+# Un seul mot de passe, pas d'identifiant. Petit serveur interne (127.0.0.1:8091) interroge par nginx.
+#   GET  /verif     -> 200 si le navigateur est connecte, 401 sinon (utilise par nginx)
+#   GET  /etat      -> {"defini": true/false}
+#   POST /premier   -> choisir le mot de passe, seulement s'il n'y en a pas encore
+#   POST /connexion -> se connecter
+#   POST /changer   -> changer le mot de passe (ancien + nouveau)
+#   POST /theme     -> changer les couleurs de la station (immediat)
+#   POST /wifi      -> renommer le wifi de la station (applique par le service prometheus-ssid)
+#   GET  /sante     -> {temperature (degres), tension ('ok' / 'basse' / 'basse_avant'), allumee (secondes)}
+#   GET  /energie   -> {sobre, extinction (minutes, 0 = jamais), restant (secondes ou null)}
+#   POST /energie   -> {sobre: true/false} (applique par prometheus-sobre) et/ou {extinction: minutes}
+# Pour tous les visiteurs (nginx : /api/...) :
+#   GET  /api/messages          -> les messages du tableau, les plus recents d'abord
+#   POST /api/messages          -> publier un message {nom, texte}
+#   POST /api/messages/effacer  -> effacer un message {id} (administrateur connecte seulement)
+#   POST /api/messages/vider    -> effacer tous les messages (administrateur connecte seulement)
+#   POST /api/heure             -> heure du telephone {ms}, pour regler la station quand elle n'a pas internet
+#   GET  /api/panneau           -> le texte du panneau d'accueil {texte}
+# Et pour l'administrateur connecte :
+#   POST /panneau   -> enregistrer le texte du panneau d'accueil {texte}
+import hashlib, hmac, json, os, secrets, subprocess, threading, time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.cookies import SimpleCookie
+
+DOSSIER = '/srv/prometheus/.admin'
+MDP = os.path.join(DOSSIER, 'mot-de-passe')
+SESSIONS = os.path.join(DOSSIER, 'sessions.json')
+THEMES = '/var/www/prometheus/themes'
+THEME_ACTIF = '/var/www/prometheus/theme.css'
+THEME_CHOIX = os.path.join(DOSSIER, 'theme')
+DUREE = 90 * 24 * 3600          # on reste connecte 90 jours
+ESSAIS = {}                     # anti-devinette : adresse -> (nombre d'echecs, heure)
+MESSAGES = '/srv/prometheus/messages/messages.json'
+MAX_MESSAGES = 500
+DERNIER_MESSAGE = {}            # adresse -> heure du dernier message (un message toutes les 20 s au plus)
+VERROU = threading.Lock()
+SOBRE = os.path.join(DOSSIER, 'sobre')                  # oui / non, ecrit par prometheus-sobre
+EXTINCTION = '/run/prometheus/extinction'               # minutes ; /run est vide a chaque demarrage
+EXTINCTION_RESTANT = '/run/prometheus/extinction-restant'
+PANNEAU = '/srv/prometheus/panneau/panneau.txt'          # texte du panneau d'accueil
+
+
+def hacher(mdp, sel=None):
+    sel = sel or secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac('sha256', mdp.encode(), bytes.fromhex(sel), 200000).hex()
+    return sel + ':' + h
+
+
+def bon(mdp):
+    try:
+        sel, _ = open(MDP).read().strip().split(':')
+    except (OSError, ValueError):
+        return False
+    return hmac.compare_digest(hacher(mdp, sel), open(MDP).read().strip())
+
+
+def ecrire(chemin, texte):
+    tmp = chemin + '.tmp'
+    with open(tmp, 'w') as f:
+        f.write(texte)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, chemin)
+
+
+def sessions():
+    try:
+        s = json.load(open(SESSIONS))
+    except (OSError, ValueError):
+        s = {}
+    now = time.time()
+    return {k: v for k, v in s.items() if v > now}
+
+
+def ecrire_public(chemin, texte):
+    tmp = chemin + '.tmp'
+    with open(tmp, 'w') as f:
+        f.write(texte)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, chemin)
+
+
+def lire_messages():
+    try:
+        return json.load(open(MESSAGES))
+    except (OSError, ValueError):
+        return []
+
+
+def lire_fichier(chemin, defaut=''):
+    try:
+        return open(chemin).read().strip()
+    except OSError:
+        return defaut
+
+
+def energie():
+    demande = lire_fichier(os.path.join(DOSSIER, 'sobre-demande'))
+    m = lire_fichier(EXTINCTION, '0')
+    r = lire_fichier(EXTINCTION_RESTANT)
+    return {'sobre': (demande or lire_fichier(SOBRE, 'non')) == 'oui',
+            'extinction': int(m) if m.isdigit() else 0,
+            'restant': int(r) if r.lstrip('-').isdigit() else None}
+
+
+def sante():
+    """Temperature du processeur, tension (relevee par prometheus-tension), duree depuis l'allumage."""
+    t = lire_fichier('/sys/class/thermal/thermal_zone0/temp')
+    try:
+        v = int(lire_fichier('/run/prometheus/tension'), 16)
+    except ValueError:
+        v = None
+    # bit 0 : tension trop basse en ce moment ; bit 16 : elle l'a ete depuis l'allumage
+    tension = None if v is None else 'basse' if v & 0x1 else 'basse_avant' if v & 0x10000 else 'ok'
+    return {'temperature': round(int(t) / 1000) if t.isdigit() else None, 'tension': tension,
+            'allumee': int(float(lire_fichier('/proc/uptime', '0').split()[0]))}
+
+
+def regler_heure(ms):
+    """Sans internet, le Pi ne sait pas l'heure (pas de pile) : on prend celle du telephone.
+    Seulement si la station n'est pas a l'heure par internet et qu'elle a plus de 2 minutes d'ecart."""
+    try:
+        tel = float(ms) / 1000
+    except (TypeError, ValueError):
+        return False
+    if not 1.7e9 < tel < 4.1e9 or abs(tel - time.time()) < 120:
+        return False
+    sync = subprocess.run(['timedatectl', 'show', '-p', 'NTPSynchronized', '--value'],
+                          capture_output=True, text=True).stdout.strip()
+    if sync == 'yes':
+        return False
+    # Le service a le droit de regler l'horloge (CAP_SYS_TIME, voir prometheus-admin.service)
+    return subprocess.run(['date', '-s', '@%d' % tel], capture_output=True).returncode == 0
+
+
+class Admin(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def repondre(self, code, donnees=None, cookie=None):
+        corps = json.dumps(donnees or {}).encode()
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Cache-Control', 'no-store')
+        if cookie:
+            self.send_header('Set-Cookie', cookie)
+        self.send_header('Content-Length', str(len(corps)))
+        self.end_headers()
+        self.wfile.write(corps)
+
+    def jeton(self):
+        c = SimpleCookie(self.headers.get('Cookie', ''))
+        return c['prometheus'].value if 'prometheus' in c else ''
+
+    def connecte(self):
+        j = self.jeton()
+        return bool(j) and j in sessions()
+
+    def ouvrir_session(self):
+        s = sessions()
+        j = secrets.token_urlsafe(32)
+        s[j] = time.time() + DUREE
+        ecrire(SESSIONS, json.dumps(s))
+        return 'prometheus=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Strict' % (j, DUREE)
+
+    def lire(self):
+        n = int(self.headers.get('Content-Length') or 0)
+        try:
+            # 64 Ko au plus (le texte du panneau d'accueil) ; nginx limite deja les pages publiques a 4 Ko
+            return json.loads(self.rfile.read(min(n, 65536)) or b'{}')
+        except ValueError:
+            return {}
+
+    def do_GET(self):
+        if self.path == '/api/messages':
+            return self.repondre(200, {'messages': lire_messages(), 'maintenant': time.time(),
+                                       'admin': self.connecte()})
+        if self.path == '/api/panneau':
+            return self.repondre(200, {'texte': lire_fichier(PANNEAU)})
+        if self.path == '/verif':
+            self.repondre(200 if self.connecte() else 401)
+        elif self.path == '/etat':
+            self.repondre(200, {'defini': os.path.exists(MDP), 'connecte': self.connecte()})
+        elif self.path == '/energie':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            self.repondre(200, energie())
+        elif self.path == '/sante':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            self.repondre(200, sante())
+        else:
+            self.repondre(404)
+
+    def do_POST(self):
+        d = self.lire()
+        ip = self.headers.get('X-Real-IP', '?')
+
+        if self.path == '/api/messages':
+            texte = ' '.join(str(d.get('texte', '')).split())[:500]
+            nom = ' '.join(str(d.get('nom', '')).split())[:40]
+            if not texte:
+                return self.repondre(400, {'erreur': 'Message vide.'})
+            if time.time() - DERNIER_MESSAGE.get(ip, 0) < 20:
+                return self.repondre(429, {'erreur': 'Attendez quelques secondes avant le message suivant.'})
+            DERNIER_MESSAGE[ip] = time.time()
+            with VERROU:
+                m = lire_messages()
+                m.insert(0, {'id': secrets.token_hex(6), 'heure': time.time(), 'nom': nom, 'texte': texte})
+                ecrire_public(MESSAGES, json.dumps(m[:MAX_MESSAGES], ensure_ascii=False))
+            return self.repondre(200)
+
+        if self.path == '/api/messages/effacer':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            with VERROU:
+                m = [x for x in lire_messages() if x.get('id') != d.get('id')]
+                ecrire_public(MESSAGES, json.dumps(m, ensure_ascii=False))
+            return self.repondre(200)
+
+        if self.path == '/api/messages/vider':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            with VERROU:
+                ecrire_public(MESSAGES, '[]')
+            return self.repondre(200)
+
+        if self.path == '/api/heure':
+            return self.repondre(200, {'regle': regler_heure(d.get('ms'))})
+
+        echecs, quand = ESSAIS.get(ip, (0, 0))
+        if echecs >= 5 and time.time() - quand < 60:
+            return self.repondre(429, {'erreur': 'Trop d’essais. Attendez une minute.'})
+
+        if self.path == '/premier':
+            if os.path.exists(MDP):
+                return self.repondre(403, {'erreur': 'Le mot de passe est déjà choisi.'})
+            if len(d.get('nouveau', '')) < 4:
+                return self.repondre(400, {'erreur': 'Au moins 4 caractères.'})
+            ecrire(MDP, hacher(d['nouveau']))
+            return self.repondre(200, {}, self.ouvrir_session())
+
+        if self.path == '/connexion':
+            if bon(d.get('mdp', '')):
+                ESSAIS.pop(ip, None)
+                return self.repondre(200, {}, self.ouvrir_session())
+            ESSAIS[ip] = (echecs + 1, time.time())
+            return self.repondre(401, {'erreur': 'Mot de passe incorrect.'})
+
+        if self.path == '/changer':
+            if not self.connecte() or not bon(d.get('ancien', '')):
+                ESSAIS[ip] = (echecs + 1, time.time())
+                return self.repondre(401, {'erreur': 'Ancien mot de passe incorrect.'})
+            if len(d.get('nouveau', '')) < 4:
+                return self.repondre(400, {'erreur': 'Au moins 4 caractères.'})
+            ecrire(MDP, hacher(d['nouveau']))
+            ecrire(SESSIONS, '{}')   # deconnecte tous les autres appareils
+            return self.repondre(200, {}, self.ouvrir_session())
+
+        if self.path == '/theme':
+            nom = os.path.basename(str(d.get('nom', '')))
+            source = os.path.join(THEMES, nom + '.css')
+            if not self.connecte() or not os.path.isfile(source):
+                return self.repondre(400, {'erreur': 'Couleurs inconnues.'})
+            with open(THEME_ACTIF, 'w') as f:
+                f.write(open(source).read())
+            with open(THEME_CHOIX, 'w') as f:
+                f.write(nom)
+            return self.repondre(200)
+
+        if self.path == '/wifi':
+            nom = str(d.get('nom', '')).strip()
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            if not 1 <= len(nom.encode()) <= 32 or any(ord(c) < 32 for c in nom):
+                return self.repondre(400, {'erreur': 'Entre 1 et 32 caractères.'})
+            ecrire(os.path.join(DOSSIER, 'ssid-demande'), nom)
+            return self.repondre(200)
+
+        if self.path == '/panneau':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            texte = str(d.get('texte', '')).replace('\r\n', '\n')
+            if len(texte) > 20000:
+                return self.repondre(400, {'erreur': 'Texte trop long.'})
+            ecrire_public(PANNEAU, texte)
+            return self.repondre(200)
+
+        if self.path == '/energie':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            m = d.get('extinction')
+            if m is not None and (type(m) is not int or not 0 <= m <= 1440):
+                return self.repondre(400, {'erreur': 'Réglage invalide.'})
+            if 'sobre' in d:
+                ecrire(os.path.join(DOSSIER, 'sobre-demande'), 'oui' if d['sobre'] is True else 'non')
+            if m is not None:
+                ecrire_public(EXTINCTION, str(m))
+                # Le compte repart de maintenant (le surveillant le tiendra a jour dans les 30 secondes)
+                if m:
+                    ecrire_public(EXTINCTION_RESTANT, str(m * 60))
+                elif os.path.exists(EXTINCTION_RESTANT):
+                    os.remove(EXTINCTION_RESTANT)
+            return self.repondre(200, energie())
+
+        self.repondre(404)
+
+
+if __name__ == '__main__':
+    os.makedirs(DOSSIER, mode=0o700, exist_ok=True)
+    ThreadingHTTPServer(('127.0.0.1', 8091), Admin).serve_forever()

@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+# Prometheus Station - fabrique la liste des livres (livres.json) lue par la page Bibliotheque.
+# Livres : /srv/prometheus/bibliotheque (EPUB, PDF). Ajoute aussi les bibliotheques Gutenberg (ZIM).
+import json, os, re, zipfile
+import xml.etree.ElementTree as ET
+from urllib.parse import quote
+
+LIVRES = '/srv/prometheus/bibliotheque'
+ENCYCLOPEDIES = '/srv/prometheus/encyclopedies'
+SORTIE = '/var/www/prometheus/bibliotheque/livres.json'
+DC = '{http://purl.org/dc/elements/1.1/}'
+
+
+def titre_depuis_nom(nom):
+    return re.sub(r'[_]+', ' ', os.path.splitext(nom)[0]).strip()
+
+
+def lire_epub(chemin):
+    """Titre et auteur ecrits dans le livre lui-meme (fichier OPF)."""
+    try:
+        with zipfile.ZipFile(chemin) as z:
+            conteneur = ET.fromstring(z.read('META-INF/container.xml'))
+            opf = conteneur.find('.//{*}rootfile').get('full-path')
+            meta = ET.fromstring(z.read(opf))
+            titre = meta.find('.//' + DC + 'title')
+            auteur = meta.find('.//' + DC + 'creator')
+            return (titre.text.strip() if titre is not None and titre.text else None,
+                    auteur.text.strip() if auteur is not None and auteur.text else '')
+    except Exception:
+        return None, ''
+
+
+livres = []
+for nom in sorted(os.listdir(LIVRES)) if os.path.isdir(LIVRES) else []:
+    chemin = os.path.join(LIVRES, nom)
+    ext = os.path.splitext(nom)[1].lower()
+    if ext == '.epub':
+        titre, auteur = lire_epub(chemin)
+        livres.append({'titre': titre or titre_depuis_nom(nom), 'auteur': auteur, 'format': 'EPUB',
+                       'lien': '/bibliotheque/lire.html?f=' + quote(nom)})
+    elif ext == '.pdf':
+        livres.append({'titre': titre_depuis_nom(nom), 'auteur': '', 'format': 'PDF',
+                       'lien': '/bibliotheque/livres/' + quote(nom)})
+livres.sort(key=lambda l: l['titre'].lower())
+
+gutenberg = []
+for nom in sorted(os.listdir(ENCYCLOPEDIES)) if os.path.isdir(ENCYCLOPEDIES) else []:
+    if nom.startswith('gutenberg_') and nom.endswith('.zim') and not os.path.exists(os.path.join(ENCYCLOPEDIES, nom + '.aria2')):
+        langue = {'fr': 'en français', 'en': 'in English'}.get(nom.split('_')[1], '')
+        gutenberg.append({'titre': ('Projet Gutenberg — des milliers de livres libres ' + langue).strip(),
+                          'auteur': 'Classiques du domaine public', 'format': 'ZIM',
+                          'lien': '/encyclopedies/content/' + quote(nom[:-4])})
+
+os.makedirs(os.path.dirname(SORTIE), exist_ok=True)
+tmp = SORTIE + '.tmp'
+with open(tmp, 'w', encoding='utf-8') as f:
+    json.dump(gutenberg + livres, f, ensure_ascii=False, indent=1)
+os.chmod(tmp, 0o644)
+os.replace(tmp, SORTIE)
+print(f'{len(livres)} livre(s), {len(gutenberg)} bibliotheque(s) Gutenberg')

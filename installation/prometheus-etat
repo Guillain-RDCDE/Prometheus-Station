@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+# Prometheus Station - etat des contenus pour la page Mises a jour (etat.json).
+# Compare la version installee de chaque contenu a la derniere version en ligne chez Kiwix.
+import json, os, re, shutil, subprocess, time, urllib.request
+
+LISTE = '/srv/prometheus/contenus.txt'
+DIR = '/srv/prometheus/encyclopedies'
+SORTIE = '/var/www/prometheus/ajouter/etat.json'
+DATE = re.compile(r'_(\d{4}-\d{2})\.zim$')
+
+
+def derniere_version(nom):
+    """Nom et taille du fichier le plus recent en ligne, ou (None, 0) sans internet."""
+    try:
+        req = urllib.request.Request('https://download.kiwix.org/zim/%s.zim' % nom, method='HEAD')
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return os.path.basename(r.geturl()), int(r.headers.get('Content-Length') or 0)
+    except Exception:
+        return None, 0
+
+
+def progression():
+    """Dernier pourcentage annonce par le telechargement en cours."""
+    out = subprocess.run(['journalctl', '-u', 'prometheus-telechargement', '-n', '200', '--no-pager', '-o', 'cat'],
+                         capture_output=True, text=True).stdout
+    p = re.findall(r'\((\d+)%\)[^\]]*?(?:ETA:(\w+))?\]', out)
+    if not p:
+        return ''
+    pct, eta = p[-1]
+    eta = eta.replace('h', ' h ').replace('m', ' min ').split(' min ')[0].strip() + (' min' if 'm' in eta else '')
+    return pct + ' %' + (' — encore ' + eta if eta else '')
+
+
+actif = subprocess.run(['systemctl', 'is-active', 'prometheus-telechargement'],
+                       capture_output=True, text=True).stdout.strip() in ('active', 'activating')
+fichiers = os.listdir(DIR) if os.path.isdir(DIR) else []
+noms = [l.strip() for l in open(LISTE) if l.strip() and not l.startswith('#')]
+libre = shutil.disk_usage(DIR).free
+internet = False
+contenus = []
+
+for nom in noms:
+    installes = sorted(f for f in fichiers if f.startswith(nom + '_') and DATE.search(f))
+    complets = [f for f in installes if f + '.aria2' not in fichiers]
+    en_cours = [f for f in installes if f + '.aria2' in fichiers]
+    ici = complets[-1] if complets else None
+    dispo, taille = derniere_version(nom)
+    internet = internet or dispo is not None
+    c = {'nom': nom,
+         'installe': DATE.search(ici).group(1) if ici else '',
+         'disponible': DATE.search(dispo).group(1) if dispo and DATE.search(dispo) else '',
+         'taille_go': round(taille / 1e9, 1)}
+    if en_cours and actif:
+        c['etat'] = 'en_cours'
+        c['progression'] = progression()
+    elif dispo and dispo == ici:
+        c['etat'] = 'a_jour'
+    elif dispo:
+        deja = os.path.getsize(os.path.join(DIR, dispo)) if dispo in fichiers else 0
+        c['etat'] = 'nouvelle' if taille - deja + 5e9 <= libre else 'place'
+    else:
+        c['etat'] = 'inconnu'
+    contenus.append(c)
+
+# Le systeme lui-meme (paquets Debian : nginx, Kiwix, Tailscale, noyau...)
+def lancer(*a):
+    return subprocess.run(a, capture_output=True, text=True).stdout
+systeme = {
+    'a_jour': len([l for l in lancer('apt', 'list', '--upgradable').splitlines() if '/' in l]),
+    'en_cours': lancer('systemctl', 'is-active', 'prometheus-maj-systeme').strip() in ('active', 'activating'),
+    'redemarrage': os.path.exists('/run/reboot-required') or os.path.exists('/var/run/reboot-required'),
+}
+try:
+    systeme['echec'] = open('/srv/prometheus/.maj-systeme').read().strip() != '0'
+except OSError:
+    systeme['echec'] = False
+
+try:
+    theme = open('/srv/prometheus/.admin/theme').read().strip()
+except OSError:
+    theme = 'ocean'
+
+ssid = subprocess.run(['nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', 'prometheus-wifi'],
+                      capture_output=True, text=True).stdout.strip()
+
+# Ce qui occupe la carte : encyclopedies et livres, du plus gros au plus petit
+fichiers = []
+for dossier, genre in ((DIR, 'encyclopedie'), ('/srv/prometheus/bibliotheque', 'livre')):
+    for f in (os.listdir(dossier) if os.path.isdir(dossier) else []):
+        chemin = os.path.join(dossier, f)
+        if f.lower().endswith(('.zim', '.epub', '.pdf')) and os.path.isfile(chemin) and not os.path.exists(chemin + '.aria2'):
+            m = DATE.search(f)
+            fichiers.append({'fichier': f, 'genre': genre, 'octets': os.path.getsize(chemin),
+                             'nom': f[:m.start()] if m else os.path.splitext(f)[0]})
+fichiers.sort(key=lambda x: -x['octets'])
+
+# Derniere sauvegarde des reglages (Parametres > Sauvegarde)
+SAUVEGARDES = '/srv/prometheus/sauvegardes'
+s = sorted(f for f in (os.listdir(SAUVEGARDES) if os.path.isdir(SAUVEGARDES) else [])
+           if f.startswith('prometheus-sauvegarde-') and f.endswith('.tar.gz'))
+sauvegarde = {'fichier': s[-1], 'octets': os.path.getsize(os.path.join(SAUVEGARDES, s[-1])),
+              'date': time.strftime('%d/%m/%Y a %H:%M', time.localtime(os.path.getmtime(os.path.join(SAUVEGARDES, s[-1]))))} if s else None
+
+etat = {'sauvegarde': sauvegarde, 'fichiers': fichiers, 'total_go': round(shutil.disk_usage(DIR).total / 1e9), 'ssid': ssid, 'theme': theme, 'systeme': systeme, 'verifie': time.strftime('%d/%m/%Y a %H:%M'), 'horodatage': time.time(), 'internet': internet, 'telechargement': actif,
+        'libre_go': round(libre / 1e9), 'contenus': contenus}
+tmp = SORTIE + '.tmp'
+with open(tmp, 'w', encoding='utf-8') as f:
+    json.dump(etat, f, ensure_ascii=False, indent=1)
+os.chmod(tmp, 0o644)
+os.replace(tmp, SORTIE)

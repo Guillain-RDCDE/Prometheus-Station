@@ -1,0 +1,35 @@
+#!/bin/bash
+# Prometheus Station - range les fichiers recus par la page Ajouter.
+# Lance automatiquement des qu'un fichier arrive dans /srv/prometheus/depot.
+DEPOT=/srv/prometheus/depot
+shopt -s nullglob nocaseglob
+
+place_libre() {  # place_libre dossier nom -> chemin qui n'ecrase rien
+  local dossier=$1 nom=$2 base ext n=2
+  base=${nom%.*}; ext=${nom##*.}
+  local cible="$dossier/$nom"
+  while [ -e "$cible" ]; do cible="$dossier/$base ($n).$ext"; n=$((n+1)); done
+  echo "$cible"
+}
+
+ZIM=0; LIVRE=0
+for F in "$DEPOT"/*; do
+  [ -f "$F" ] || continue
+  NOM=$(basename "$F")
+  case "${NOM,,}" in
+    *.zim)
+      CIBLE=$(place_libre /srv/prometheus/encyclopedies "$NOM")
+      mv "$F" "$CIBLE"; chown prometheus:prometheus "$CIBLE"; chmod 644 "$CIBLE"
+      echo "Encyclopedie ajoutee : $(basename "$CIBLE")"; ZIM=1 ;;
+    *.epub|*.pdf)
+      CIBLE=$(place_libre /srv/prometheus/bibliotheque "$NOM")
+      mv "$F" "$CIBLE"; chown prometheus:prometheus "$CIBLE"; chmod 644 "$CIBLE"
+      echo "Livre ajoute : $(basename "$CIBLE")"; LIVRE=1 ;;
+    *)
+      rm -f "$F"; echo "Refuse (format inconnu) : $NOM" ;;
+  esac
+done
+
+[ $ZIM = 1 ] && runuser -u prometheus -- /usr/local/bin/prometheus-catalogue
+[ $ZIM = 1 ] || [ $LIVRE = 1 ] && runuser -u prometheus -- /usr/local/bin/prometheus-index-livres
+exit 0

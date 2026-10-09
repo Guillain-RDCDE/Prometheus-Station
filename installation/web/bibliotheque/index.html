@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Library">Bibliothèque</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+</head>
+<body>
+<main>
+  <a class="retour" href="/" data-en="← Home">← Accueil</a>
+  <h1 data-en="Library">Bibliothèque</h1>
+  <input class="recherche" id="recherche" type="search" placeholder="Titre ou auteur" data-en-ph="Title or author" autocomplete="off">
+  <h2 data-en="Books">Livres</h2>
+  <ul class="liste" id="livres"></ul>
+  <p class="vide" id="vide" hidden data-en="No book found.">Aucun livre trouvé.</p>
+</main>
+<script>
+var tous = [];
+
+function afficher(filtre) {
+  var liste = document.getElementById('livres');
+  var mots = filtre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  liste.innerHTML = '';
+  var n = 0;
+  tous.forEach(function (l) {
+    var texte = (l.titre + ' ' + l.auteur).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (mots && texte.indexOf(mots) < 0) return;
+    var a = document.createElement('a');
+    a.href = l.lien;
+    var gauche = document.createElement('div');
+    gauche.className = 'texte';
+    var titre = document.createElement('div');
+    titre.className = 'titre';
+    titre.textContent = l.titre;
+    gauche.appendChild(titre);
+    if (l.auteur) {
+      var auteur = document.createElement('div');
+      auteur.className = 'sous';
+      auteur.textContent = l.auteur;
+      gauche.appendChild(auteur);
+    }
+    var format = document.createElement('span');
+    format.className = 'etiquette';
+    format.textContent = l.format;
+    a.appendChild(gauche);
+    a.appendChild(format);
+    var li = document.createElement('li');
+    li.appendChild(a);
+    liste.appendChild(li);
+    n++;
+  });
+  document.getElementById('vide').hidden = n > 0;
+}
+
+fetch('/bibliotheque/livres.json', { cache: 'no-store' })
+  .then(function (r) { return r.json(); })
+  .then(function (d) {
+    // Les bibliotheques Gutenberg sont decrites en francais par la station : on les traduit ici
+    d.forEach(function (l) {
+      var g = /gutenberg_(fr|en)_/.exec(l.lien);
+      if (g && LANGUE === 'en') { l.titre = 'Project Gutenberg — thousands of free books in ' + (g[1] === 'fr' ? 'French' : 'English'); l.auteur = 'Public domain classics'; }
+    });
+    tous = d; afficher('');
+  })
+  .catch(function () { afficher(''); });
+
+document.getElementById('recherche').addEventListener('input', function (e) { afficher(e.target.value); });
+</script>
+</body>
+</html>

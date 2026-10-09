@@ -1,0 +1,26 @@
+#cloud-config
+# Prometheus Station - first boot settings (Raspberry Pi OS Lite Trixie, cloud-init)
+# Before copying this file to the card, change the 3 lines marked  <-- CHANGE  (see docs/01-prepare-the-sd-card.md)
+
+hostname: prometheus-station
+manage_etc_hosts: true
+timezone: Europe/Paris          # <-- CHANGE if you are not in France (list: timedatectl list-timezones)
+keyboard:
+  model: pc105
+  layout: fr                    # <-- CHANGE to your keyboard layout (us, gb, de...)
+
+users:
+- name: pi
+  shell: /bin/bash
+  groups: users,adm,dialout,audio,netdev,video,plugdev,cdrom,games,input,gpio,spi,i2c,render,sudo
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  lock_passwd: true
+  ssh_authorized_keys:
+  - PASTE-YOUR-PUBLIC-KEY-HERE  # <-- CHANGE: the whole line from ~/.ssh/id_ed25519.pub on your computer
+
+ssh_pwauth: false
+enable_ssh: true
+
+
+runcmd:
+- [ systemctl, enable, --now, ssh ]

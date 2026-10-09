@@ -395,6 +395,13 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <a class="bouton" id="bouton-telecharger" hidden data-en="Download">Télécharger</a>
   <button class="bouton secondaire" id="bouton-sauvegarder" data-en="Back up now">Sauvegarder maintenant</button>
   <p class="note" data-en="The file contains your Wi-Fi passwords: keep it private.">Le fichier contient vos mots de passe wifi : gardez-le pour vous.</p>
+
+  <h2 class="avec-aide"><span data-en="Restore a backup">Remettre une sauvegarde</span><button class="aide-bouton" aria-controls="aide-restaurer" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
+  <div class="aide seule" id="aide-restaurer"><div><p data-en="Choose a file downloaded here earlier. Its settings replace the current ones — including the Settings password, which becomes the one of that backup — then the station restarts. A file that isn't a station backup is refused and nothing changes.">Choisissez un fichier téléchargé ici auparavant. Ses réglages remplacent ceux d’aujourd’hui — y compris le mot de passe des Paramètres, qui redevient celui de cette sauvegarde — puis la station redémarre. Un fichier qui n’est pas une sauvegarde de la station est refusé, et rien ne change.</p></div></div>
+  <input type="file" id="fichier-restaurer" accept=".gz,.tar.gz,application/gzip,application/x-gzip" hidden>
+  <button class="bouton secondaire" id="bouton-choisir" data-en="Choose a backup file">Choisir un fichier de sauvegarde</button>
+  <button class="bouton" id="bouton-restaurer" hidden></button>
+  <p class="note" id="note-restaurer"></p>
 </section>
 
 <!-- ===== Mot de passe ===== -->
@@ -808,6 +815,59 @@ $('bouton-sauvegarder').onclick = function () {
   b.disabled = true; b.textContent = T('Sauvegarde…', 'Backing up…');
   ordre('sauvegarder').then(function () {
     setTimeout(function () { verifier(); b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now'); }, 3000);
+  });
+};
+
+// ----- Remettre une sauvegarde : choisir le fichier, confirmer en deux temps, deposer, puis la station verifie et redemarre
+var fichierChoisi = null;
+$('bouton-choisir').onclick = function () { $('fichier-restaurer').click(); };
+$('fichier-restaurer').onchange = function () {
+  fichierChoisi = this.files[0] || null;
+  var b = $('bouton-restaurer');
+  b.hidden = !fichierChoisi; b.disabled = false; delete b.dataset.confirmer;
+  b.textContent = T('Remettre ', 'Restore ') + (fichierChoisi ? fichierChoisi.name : '');
+  $('note-restaurer').textContent = '';
+};
+$('bouton-restaurer').onclick = function () {
+  var b = this;
+  if (!fichierChoisi) return;
+  if (fichierChoisi.size > 10e6) { $('note-restaurer').textContent = T('Ce fichier est trop gros pour être une sauvegarde de la station.', 'This file is too big to be a station backup.'); return; }
+  if (!b.dataset.confirmer) {
+    b.dataset.confirmer = '1';
+    b.textContent = T('Toucher encore : les réglages actuels seront remplacés', 'Tap again: the current settings will be replaced');
+    setTimeout(function () { if (b.dataset.confirmer && !b.disabled) { delete b.dataset.confirmer; b.textContent = T('Remettre ', 'Restore ') + fichierChoisi.name; } }, 5000);
+    return;
+  }
+  b.disabled = true; b.textContent = T('Envoi…', 'Uploading…');
+  var debut = Date.now() / 1000 - 5;
+  fetch('/parametres/restaurer', { method: 'PUT', body: fichierChoisi }).then(function (r) {
+    if (!r.ok) throw new Error();
+    b.textContent = T('Vérification…', 'Checking…');
+    return ordre('restaurer');
+  }).then(function () {
+    var essais = 0;
+    (function attendre() {
+      lire().then(function (e) {
+        var r = e.restauration;
+        if (r && r.heure >= debut) {
+          if (r.resultat === 'ok') {
+            b.textContent = T('Sauvegarde remise', 'Backup restored');
+            $('note-restaurer').textContent = T('La station redémarre : revenez dans 2 minutes. Le mot de passe est celui de la sauvegarde.', 'The station is restarting: come back in 2 minutes. The password is the one from the backup.');
+          } else {
+            b.hidden = true; fichierChoisi = null; $('fichier-restaurer').value = '';
+            $('note-restaurer').textContent = T('Ce fichier n’est pas une sauvegarde de la station. Rien n’a changé.', 'This file is not a station backup. Nothing has changed.');
+          }
+        } else if (++essais < 30) setTimeout(attendre, 2000);
+        else { b.disabled = false; $('note-restaurer').textContent = T('Pas de réponse de la station. Réessayez.', 'No answer from the station. Try again.'); }
+      }).catch(function () {
+        // Pas de reponse : on reessaie ; au bout d'une minute, elle redemarre sans doute
+        if (++essais < 30) return setTimeout(attendre, 2000);
+        $('note-restaurer').textContent = T('La station ne répond plus : elle redémarre sans doute. Revenez dans 2 minutes et vérifiez.', 'The station no longer answers: it is probably restarting. Come back in 2 minutes and check.');
+      });
+    })();
+  }).catch(function () {
+    b.disabled = false; delete b.dataset.confirmer; b.textContent = T('Remettre ', 'Restore ') + fichierChoisi.name;
+    $('note-restaurer').textContent = T('L’envoi a échoué. Réessayez.', 'The upload failed. Try again.');
   });
 };
 

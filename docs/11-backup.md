@@ -19,9 +19,15 @@ Pi$ sudo bash 09-sauvegarde.sh
 
 **Settings > System > Backup**: the date of the last backup, a **Download** button and a **Back up now** button. Keep the file somewhere safe — and private, since it holds your Wi-Fi passwords.
 
-## Put it back on a reinstalled station
+## Put it back
 
-After reinstalling the station (steps 1 to 11), copy the file to the Pi and restore it:
+**From the Settings (no command)**: *Settings > System > Backup > Restore a backup*. Choose the file, then tap **twice** to confirm. The station checks the file, puts its settings back and **restarts by itself**; come back two minutes later. Things to know:
+
+- the Settings **password becomes the one of that backup**;
+- a file that isn't a backup of the station is refused, and nothing changes;
+- the file may be 10 MB at most.
+
+**With a command**, for example on a reinstalled station (steps 1 to 11) whose Settings you can't open yet: copy the file to the Pi and restore it:
 
 ```
 Mac$ scp prometheus-sauvegarde-2026-10-09-1927.tar.gz pi@prometheus-station.local:
@@ -30,7 +36,7 @@ Pi$ sudo prometheus-restaurer prometheus-sauvegarde-2026-10-09-1927.tar.gz
 Pi$ sudo reboot
 ```
 
-It refuses any file that would write anywhere else than the station's settings folders.
+Both ways refuse any file that would write anywhere else than the station's settings folders, or that contains anything other than ordinary files and folders (no links pointing elsewhere).
 
 ## A full copy of the card
 

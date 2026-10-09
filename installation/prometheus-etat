@@ -101,7 +101,14 @@ s = sorted(f for f in (os.listdir(SAUVEGARDES) if os.path.isdir(SAUVEGARDES) els
 sauvegarde = {'fichier': s[-1], 'octets': os.path.getsize(os.path.join(SAUVEGARDES, s[-1])),
               'date': time.strftime('%d/%m/%Y a %H:%M', time.localtime(os.path.getmtime(os.path.join(SAUVEGARDES, s[-1]))))} if s else None
 
-etat = {'sauvegarde': sauvegarde, 'fichiers': fichiers, 'total_go': round(shutil.disk_usage(DIR).total / 1e9), 'ssid': ssid, 'theme': theme, 'systeme': systeme, 'verifie': time.strftime('%d/%m/%Y a %H:%M'), 'horodatage': time.time(), 'internet': internet, 'telechargement': actif,
+# Resultat de la derniere remise d'une sauvegarde depuis la page ('ok' ou 'refuse', avec son heure)
+try:
+    r = open('/srv/prometheus/.restauration').read().split()
+    restauration = {'resultat': r[0], 'heure': float(r[1])}
+except (OSError, IndexError, ValueError):
+    restauration = None
+
+etat = {'restauration': restauration, 'sauvegarde': sauvegarde, 'fichiers': fichiers, 'total_go': round(shutil.disk_usage(DIR).total / 1e9), 'ssid': ssid, 'theme': theme, 'systeme': systeme, 'verifie': time.strftime('%d/%m/%Y a %H:%M'), 'horodatage': time.time(), 'internet': internet, 'telechargement': actif,
         'libre_go': round(libre / 1e9), 'contenus': contenus}
 tmp = SORTIE + '.tmp'
 with open(tmp, 'w', encoding='utf-8') as f:

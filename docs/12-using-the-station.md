@@ -54,7 +54,7 @@ Protected by the password you chose in step 5.
 - **Storage**: how full the card is, and what takes the room, biggest first, each with a **Delete** button (tap twice). A deleted encyclopedia is no longer downloaded.
 - **Energy**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
 - **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*) and time since switch-on. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
-- **Backup**: download the latest settings backup, or make one now (see [step 11](11-backup.md)).
+- **Backup**: download the latest settings backup, make one now, or **restore one**: choose the file, tap twice, and the station puts the settings back and restarts (see [step 11](11-backup.md)).
 
 **Security**
 - **Password**: change it (current one, then new one). This signs out every other device.

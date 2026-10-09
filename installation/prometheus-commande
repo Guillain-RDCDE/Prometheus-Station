@@ -36,6 +36,19 @@ for F in "$DOSSIER"/*; do
       /usr/local/bin/prometheus-etat
       systemd-run --on-active=5 systemctl reboot
       exit 0 ;;
+    restaurer)
+      # Fichier depose par Parametres > Sauvegarde > Remettre une sauvegarde
+      echo "Remise d'une sauvegarde demandee depuis la page"
+      F=/srv/prometheus/restauration/sauvegarde.tar.gz
+      if [ -f "$F" ] && /usr/local/bin/prometheus-restaurer "$F"; then
+        echo "ok $(date +%s)" > /srv/prometheus/.restauration
+        rm -f "$F"
+        /usr/local/bin/prometheus-etat
+        systemd-run --on-active=5 systemctl reboot   # les wifis et le nom du wifi sont repris au redemarrage
+        exit 0
+      fi
+      echo "refuse $(date +%s)" > /srv/prometheus/.restauration
+      rm -f "$F" ;;
     sauvegarder)
       echo "Sauvegarde demandee depuis la page"
       /usr/local/bin/prometheus-sauvegarde ;;

@@ -48,9 +48,10 @@ chown -R prometheus:prometheus /srv/prometheus/.admin
 rm -f /srv/prometheus/.theme
 
 echo "== Dossiers de la bibliotheque et du depot"
-mkdir -p /srv/prometheus/bibliotheque /srv/prometheus/depot /srv/prometheus/.envoi
+mkdir -p /srv/prometheus/bibliotheque /srv/prometheus/depot /srv/prometheus/.envoi /srv/prometheus/restauration
 chown prometheus:prometheus /srv/prometheus/bibliotheque
-chown www-data:www-data /srv/prometheus/depot /srv/prometheus/.envoi
+chown www-data:www-data /srv/prometheus/depot /srv/prometheus/.envoi /srv/prometheus/restauration
+chmod 700 /srv/prometheus/restauration   # sauvegarde a remettre (contient les mots de passe wifi)
 
 echo "== Programmes : liste des livres et rangement automatique"
 install -m 755 "$ICI/prometheus-index-livres" /usr/local/bin/prometheus-index-livres
@@ -206,6 +207,16 @@ server {
         error_page 401 = @connexion;
     }
     location = /ajouter/maj.html { return 301 /parametres/; }
+
+    # Remettre une sauvegarde : le fichier choisi sur la page est depose ici, puis verifie et remis par prometheus-restaurer
+    location = /parametres/restaurer {
+        auth_request /_auth;
+        alias /srv/prometheus/restauration/sauvegarde.tar.gz;
+        dav_methods PUT;
+        client_max_body_size 10m;
+        client_body_temp_path /srv/prometheus/.envoi;
+        limit_except PUT { deny all; }
+    }
 
     # Sauvegardes des reglages (etape 9), a telecharger depuis Parametres > Sauvegarde
     location /parametres/sauvegardes/ {

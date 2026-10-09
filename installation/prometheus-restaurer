@@ -1,17 +1,32 @@
 #!/bin/bash
 # Prometheus Station - remettre une sauvegarde des reglages : sudo prometheus-restaurer <fichier.tar.gz>
-# A utiliser sur une station reinstallee (etapes 1 a 9 faites), avec un fichier telecharge depuis Parametres > Sauvegarde.
+# Aussi lance depuis Parametres > Sauvegarde > Remettre une sauvegarde (par prometheus-commande, qui redemarre ensuite).
+# A utiliser avec un fichier telecharge depuis Parametres > Sauvegarde.
 set -e
 F=${1:?Usage : sudo prometheus-restaurer prometheus-sauvegarde-AAAA-MM-JJ-HHMM.tar.gz}
 [ -f "$F" ] || { echo "Fichier introuvable : $F"; exit 1; }
-# Refuse tout fichier qui ecrirait ailleurs que dans les dossiers attendus
-if tar tzf "$F" | grep -vqE '^(srv/prometheus/(\.admin|messages|panneau|communaute|contenus\.txt)|etc/NetworkManager/system-connections)'; then
-  echo "Ce fichier n'est pas une sauvegarde de la station. Rien n'a change."; exit 1
-fi
-tar xzf "$F" -C /
+refuser() { echo "Ce fichier n'est pas une sauvegarde de la station. Rien n'a change."; exit 1; }
+# 1. Une archive lisible, qui n'ecrit que dans les dossiers des reglages
+LISTE=$(tar tzf "$F" 2>/dev/null) || refuser
+[ -n "$LISTE" ] || refuser
+printf '%s\n' "$LISTE" | grep -vqE '^(srv/prometheus/(\.admin|messages|panneau|communaute|contenus\.txt)|etc/NetworkManager/system-connections)' && refuser
+printf '%s\n' "$LISTE" | grep -qE '(^|/)\.\.(/|$)' && refuser
+# 2. Seulement des fichiers et des dossiers ordinaires (aucun lien qui pointerait ailleurs)
+tar tvzf "$F" | cut -c1 | grep -vq '[-d]' && refuser
+
+tar xzf "$F" -C / --no-same-owner
 mkdir -p /srv/prometheus/communaute
 chown -R prometheus:prometheus /srv/prometheus/.admin /srv/prometheus/messages /srv/prometheus/panneau /srv/prometheus/communaute
+chown prometheus:prometheus /srv/prometheus/contenus.txt 2>/dev/null || true
+chmod 700 /srv/prometheus/.admin
+chown root:root /etc/NetworkManager/system-connections/* 2>/dev/null || true
 chmod 600 /etc/NetworkManager/system-connections/* 2>/dev/null || true
+# Les couleurs de la sauvegarde
+THEME=$(cat /srv/prometheus/.admin/theme 2>/dev/null || echo ocean)
+if [ -f "/var/www/prometheus/themes/$THEME.css" ]; then
+  cp "/var/www/prometheus/themes/$THEME.css" /var/www/prometheus/theme.css
+  chown prometheus:prometheus /var/www/prometheus/theme.css
+fi
 nmcli connection reload
 systemctl restart prometheus-admin prometheus-sobre
 echo "Sauvegarde remise. Les wifis connus et le nom du wifi de la station sont repris au prochain demarrage : sudo reboot"

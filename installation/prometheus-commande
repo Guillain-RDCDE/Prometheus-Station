@@ -36,6 +36,12 @@ for F in "$DOSSIER"/*; do
       /usr/local/bin/prometheus-etat
       systemd-run --on-active=5 systemctl reboot
       exit 0 ;;
+    eteindre)
+      # Parametres > Eteindre la station (l'ecran e-ink affiche « Station eteinte »)
+      echo "Extinction demandee depuis la page"
+      /usr/local/bin/prometheus-etat
+      systemd-run --on-active=5 systemctl poweroff
+      exit 0 ;;
     restaurer)
       # Fichier depose par Parametres > Sauvegarde > Remettre une sauvegarde
       echo "Remise d'une sauvegarde demandee depuis la page"

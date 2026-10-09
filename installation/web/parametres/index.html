@@ -67,6 +67,8 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   h2.avec-aide .aide-bouton { width: 20px; height: 20px; font-size: .72rem; }
   h1.avec-aide-titre { display: flex; align-items: center; gap: 10px; }
   a.bouton { text-align: center; }
+  .bouton.eteindre { margin-top: 36px; background: var(--carte); color: #d62828; border: 1px solid var(--trait); }
+  .bouton.eteindre.confirmer { background: #d62828; color: #fff; border-color: #d62828; }
   .puces { display: flex; gap: 8px; flex-wrap: wrap; }
   .puce { font: inherit; font-size: .92rem; font-weight: 600; padding: 9px 15px; border-radius: 20px; border: 1px solid var(--trait); background: var(--carte); color: var(--encre); cursor: pointer; }
   .puce.choisie { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -180,6 +182,8 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
       <span class="nom" data-en="Password">Mot de passe</span><span class="chevron">›</span>
     </button>
   </div>
+  <button class="bouton eteindre" id="bouton-eteindre" data-en="Switch the station off">Éteindre la station</button>
+  <p class="note" id="note-eteindre" data-en="To switch it back on, unplug the battery and plug it in again.">Pour la rallumer, débranchez puis rebranchez la batterie.</p>
   <p class="note" id="verifie"></p>
 </section>
 
@@ -815,6 +819,25 @@ $('bouton-sauvegarder').onclick = function () {
   b.disabled = true; b.textContent = T('Sauvegarde…', 'Backing up…');
   ordre('sauvegarder').then(function () {
     setTimeout(function () { verifier(); b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now'); }, 3000);
+  });
+};
+
+// ----- Eteindre la station (en deux temps)
+$('bouton-eteindre').onclick = function () {
+  var b = this;
+  if (!b.classList.contains('confirmer')) {
+    b.classList.add('confirmer'); b.textContent = T('Toucher encore pour éteindre', 'Tap again to switch off');
+    setTimeout(function () { if (!b.disabled) { b.classList.remove('confirmer'); b.textContent = T('Éteindre la station', 'Switch the station off'); } }, 5000);
+    return;
+  }
+  b.disabled = true; b.textContent = T('Extinction…', 'Switching off…');
+  ordre('eteindre').then(function (r) {
+    if (!r.ok) throw new Error();
+    b.textContent = T('Station éteinte', 'Station switched off');
+    $('note-eteindre').textContent = T('Elle s’éteint dans quelques secondes. Pour la rallumer, débranchez puis rebranchez la batterie.', 'It switches off in a few seconds. To switch it back on, unplug the battery and plug it in again.');
+  }).catch(function () {
+    b.disabled = false; b.classList.remove('confirmer'); b.textContent = T('Éteindre la station', 'Switch the station off');
+    $('note-eteindre').textContent = T('La station n’a pas répondu. Réessayez.', 'The station did not answer. Try again.');
   });
 };
 

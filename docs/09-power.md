@@ -54,6 +54,10 @@ So about **2.1 W → 1.9 W**. The price: searching the encyclopedias is 3 to 5 t
 
 > We chose **not** to make a "night mode" that switches the Wi-Fi off: a station nobody can reach is useless, and with the Wi-Fi on, there is nothing left to save at night.
 
+## Switching off by hand
+
+*Settings > Switch the station off* (tap twice) shuts the station down cleanly, like the commands `sudo poweroff`. Always prefer it to pulling the battery when you can. To switch it back on: unplug the battery and plug it in again.
+
 ## Battery life
 
 At rest, the station uses about **2 W** (2.6 W with the network cable plugged in, which it never is on battery). On the Anker 737, the estimate is **about one day**. A full discharge test has **not** been done yet.

@@ -52,7 +52,7 @@ We measured about 7 to 10 MB/s, so **about 7 hours** for everything. You can car
 ## What the script sets up
 
 - **A system user `prometheus`** that runs all the station's services. The files live in `/srv/prometheus/`.
-- **Kiwix** (the Debian package, version 3.7), as the service `prometheus-kiwix`. It only listens to the station itself; visitors reach it through the web pages of step 5, at `/encyclopedies`.
+- **Kiwix** (the Debian package, version 3.7), as the service `prometheus-kiwix`. It only listens to the station itself; visitors reach it through the web pages of step 5, at `/encyclopedies`. Each collection is also reachable without its date (`wikipedia_fr_all_maxi` instead of `wikipedia_fr_all_maxi_2026-05`), so links survive updates.
 - **`prometheus-telecharger`**, the downloader:
   - it always fetches the **newest version** of each content (Kiwix offers links without a date that point to the latest file);
   - it uses several mirrors and **checks every file** against Kiwix's checksum;

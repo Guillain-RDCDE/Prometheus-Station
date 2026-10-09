@@ -9,7 +9,8 @@ A Raspberry Pi with a large memory card that creates its own Wi-Fi bubble. Anyon
 - **Encyclopedias**: complete Wikipedia in French and English (with images), MDWiki (medicine), WikEM (emergency medicine), iFixit repair guides, and practical guides on water, food and life after a disaster;
 - **A library**: free books from Project Gutenberg, plus any EPUB or PDF you add, read in the browser;
 - **A message board** for everyone connected;
-- **A welcome board** written by whoever keeps the station: what it is, its rules, its hours.
+- **A welcome board** written by whoever keeps the station: what it is, its rules, its hours;
+- **Community tools**, switched on by the keeper when needed: an announcement band on every page, an Emergency page with first-aid shortcuts, a register to find your loved ones, and a mutual-aid board; and a poster to print and stick on the walls.
 
 It runs on a USB power bank, and is built to be safe when the power cuts. When it finds internet again, it updates itself.
 
@@ -66,7 +67,7 @@ Prometheus Station keeps a copy of that knowledge close at hand, readable by any
 | Web pages | **nginx**, port 80 | static pages in `/var/www/prometheus`, in French and English |
 | Encyclopedias | **Kiwix** (`kiwix-serve` 3.7), service `prometheus-kiwix` | listens only on the station itself, behind nginx at `/encyclopedies` |
 | Downloads | `prometheus-telecharger` (aria2), daily timer | always the newest version, checked, resumed, 5 GB safety margin |
-| Password, settings, messages, clock | `prometheus-admin` (Python, no extra module) | listens only on the station itself (127.0.0.1:8091) |
+| Password, settings, messages, register, mutual aid, clock | `prometheus-admin` (Python, no extra module) | listens only on the station itself (127.0.0.1:8091) |
 | Settings actions needing the administrator | `prometheus-commande`, `prometheus-ssid`, `prometheus-sobre` | the pages drop a request file; a system service carries it out. No page ever runs a program itself |
 | Wi-Fi | NetworkManager + watchdog `prometheus-wifi-auto` | captive portal: every web address leads to the station |
 | Remote access | Tailscale | optional |
@@ -86,6 +87,7 @@ The script and program names are in French; the guide gives each one's role.
 | `/srv/prometheus/contenus.txt` | the list of encyclopedias to keep up to date |
 | `/srv/prometheus/messages/` | the message board |
 | `/srv/prometheus/panneau/` | the welcome board text |
+| `/srv/prometheus/communaute/` | community settings, register of people, mutual-aid posts |
 | `/srv/prometheus/.admin/` | password (scrambled), sessions, chosen colors, low-power mode |
 | `/srv/prometheus/sauvegardes/` | the last 7 settings backups |
 | `/run/prometheus/` | live values, emptied at every start (automatic shutdown, voltage) |
@@ -114,6 +116,7 @@ The script and program names are in French; the guide gives each one's role.
 - installation from an empty card, step by step;
 - the nine collections downloaded and searchable (about 200 GB);
 - library, message board, welcome board, settings, two languages, six color themes;
+- community tools: announcement (pages and e-ink screen), Emergency page (its 28 links all checked), register of people, mutual aid, printable poster (its QR code checked with a reader). Tested on the station's server and on copies of the pages; not yet from several phones at once;
 - automatic switching between home Wi-Fi and the station's Wi-Fi;
 - e-ink screen;
 - clean shutdown on weak power (simulated in real time);
@@ -128,6 +131,7 @@ The script and program names are in French; the guide gives each one's role.
 - **Meshtastic** (phase 2, the purpose of the project): LoRa radios that carry text messages over kilometres without any network, and a page on the station to read and answer them from a phone;
 - **solar power**: a 30 W folding panel feeding the battery;
 - **a battery sensor**, to know the real charge level;
+- **linking stations together**: messages, announcements, the register of people and mutual-aid posts travel from one station to another — by Meshtastic radio, or failing that on a USB stick carried by hand — so that someone safe in one village can be found from the next;
 - **a ready-made card image**, so that nobody has to type a single command.
 
 ## Contributing

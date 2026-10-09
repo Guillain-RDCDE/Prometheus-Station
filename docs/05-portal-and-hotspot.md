@@ -16,7 +16,10 @@ Pi$ sudo bash 03-wifi-accueil.sh
 - **Library**: the EPUB and PDF books, read directly in the phone's browser. The e-book reader (epub.js and jszip) is stored on the station, so it works offline.
 - **Messages**: a public message board for everyone connected.
 - **Welcome board**: your own text — what the station is, its rules, its hours (you write it in the Settings).
+- **Community pages**, off until you turn them on in the Settings: an **announcement** band on every page, **Emergency** (first-aid shortcuts), **Find your loved ones** (a register of people), **Mutual aid**; plus an A4 **poster** to print. See [step 12](12-using-the-station.md).
 - **Settings** and **Add files**: protected by a password (below).
+
+The QR-code generator of the poster (qrcode-generator 1.4.4) is also stored on the station.
 
 Every page is in **French and English**; each phone chooses its own language (by default, the phone's language).
 
@@ -26,7 +29,9 @@ Every page is in **French and English**; each phone chooses its own language (by
 
 **The captive portal**: on that Wi-Fi, *any* web address leads to the station. That is what makes the home page open by itself when a phone joins, as in a hotel.
 
-**A small internal server, `prometheus-admin`**, checks the password and handles the settings, the message board and the clock (see below). It only listens to the station itself.
+**A small internal server, `prometheus-admin`**, checks the password and handles the settings, the message board, the register, mutual aid and the clock (see below). It only listens to the station itself.
+
+**Encyclopedia addresses without a date**: the script also makes Kiwix answer at addresses like `/encyclopedies/content/wikipedia_fr_all_maxi/...` that stay valid after each update. The Emergency page relies on them.
 
 ## 5.1 Choose the password
 

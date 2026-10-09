@@ -20,6 +20,7 @@ It downloads only the files it needs from Waveshare's official driver and instal
 | Situation | Screen |
 |---|---|
 | Station's Wi-Fi open | a **QR code** to scan to join the Wi-Fi, and its name |
+| Station's Wi-Fi open, with an announcement set to *Also on the station's screen* | the QR code, the announcement (3 lines at most) and the Wi-Fi's name |
 | Connected to a home Wi-Fi | the network's name, the station's address (and its QR code), the Tailscale address |
 | Only the cable | the address |
 | Switching off | **"Station éteinte — Rebranchez la batterie pour la rallumer"** (station off, plug the battery back to switch it on) |

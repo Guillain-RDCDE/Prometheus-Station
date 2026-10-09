@@ -12,7 +12,7 @@ Pi$ sudo bash 09-sauvegarde.sh
 ## What it does
 
 - **Every day**, the station makes a small archive (a few KB) of its settings. The **7 most recent** are kept.
-- It contains: the settings password (scrambled), low-power mode, colors, messages, welcome board, content list, and the known Wi-Fi networks **with their passwords**.
+- It contains: the settings password (scrambled), low-power mode, colors, messages, welcome board, the community settings and data (announcement, register of people, mutual aid), content list, and the known Wi-Fi networks **with their passwords**.
 - It does **not** contain the encyclopedias (they download again) nor the books (too big: keep your own copy of the books you add).
 
 ## Download it

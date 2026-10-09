@@ -43,6 +43,7 @@ Within 10 minutes, the station is back on your home Wi-Fi.
 - several phones at the same time;
 - a full battery discharge;
 - the firewall and phone isolation (step 10) seen from a phone on the station's Wi-Fi;
-- the automatic shutdown with its message on the screen.
+- the automatic shutdown with its message on the screen;
+- the community pages (announcement, register, mutual aid, emergency) used from several phones at once.
 
 Next: [14. Troubleshooting →](14-troubleshooting.md)

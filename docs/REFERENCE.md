@@ -87,7 +87,7 @@ The script and program names are in French; the guide gives each one's role.
 | `/srv/prometheus/contenus.txt` | the list of encyclopedias to keep up to date |
 | `/srv/prometheus/messages/` | the message board |
 | `/srv/prometheus/panneau/` | the welcome board text |
-| `/srv/prometheus/communaute/` | community settings, register of people, mutual-aid posts |
+| `/srv/prometheus/communaute/` | community settings, register of people, mutual-aid posts, most searched topics (title and count only) |
 | `/srv/prometheus/.admin/` | password (scrambled), sessions, chosen colors, low-power mode |
 | `/srv/prometheus/sauvegardes/` | the last 7 settings backups |
 | `/run/prometheus/` | live values, emptied at every start (automatic shutdown, voltage) |

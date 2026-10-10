@@ -107,6 +107,16 @@ document.getElementById('recherche').addEventListener('input', function (ev) {
   minuteur = setTimeout(function () { chercher(q); }, 200);
 });
 
+// Sujets les plus cherches (Parametres) : on dit a la station quel article a ete ouvert, rien d'autre
+function compter() {
+  // Adresse sans la date de l'encyclopedie : elle reste valable apres une mise a jour
+  var lien = this.getAttribute('href').replace(/(\/content\/[^\/]+?)_\d{4}-\d{2}\//, '$1/');
+  var titre = this.querySelector('.titre').textContent;
+  try {
+    navigator.sendBeacon('/api/recherche', new Blob([JSON.stringify({ titre: titre, lien: lien })], { type: 'application/json' }));
+  } catch (e) {}
+}
+
 function chercher(q) {
   var zone = document.getElementById('resultats');
   document.getElementById('collections').hidden = !!q;
@@ -127,7 +137,9 @@ function chercher(q) {
       zone.appendChild(el('h2', '', g.livre.titre + ' · ' + g.livre.langue));
       var ul = el('ul', 'liste');
       g.articles.forEach(function (x) {
-        ul.appendChild(ligne(g.livre.lien + x.path.split('/').map(encodeURIComponent).join('/'), null, x.value));
+        var li = ligne(g.livre.lien + x.path.split('/').map(encodeURIComponent).join('/'), null, x.value);
+        li.firstChild.addEventListener('click', compter);
+        ul.appendChild(li);
       });
       zone.appendChild(ul);
     });

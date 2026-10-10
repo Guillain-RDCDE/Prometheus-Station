@@ -27,6 +27,11 @@
 #   POST /api/entraide          -> ajouter {type: cherche|propose, categorie, texte, nom, contact} -> {id, cle}
 #   POST /api/entraide/effacer  -> effacer une annonce {id, cle} (sa cle, ou administrateur connecte)
 #   POST /api/entraide/vider    -> tout effacer (administrateur connecte)
+#   POST /api/recherche         -> un article ouvert depuis la recherche {titre, lien} (anonyme : ni adresse ni heure gardees)
+# Et pour l'administrateur connecte :
+#   GET  /recherches            -> les sujets les plus cherches (et ceux epingles sur l'accueil)
+#   POST /recherches/epingler   -> epingler ou retirer un sujet de l'accueil {lien, titre, epingle}
+#   POST /recherches/vider      -> remettre les compteurs a zero (les sujets epingles restent)
 # Et pour l'administrateur connecte :
 #   POST /panneau   -> enregistrer le texte du panneau d'accueil {texte}
 #   POST /reglages  -> allumer, eteindre, regler une fonction {section, valeurs}
@@ -64,9 +69,14 @@ DEFAUT = {
     'registre': {'active': False, 'lieu': True},
     'entraide': {'active': False, 'categories': CATEGORIES, 'duree': 72},
     'urgence': {'active': False},
+    'recherches': {'epingles': []},     # sujets epingles sur l'accueil : [{titre, lien}]
 }
 CHOIX = {'couleur': ('info', 'important', 'urgent'), 'vitesse': ('lente', 'normale', 'rapide'), 'duree': (0, 24, 72, 168)}
 MAX_FICHES = 2000
+RECHERCHES = os.path.join(COMMUNAUTE, 'recherches.json')   # {lien: {titre, n}} : aucun visiteur n'y est note
+DEJA_COMPTE = {}                # (adresse, lien) -> heure : un meme telephone ne compte qu'une fois par heure
+VUS = {}                        # adresse -> heure de la derniere page ouverte (pour « personnes connectees »)
+MAX_EPINGLES = 8
 DERNIER_ENVOI = {}              # (adresse, fonction) -> heure du dernier envoi (un toutes les 20 s au plus)
 
 
@@ -150,7 +160,7 @@ def reglages():
 def regler(section, valeurs):
     """Verifie et enregistre une modification. Renvoie la section a jour, ou None si quelque chose est invalide."""
     tout = reglages()
-    if section not in tout or not isinstance(valeurs, dict):
+    if section not in tout or section == 'recherches' or not isinstance(valeurs, dict):
         return None
     s = tout[section]
     for k, v in valeurs.items():
@@ -193,6 +203,23 @@ def publique(fiche):
     return {k: v for k, v in fiche.items() if k != 'cle'}
 
 
+def personnes():
+    """Combien de personnes sont connectees. Wifi de la station ouvert : les telephones accroches a ce wifi.
+    Sinon (a la maison) : les appareils qui ont une page de la station ouverte depuis moins de 3 minutes
+    (chaque page interroge la station chaque minute)."""
+    def lancer(*a):
+        try:
+            return subprocess.run(a, capture_output=True, text=True, timeout=10).stdout
+        except Exception:
+            return ''
+    if lancer('nmcli', '-g', 'GENERAL.CONNECTION', 'device', 'show', 'wlan0').strip() == 'prometheus-wifi':
+        return sum(1 for l in lancer('/usr/sbin/iw', 'dev', 'wlan0', 'station', 'dump').splitlines() if l.startswith('Station'))
+    maintenant = time.time()
+    for ip in [ip for ip, t in VUS.items() if maintenant - t > 3600]:
+        del VUS[ip]
+    return sum(1 for t in VUS.values() if maintenant - t < 180)
+
+
 def sante():
     """Temperature du processeur, tension (relevee par prometheus-tension), duree depuis l'allumage."""
     t = lire_fichier('/sys/class/thermal/thermal_zone0/temp')
@@ -203,7 +230,7 @@ def sante():
     # bit 0 : tension trop basse en ce moment ; bit 16 : elle l'a ete depuis l'allumage
     tension = None if v is None else 'basse' if v & 0x1 else 'basse_avant' if v & 0x10000 else 'ok'
     return {'temperature': round(int(t) / 1000) if t.isdigit() else None, 'tension': tension,
-            'allumee': int(float(lire_fichier('/proc/uptime', '0').split()[0]))}
+            'allumee': int(float(lire_fichier('/proc/uptime', '0').split()[0])), 'personnes': personnes()}
 
 
 def regler_heure(ms):
@@ -262,6 +289,17 @@ class Admin(BaseHTTPRequestHandler):
             return {}
 
     def do_GET(self):
+        if self.path.startswith('/api/'):
+            VUS[self.headers.get('X-Real-IP', '?')] = time.time()
+        if self.path == '/recherches':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            try:
+                r = json.load(open(RECHERCHES))
+            except (OSError, ValueError):
+                r = {}
+            sujets = sorted(({'lien': l, 'titre': v['titre'], 'n': v['n']} for l, v in r.items()), key=lambda x: -x['n'])[:30]
+            return self.repondre(200, {'sujets': sujets, 'epingles': reglages()['recherches']['epingles']})
         if self.path == '/api/messages':
             return self.repondre(200, {'messages': lire_messages(), 'maintenant': time.time(),
                                        'admin': self.connecte()})
@@ -364,6 +402,29 @@ class Admin(BaseHTTPRequestHandler):
                 ecrire_public(chemin, json.dumps(liste[:MAX_FICHES], ensure_ascii=False))
             return self.repondre(200, {'id': fiche['id'], 'cle': fiche['cle']})
 
+        if self.path == '/api/recherche':
+            titre = ' '.join(str(d.get('titre', '')).split())[:120]
+            lien = str(d.get('lien', ''))[:400]
+            if not titre or not lien.startswith('/encyclopedies/content/') or any(c in lien for c in '"<> '):
+                return self.repondre(400, {'erreur': 'Réglage invalide.'})
+            if time.time() - DEJA_COMPTE.get((ip, lien), 0) < 3600:
+                return self.repondre(200)   # deja compte pour ce telephone dans l'heure
+            DEJA_COMPTE[(ip, lien)] = time.time()
+            if len(DEJA_COMPTE) > 20000:
+                DEJA_COMPTE.clear()
+            with VERROU:
+                try:
+                    r = json.load(open(RECHERCHES))
+                except (OSError, ValueError):
+                    r = {}
+                e = r.setdefault(lien, {'titre': titre, 'n': 0})
+                e['n'] += 1
+                if len(r) > 2000:   # on garde les 2 000 sujets les plus demandes
+                    r = dict(sorted(r.items(), key=lambda x: -x[1]['n'])[:2000])
+                os.makedirs(COMMUNAUTE, exist_ok=True)
+                ecrire_public(RECHERCHES, json.dumps(r, ensure_ascii=False))
+            return self.repondre(200)
+
         if self.path in ('/api/registre/effacer', '/api/entraide/effacer'):
             chemin = REGISTRE if 'registre' in self.path else ENTRAIDE
             admin = self.connecte()
@@ -431,6 +492,28 @@ class Admin(BaseHTTPRequestHandler):
                 return self.repondre(400, {'erreur': 'Entre 1 et 32 caractères.'})
             ecrire(os.path.join(DOSSIER, 'ssid-demande'), nom)
             return self.repondre(200)
+
+        if self.path in ('/recherches/epingler', '/recherches/vider'):
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            with VERROU:
+                if self.path.endswith('vider'):
+                    ecrire_public(RECHERCHES, '{}')
+                    return self.repondre(200)
+                lien = str(d.get('lien', ''))[:400]
+                titre = ' '.join(str(d.get('titre', '')).split())[:120]
+                if not titre or not lien.startswith('/encyclopedies/content/') or any(c in lien for c in '"<> '):
+                    return self.repondre(400, {'erreur': 'Réglage invalide.'})
+                tout = reglages()
+                ep = [x for x in tout['recherches']['epingles'] if x.get('lien') != lien]
+                if d.get('epingle') is True:
+                    if len(ep) >= MAX_EPINGLES:
+                        return self.repondre(400, {'erreur': 'Huit sujets au plus.'})
+                    ep.append({'titre': titre, 'lien': lien})
+                tout['recherches']['epingles'] = ep
+                os.makedirs(COMMUNAUTE, exist_ok=True)
+                ecrire_public(REGLAGES, json.dumps(tout, ensure_ascii=False))
+            return self.repondre(200, {'epingles': ep})
 
         if self.path == '/effacer-ecrits':
             if not self.connecte():

@@ -29,10 +29,13 @@ When the keeper publishes an **announcement**, it scrolls in a coloured band at 
 
 ## For the keeper: Settings (the gear, top right)
 
-Protected by the password you chose in step 5.
+Protected by the password you chose in step 5. Under the title, one line sums up the station: how many people are connected, the temperature, and how long it has been on (tap it for details).
+
+*People connected*: on the station's Wi-Fi, the phones joined to it; at home, the devices with a station page open in the last 3 minutes.
 
 **Content**
 - **Encyclopedias**: for each collection, the installed version, and whether a newer one exists. **Update all** downloads the new versions (only with internet). Progress and remaining time are shown.
+- **Most searched topics**: the articles most often opened from the encyclopedia search, with how many times (only the title and a count are kept, nothing about who read them). **Pin** up to 8 of them: they appear in small on the home page under *Often searched here*, one tap from the article. A button resets the counts; pinned topics stay.
 - **Messages**: how many there are, a link to the board, and **Delete all messages** (tap twice to confirm). Signed in, you can also delete messages one by one on the board.
 - **Add files**: drag and drop books (EPUB, PDF) or encyclopedias (ZIM). They are sorted by themselves.
 
@@ -54,7 +57,7 @@ Protected by the password you chose in step 5.
 - **Software**: number of system updates waiting, **Update**, and **Restart** when an update needs it. Your settings are kept.
 - **Storage**: how full the card is, and what takes the room, biggest first, each with a **Delete** button (tap twice). A deleted encyclopedia is no longer downloaded.
 - **Energy**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
-- **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*) and time since switch-on. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
+- **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*), time since switch-on and people connected. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
 - **Backup**: download the latest settings backup, make one now, or **restore one**: choose the file, tap twice, and the station puts the settings back and restarts (see [step 11](11-backup.md)).
 
 **Security**

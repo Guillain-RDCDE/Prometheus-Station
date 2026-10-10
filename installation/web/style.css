@@ -27,6 +27,10 @@ h2 { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spaci
 .porte span { color: var(--gris); }
 .porte strong::after { content: " →"; }
 .porte[hidden] { display: none; }
+/* Sujets epingles sur l'accueil (Parametres > Sujets les plus cherches) */
+.souvent { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: -14px 0 22px; font-size: .85rem; color: var(--gris); }
+.souvent[hidden] { display: none; }
+.souvent a { padding: 4px 11px; border-radius: 14px; background: var(--accent-pale); color: var(--accent); font-weight: 600; }
 .porte-urgence { border-left-color: #c92a2a; background: #fff5f5; }
 .porte-urgence strong { color: #c92a2a; }
 .porte-urgence:hover { background: #ffe3e3; }

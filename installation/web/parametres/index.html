@@ -68,6 +68,10 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   h1.avec-aide-titre { display: flex; align-items: center; gap: 10px; }
   a.bouton { text-align: center; }
   .bouton[hidden] { display: none; }
+  .resume { display: block; margin: -10px 0 4px; color: var(--gris); font-size: .92rem; }
+  .resume:empty { display: none; }
+  .epingle { flex: none; font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--trait); background: var(--carte); color: var(--accent); cursor: pointer; }
+  .epingle.oui { background: var(--accent); border-color: var(--accent); color: #fff; }
   .bouton.annuler { color: var(--encre); }
   .bouton.eteindre-tout { background: var(--carte); color: #d62828; border: 1px solid #d62828; }
   .bouton.eteindre-tout:disabled { color: var(--pale); border-color: var(--trait); }
@@ -103,12 +107,17 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
 <section class="vue" id="vue-accueil">
   <a class="retour" href="/" data-en="← Home">← Accueil</a>
   <h1 data-en="Settings">Paramètres</h1>
+  <a class="resume" id="resume" href="#sante"></a>
 
   <h2 data-en="Content">Contenu</h2>
   <div class="groupe">
     <button class="ligne" data-vue="contenus">
       <span class="icone" style="background:#1d6fd6"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></span>
       <span class="nom" data-en="Encyclopedias">Encyclopédies</span><span class="valeur" id="val-contenus">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="sujets">
+      <span class="icone" style="background:#5f3dc4"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
+      <span class="nom" data-en="Most searched topics">Sujets les plus cherchés</span><span class="valeur" id="val-sujets"></span><span class="chevron">›</span>
     </button>
     <button class="ligne" data-vue="messages">
       <span class="icone" style="background:#be185d"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
@@ -215,6 +224,19 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <p class="note" id="note-contenus"></p>
   <h2 data-en="Installed content">Contenus installés</h2>
   <div class="groupe" id="liste-contenus"></div>
+</section>
+
+<!-- ===== Sujets les plus cherches ===== -->
+<section class="vue" id="vue-sujets" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Most searched topics">Sujets les plus cherchés</span><button class="aide-bouton" aria-controls="aide-sujets" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-sujets"><div><p data-en="The articles most often opened from the encyclopedia search. Only the title and a count are kept: nothing about who read them. Pin a topic to show it in small on the home page, so that everyone finds it in one tap (8 at most).">Les articles les plus souvent ouverts depuis la recherche des encyclopédies. Seuls le titre et un nombre sont gardés : rien sur qui les a lus. Épinglez un sujet pour l’afficher en petit sur l’accueil, et que chacun le trouve en un toucher (8 au plus).</p></div></div>
+  <h2 data-en="Pinned on the home page">Épinglés sur l’accueil</h2>
+  <div class="groupe" id="liste-epingles"></div>
+  <h2 data-en="Most opened">Les plus ouverts</h2>
+  <div class="groupe" id="liste-sujets"></div>
+  <p class="note" id="note-sujets"></p>
+  <button class="bouton secondaire" id="sujets-vider" data-en="Reset the counts">Remettre les compteurs à zéro</button>
 </section>
 
 <!-- ===== Messages ===== -->
@@ -427,6 +449,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <div class="ligne"><span class="nom" data-en="Temperature">Température</span><span class="valeur" id="sante-temperature">…</span></div>
     <div class="ligne"><span class="nom" data-en="Power supply">Alimentation</span><span class="valeur" id="sante-tension">…</span></div>
     <div class="ligne"><span class="nom" data-en="Switched on for">Allumée depuis</span><span class="valeur" id="sante-allumee">…</span></div>
+    <div class="ligne"><span class="nom" data-en="People connected">Personnes connectées</span><span class="valeur" id="sante-personnes">…</span></div>
   </div>
 </section>
 
@@ -849,6 +872,12 @@ function sante() {
     var j = Math.floor(d.allumee / 86400);
     $('sante-allumee').textContent = (j ? j + T(' j ', ' d ') : '') + duree(d.allumee % 86400);
     $('val-sante').textContent = (d.temperature === null ? '' : d.temperature + ' °C') + (d.tension && d.tension !== 'ok' ? ' · ⚠' : '');
+    var p = d.personnes || 0;
+    $('sante-personnes').textContent = p;
+    // Une seule ligne en haut des Parametres : personnes connectees, temperature, duree depuis l'allumage
+    $('resume').textContent = [p + (p > 1 ? T(' personnes connectées', ' people connected') : T(' personne connectée', ' person connected')),
+      d.temperature === null ? '' : d.temperature + ' °C', T('allumée depuis ', 'on for ') + (j ? j + T(' j ', ' d ') : '') + duree(d.allumee % 86400)]
+      .filter(Boolean).join(' · ') + (d.tension && d.tension !== 'ok' ? T(' · alimentation faible', ' · weak power') : '');
     $('val-sante').className = 'valeur' + (d.temperature >= 80 || (d.tension && d.tension !== 'ok') ? ' alerte' : '');
   }).catch(function () {});
 }
@@ -863,6 +892,45 @@ $('bouton-sauvegarder').onclick = function () {
     setTimeout(function () { verifier(); b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now'); }, 3000);
   });
 };
+
+// ----- Sujets les plus cherches, et ceux epingles sur l'accueil
+function sujets() {
+  fetch('/admin-api/recherches', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    var ep = d.epingles || [], liens = ep.map(function (x) { return x.lien; });
+    $('val-sujets').textContent = ep.length ? ep.length + T(' épinglé(s)', ' pinned') : '';
+    function rangee(zone, titre, sous, lien, epingle) {
+      var l = el('div', 'ligne'), nom = el('span', 'nom');
+      var a = el('a', '', titre); a.href = lien; a.target = '_blank'; nom.appendChild(a);
+      if (sous) nom.appendChild(el('div', 'sous', sous));
+      var b = el('button', 'epingle' + (epingle ? ' oui' : ''), epingle ? T('Épinglé', 'Pinned') : T('Épingler', 'Pin'));
+      b.onclick = function () {
+        poster('recherches/epingler', { lien: lien, titre: titre, epingle: !epingle }).then(function (r) {
+          $('note-sujets').textContent = r.ok ? '' : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+          sujets();
+        });
+      };
+      l.appendChild(nom); l.appendChild(b); zone.appendChild(l);
+    }
+    var z1 = $('liste-epingles'); z1.innerHTML = '';
+    ep.forEach(function (x) { rangee(z1, x.titre, '', x.lien, true); });
+    if (!ep.length) z1.appendChild(el('div', 'ligne', T('Aucun pour l’instant.', 'None yet.')));
+    var z2 = $('liste-sujets'); z2.innerHTML = '';
+    d.sujets.forEach(function (x) { rangee(z2, x.titre, x.n + T(' fois', ' times'), x.lien, liens.indexOf(x.lien) >= 0); });
+    if (!d.sujets.length) z2.appendChild(el('div', 'ligne', T('Rien pour l’instant : les sujets apparaissent quand des visiteurs ouvrent des articles depuis la recherche.', 'Nothing yet: topics appear when visitors open articles from the search.')));
+    var v = $('sujets-vider'); v.disabled = !d.sujets.length; delete v.dataset.confirmer; v.textContent = T('Remettre les compteurs à zéro', 'Reset the counts');
+  }).catch(function () {});
+}
+$('sujets-vider').onclick = function () {
+  var b = this;
+  if (!b.dataset.confirmer) {
+    b.dataset.confirmer = '1'; b.textContent = T('Toucher encore pour confirmer', 'Tap again to confirm');
+    setTimeout(function () { if (b.dataset.confirmer) sujets(); }, 5000);
+    return;
+  }
+  b.disabled = true;
+  poster('recherches/vider', {}).then(sujets);
+};
+sujets();
 
 // ----- Effacer les ecrits des visiteurs : 1er toucher = on montre ce qui va disparaitre, 2e toucher = on efface
 var nbEcrits = null;

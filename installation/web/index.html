@@ -37,6 +37,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   </svg></a>
   <p class="devise" data-en="Knowledge, even when everything goes dark.">Le savoir, même quand tout s'éteint.</p>
   <a class="apropos" href="/panneau/" data-en="About this station and its rules">À propos et règles de la station</a>
+  <div class="souvent" id="souvent" hidden><span data-en="Often searched here:">Souvent cherché ici :</span></div>
   <div class="portes">
     <a class="porte porte-urgence" href="/urgence/" id="porte-urgence" hidden>
       <strong data-en="Emergency">Urgence</strong>
@@ -68,6 +69,10 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
 // Les portes des fonctions allumees dans les Parametres (Urgence, Retrouver ses proches, Entraide)
 fetch('/api/reglages', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
   ['urgence', 'registre', 'entraide'].forEach(function (f) { document.getElementById('porte-' + f).hidden = !(d[f] && d[f].active); });
+  // Sujets epingles dans Parametres > Sujets les plus cherches : en petit, un toucher pour l'article
+  var ep = (d.recherches && d.recherches.epingles) || [], zone = document.getElementById('souvent');
+  ep.forEach(function (x) { var a = document.createElement('a'); a.href = x.lien; a.textContent = x.titre; zone.appendChild(a); });
+  zone.hidden = !ep.length;
 }).catch(function () {});
 // Sans internet, la station ne connait pas l'heure : le telephone lui donne la sienne (une fois par visite)
 try {

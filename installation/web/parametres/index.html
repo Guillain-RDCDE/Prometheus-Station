@@ -67,6 +67,14 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   h2.avec-aide .aide-bouton { width: 20px; height: 20px; font-size: .72rem; }
   h1.avec-aide-titre { display: flex; align-items: center; gap: 10px; }
   a.bouton { text-align: center; }
+  .bouton[hidden] { display: none; }
+  .bouton.annuler { color: var(--encre); }
+  .bouton.eteindre-tout { background: var(--carte); color: #d62828; border: 1px solid #d62828; }
+  .bouton.eteindre-tout:disabled { color: var(--pale); border-color: var(--trait); }
+  .confirmation { margin-top: 14px; padding: 16px; border-radius: var(--rayon); background: #fff5f5; border: 2px solid #d62828; color: #8a1c1c; font-weight: 600; animation: entree .2s ease; }
+  .confirmation[hidden] { display: none; }
+  .confirmation p { margin: 0 0 12px; }
+  .confirmation .actions-station { margin-top: 0; }
   .actions-station { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 36px; }
   .actions-station .bouton { margin-top: 0; background: var(--carte); border: 1px solid var(--trait); font-size: 1rem; }
   .bouton.redemarrer { color: var(--accent); }
@@ -129,6 +137,10 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <button class="ligne" data-vue="urgence">
       <span class="icone" style="background:#c92a2a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
       <span class="nom" data-en="Emergency page">Page Urgence</span><span class="valeur" id="val-urgence">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="effacer">
+      <span class="icone" style="background:#d62828"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg></span>
+      <span class="nom" data-en="Erase what visitors wrote">Effacer les écrits des visiteurs</span><span class="valeur" id="val-effacer">…</span><span class="chevron">›</span>
     </button>
   </div>
 
@@ -283,6 +295,28 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <div class="groupe" style="margin-top:14px">
     <a class="ligne" href="/urgence/"><span class="nom" data-en="Open the page">Ouvrir la page</span><span class="chevron">›</span></a>
   </div>
+</section>
+
+<!-- ===== Effacer les ecrits des visiteurs ===== -->
+<section class="vue" id="vue-effacer" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 data-en="Erase what visitors wrote">Effacer les écrits des visiteurs</h1>
+  <p data-en="Deletes in one go everything visitors have written on the station:">Efface d’un coup tout ce que les visiteurs ont écrit sur la station :</p>
+  <div class="groupe">
+    <div class="ligne"><span class="nom" data-en="Message board">Tableau des messages</span><span class="valeur" id="effacer-messages">…</span></div>
+    <div class="ligne"><span class="nom" data-en="Find your loved ones">Retrouver ses proches</span><span class="valeur" id="effacer-registre">…</span></div>
+    <div class="ligne"><span class="nom" data-en="Mutual aid">Entraide</span><span class="valeur" id="effacer-entraide">…</span></div>
+  </div>
+  <p class="note" data-en="Settings, your announcement, the welcome board and the books are not touched. This cannot be undone.">Les réglages, votre annonce, le panneau d’accueil et les livres ne sont pas touchés. On ne peut pas revenir en arrière.</p>
+  <button class="bouton eteindre-tout" id="bouton-effacer-tout" data-en="Erase everything visitors wrote">Effacer tout ce que les visiteurs ont écrit</button>
+  <div class="confirmation" id="confirmation-effacer" hidden>
+    <p id="texte-confirmation"></p>
+    <div class="actions-station">
+      <button class="bouton annuler" id="effacer-annuler" data-en="Cancel">Annuler</button>
+      <button class="bouton eteindre confirmer" id="effacer-oui" data-en="Yes, erase it all">Oui, tout effacer</button>
+    </div>
+  </div>
+  <p class="note" id="note-effacer"></p>
 </section>
 
 <!-- ===== Wi-Fi ===== -->
@@ -829,6 +863,37 @@ $('bouton-sauvegarder').onclick = function () {
     setTimeout(function () { verifier(); b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now'); }, 3000);
   });
 };
+
+// ----- Effacer les ecrits des visiteurs : 1er toucher = on montre ce qui va disparaitre, 2e toucher = on efface
+var nbEcrits = null;
+function compterEcrits() {
+  Promise.all(['messages', 'registre', 'entraide'].map(function (f) {
+    return fetch('/api/' + f, { cache: 'no-store' }).then(function (r) { return r.json(); })
+      .then(function (d) { return (d.messages || d.fiches || d.annonces || []).length; }).catch(function () { return 0; });
+  })).then(function (n) {
+    nbEcrits = n;
+    $('effacer-messages').textContent = n[0]; $('effacer-registre').textContent = n[1]; $('effacer-entraide').textContent = n[2];
+    var total = n[0] + n[1] + n[2];
+    $('val-effacer').textContent = total || '';
+    $('bouton-effacer-tout').disabled = !total;
+  });
+}
+$('bouton-effacer-tout').onclick = function () {
+  if (!nbEcrits) return;
+  $('texte-confirmation').textContent = T('Vraiment tout effacer ? ', 'Really erase everything? ') + nbEcrits[0] + T(' message(s), ', ' message(s), ') +
+    nbEcrits[1] + T(' fiche(s) et ', ' entry(ies) and ') + nbEcrits[2] + T(' annonce(s) d’entraide disparaîtront pour toujours.', ' mutual-aid post(s) will be gone for good.');
+  $('confirmation-effacer').hidden = false; this.hidden = true; $('note-effacer').textContent = '';
+};
+$('effacer-annuler').onclick = function () { $('confirmation-effacer').hidden = true; $('bouton-effacer-tout').hidden = false; };
+$('effacer-oui').onclick = function () {
+  var b = this; b.disabled = true;
+  poster('effacer-ecrits', {}).then(function (r) {
+    b.disabled = false; $('confirmation-effacer').hidden = true; $('bouton-effacer-tout').hidden = false;
+    $('note-effacer').textContent = r.ok ? T('C’est fait : tout ce que les visiteurs avaient écrit a été effacé.', 'Done: everything visitors had written has been erased.') : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+    compterEcrits(); compterMessages(); communaute();
+  });
+};
+compterEcrits();
 
 // ----- Redemarrer ou eteindre la station (chacun en deux temps)
 function actionStation(bouton, nomOrdre, libelle, encore, enCours, fait, message) {

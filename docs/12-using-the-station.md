@@ -41,6 +41,7 @@ Protected by the password you chose in step 5.
 - **Find your loved ones**: on/off, whether to ask *where*, how many entries, a link to the register, **Delete all entries** (tap twice). Signed in, you can also delete entries one by one.
 - **Mutual aid**: on/off, which categories are offered, how long posts stay visible (1, 3 or 7 days, or no limit), how many posts, **Delete all posts**.
 - **Emergency page**: on/off.
+- **Erase what visitors wrote**: deletes in one go the message board, the register of people and the mutual-aid posts, however many there are. It shows how many of each will go, then asks a second time in a red box (*Yes, erase it all* or *Cancel*). Settings, your announcement, the welcome board and the books are not touched. It cannot be undone.
 
 **Station**
 - **Poster to print**: an A4 poster in French and English — "Free Wi-Fi", a large QR code that joins the station's Wi-Fi, the network's name, the address, and what visitors will find (it follows the features you turned on). Open it on your phone and print it from the browser's menu.

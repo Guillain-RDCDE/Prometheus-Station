@@ -30,6 +30,8 @@
 # Et pour l'administrateur connecte :
 #   POST /panneau   -> enregistrer le texte du panneau d'accueil {texte}
 #   POST /reglages  -> allumer, eteindre, regler une fonction {section, valeurs}
+#   POST /effacer-ecrits -> effacer d'un coup tout ce que les visiteurs ont ecrit (messages, registre, entraide)
+#                           -> {messages, registre, entraide} = combien il y en avait ; les reglages ne changent pas
 import hashlib, hmac, json, os, secrets, subprocess, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
@@ -429,6 +431,17 @@ class Admin(BaseHTTPRequestHandler):
                 return self.repondre(400, {'erreur': 'Entre 1 et 32 caractères.'})
             ecrire(os.path.join(DOSSIER, 'ssid-demande'), nom)
             return self.repondre(200)
+
+        if self.path == '/effacer-ecrits':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            with VERROU:
+                n = {'messages': len(lire_messages()), 'registre': len(lire_liste(REGISTRE)), 'entraide': len(lire_liste(ENTRAIDE))}
+                ecrire_public(MESSAGES, '[]')
+                os.makedirs(COMMUNAUTE, exist_ok=True)
+                ecrire_public(REGISTRE, '[]')
+                ecrire_public(ENTRAIDE, '[]')
+            return self.repondre(200, n)
 
         if self.path == '/reglages':
             if not self.connecte():

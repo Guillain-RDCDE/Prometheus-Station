@@ -29,39 +29,43 @@ When the keeper publishes an **announcement**, it scrolls in a coloured band at 
 
 ## For the keeper: Settings (the gear, top right)
 
-Protected by the password you chose in step 5. Under the title, one line sums up the station: how many people are connected, the temperature, and how long it has been on (tap it for details).
+Protected by the password you chose in step 5.
+
+At the top, a **status card**: the station's name, how many people are connected, the temperature, how long it has been on, and whether the power supply is good (the card turns orange if it is too hot or the power is weak). Tap it for details.
 
 *People connected*: on the station's Wi-Fi, the phones joined to it; at home, the devices with a station page open in the last 3 minutes.
+
+Below, the settings are grouped by who they are for. The community features (announcement, emergency page, find your loved ones, mutual aid) are **all off at first**.
+
+**For visitors**
+- **Welcome board**: write the text visitors see when they tap the lighthouse. Five buttons format it: **T** title, **B** bold, *I* italic, U underline, • list. A live preview shows the result. Under the buttons, it is plain text: `# Title`, `## Subtitle`, `**bold**`, `*italic*`, `__underline__`, `- list item`. One language only: yours.
+- **Announcement**: the message (200 characters at most), its colour (*Information*, *Important*, *Urgent* — urgent pulses), scrolling or still text, scrolling speed, and **Also on the station's screen**: on the e-ink screen, the announcement takes the place of the instructions next to the QR code (3 lines at most).
+- **Emergency page**: on/off.
+- **Find your loved ones**: on/off, whether to ask *where*, how many entries, a link to the register, **Delete all entries** (tap twice). Signed in, you can also delete entries one by one.
+- **Mutual aid**: on/off, which categories are offered, how long posts stay visible (1, 3 or 7 days, or no limit), how many posts, **Delete all posts**.
+- **Messages**: how many there are, a link to the board, and **Delete all messages** (tap twice to confirm). Signed in, you can also delete messages one by one on the board.
+- **Poster to print**: an A4 poster in French and English — "Free Wi-Fi", a large QR code that joins the station's Wi-Fi, the network's name, the address, and what visitors will find (it follows the features you turned on). Open it on your phone and print it from the browser's menu.
 
 **Content**
 - **Encyclopedias**: for each collection, the installed version, and whether a newer one exists. **Update all** downloads the new versions (only with internet). Progress and remaining time are shown.
 - **Most searched topics**: the articles most often opened from the encyclopedia search, with how many times (only the title and a count are kept, nothing about who read them). **Pin** up to 8 of them: they appear in small on the home page under *Often searched here*, one tap from the article. A button resets the counts; pinned topics stay.
-- **Messages**: how many there are, a link to the board, and **Delete all messages** (tap twice to confirm). Signed in, you can also delete messages one by one on the board.
 - **Add files**: drag and drop books (EPUB, PDF) or encyclopedias (ZIM). They are sorted by themselves.
-
-**Community** — all off at first
-- **Announcement**: the message (200 characters at most), its colour (*Information*, *Important*, *Urgent* — urgent pulses), scrolling or still text, scrolling speed, and **Also on the station's screen**: on the e-ink screen, the announcement takes the place of the instructions next to the QR code (3 lines at most).
-- **Find your loved ones**: on/off, whether to ask *where*, how many entries, a link to the register, **Delete all entries** (tap twice). Signed in, you can also delete entries one by one.
-- **Mutual aid**: on/off, which categories are offered, how long posts stay visible (1, 3 or 7 days, or no limit), how many posts, **Delete all posts**.
-- **Emergency page**: on/off.
-- **Erase what visitors wrote**: deletes in one go the message board, the register of people and the mutual-aid posts, however many there are. It shows how many of each will go, then asks a second time in a red box (*Yes, erase it all* or *Cancel*). Settings, your announcement, the welcome board and the books are not touched. It cannot be undone.
+- **Storage**: how full the card is, and what takes the room, biggest first, each with a **Delete** button (tap twice). A deleted encyclopedia is no longer downloaded.
 
 **Station**
-- **Poster to print**: an A4 poster in French and English — "Free Wi-Fi", a large QR code that joins the station's Wi-Fi, the network's name, the address, and what visitors will find (it follows the features you turned on). Open it on your phone and print it from the browser's menu.
 - **Station Wi-Fi**: rename the open Wi-Fi. The e-ink screen follows.
-- **Welcome board**: write the text visitors see when they tap the lighthouse. Five buttons format it: **T** title, **B** bold, *I* italic, U underline, • list. A live preview shows the result. Under the buttons, it is plain text: `# Title`, `## Subtitle`, `**bold**`, `*italic*`, `__underline__`, `- list item`. One language only: yours.
+- **Energy**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
+- **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*), time since switch-on and people connected. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
+- **Software**: number of system updates waiting, **Update**, and **Restart** when an update needs it. Your settings are kept.
+- **Backup**: download the latest settings backup, make one now, or **restore one**: choose the file, tap twice, and the station puts the settings back and restarts (see [step 11](11-backup.md)).
+
+**Appearance**
 - **Colors**: six color themes (Ocean, Forest, Ember, Sun, Lavender, Night), for every page and every visitor.
 - **Language**: same as the flags.
 
-**System**
-- **Software**: number of system updates waiting, **Update**, and **Restart** when an update needs it. Your settings are kept.
-- **Storage**: how full the card is, and what takes the room, biggest first, each with a **Delete** button (tap twice). A deleted encyclopedia is no longer downloaded.
-- **Energy**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
-- **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*), time since switch-on and people connected. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
-- **Backup**: download the latest settings backup, make one now, or **restore one**: choose the file, tap twice, and the station puts the settings back and restarts (see [step 11](11-backup.md)).
-
 **Security**
 - **Password**: change it (current one, then new one). This signs out every other device.
+- **Erase what visitors wrote**: deletes in one go the message board, the register of people and the mutual-aid posts, however many there are. It shows how many of each will go, then asks a second time in a red box (*Yes, erase it all* or *Cancel*). Settings, your announcement, the welcome board and the books are not touched. It cannot be undone.
 
 **Restart** and **Switch off** (two buttons at the bottom of the Settings): tap twice. *Restart* brings the station back by itself after about two minutes. *Switch off* shuts it down cleanly and the e-ink screen says so; to switch it back on, unplug the battery and plug it in again.
 

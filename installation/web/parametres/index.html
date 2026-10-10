@@ -68,8 +68,18 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   h1.avec-aide-titre { display: flex; align-items: center; gap: 10px; }
   a.bouton { text-align: center; }
   .bouton[hidden] { display: none; }
-  .resume { display: block; margin: -10px 0 4px; color: var(--gris); font-size: .92rem; }
-  .resume:empty { display: none; }
+  /* Carte d'etat, en haut des Parametres */
+  .carte-etat { display: flex; align-items: center; gap: 14px; padding: 16px; margin: 4px 0 6px; border-radius: var(--rayon); background: var(--carte); border: 1px solid var(--trait); box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .carte-etat:hover { background: var(--accent-pale); }
+  .carte-phare { flex: none; width: 52px; height: 52px; border-radius: 16px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .carte-phare svg { width: 28px; height: 28px; fill: #fff; stroke: #fff; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  .carte-etat.alerte .carte-phare { background: #d9750a; }
+  .carte-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .carte-nom { font-weight: 700; font-size: 1.08rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .carte-personnes { color: var(--gris); font-size: .95rem; }
+  .carte-puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .carte-puces span { font-size: .78rem; font-weight: 600; padding: 3px 9px; border-radius: 10px; background: var(--fond); border: 1px solid var(--trait); color: var(--gris); }
+  .carte-puces span.mauvais { background: #fff4e6; border-color: #ffd8a8; color: #d9480f; }
   .epingle { flex: none; font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--trait); background: var(--carte); color: var(--accent); cursor: pointer; }
   .epingle.oui { background: var(--accent); border-color: var(--accent); color: #fff; }
   .bouton.annuler { color: var(--encre); }
@@ -107,33 +117,29 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
 <section class="vue" id="vue-accueil">
   <a class="retour" href="/" data-en="← Home">← Accueil</a>
   <h1 data-en="Settings">Paramètres</h1>
-  <a class="resume" id="resume" href="#sante"></a>
+  <a class="carte-etat" id="carte-etat" href="#sante">
+    <span class="carte-phare"><svg viewBox="0 0 24 24"><path d="M12 2l-3 2.5h6z"/><path d="M10 6h4l1.5 16h-7z"/><path d="M4 8l-2-1M4 12H2M20 8l2-1M20 12h2"/></svg></span>
+    <span class="carte-texte">
+      <span class="carte-nom" id="carte-nom">Prometheus Station</span>
+      <span class="carte-personnes" id="carte-personnes">…</span>
+      <span class="carte-puces" id="carte-puces"></span>
+    </span>
+    <span class="chevron">›</span>
+  </a>
 
-  <h2 data-en="Content">Contenu</h2>
+  <h2 data-en="For visitors">Pour les visiteurs</h2>
   <div class="groupe">
-    <button class="ligne" data-vue="contenus">
-      <span class="icone" style="background:#1d6fd6"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></span>
-      <span class="nom" data-en="Encyclopedias">Encyclopédies</span><span class="valeur" id="val-contenus">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="panneau">
+      <span class="icone" style="background:#e8211c"><svg viewBox="0 0 24 24"><path d="M12 3l-3 2h6z"/><path d="M10 7h4l1 14H9z"/><path d="M5 9l-2-1M5 13H3M19 9l2-1M19 13h2"/></svg></span>
+      <span class="nom" data-en="Welcome board">Panneau d’accueil</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="sujets">
-      <span class="icone" style="background:#5f3dc4"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
-      <span class="nom" data-en="Most searched topics">Sujets les plus cherchés</span><span class="valeur" id="val-sujets"></span><span class="chevron">›</span>
-    </button>
-    <button class="ligne" data-vue="messages">
-      <span class="icone" style="background:#be185d"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-      <span class="nom" data-en="Messages">Messages</span><span class="valeur" id="val-messages">…</span><span class="chevron">›</span>
-    </button>
-    <a class="ligne" href="/ajouter/">
-      <span class="icone" style="background:#1f8a4c"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-      <span class="nom" data-en="Add files">Ajouter des fichiers</span><span class="chevron">›</span>
-    </a>
-  </div>
-
-  <h2 data-en="Community">Communauté</h2>
-  <div class="groupe">
     <button class="ligne" data-vue="annonce">
       <span class="icone" style="background:#e8590c"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg></span>
       <span class="nom" data-en="Announcement">Annonce</span><span class="valeur" id="val-annonce">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="urgence">
+      <span class="icone" style="background:#c92a2a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span class="nom" data-en="Emergency page">Page Urgence</span><span class="valeur" id="val-urgence">…</span><span class="chevron">›</span>
     </button>
     <button class="ligne" data-vue="registre">
       <span class="icone" style="background:#2b8a3e"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 11l2 2 4-4"/></svg></span>
@@ -143,30 +149,62 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
       <span class="icone" style="background:#1971c2"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-9.3-9A5 5 0 0 1 12 6.3 5 5 0 0 1 21.3 12C19 16.6 12 21 12 21z"/></svg></span>
       <span class="nom" data-en="Mutual aid">Entraide</span><span class="valeur" id="val-entraide">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="urgence">
-      <span class="icone" style="background:#c92a2a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-      <span class="nom" data-en="Emergency page">Page Urgence</span><span class="valeur" id="val-urgence">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="messages">
+      <span class="icone" style="background:#be185d"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span class="nom" data-en="Messages">Messages</span><span class="valeur" id="val-messages">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="effacer">
-      <span class="icone" style="background:#d62828"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg></span>
-      <span class="nom" data-en="Erase what visitors wrote">Effacer les écrits des visiteurs</span><span class="valeur" id="val-effacer">…</span><span class="chevron">›</span>
+    <a class="ligne" href="/parametres/affiche.html">
+      <span class="icone" style="background:#343a40"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v8H6z"/></svg></span>
+      <span class="nom" data-en="Poster to print">Affiche à imprimer</span><span class="chevron">›</span>
+    </a>
+  </div>
+
+  <h2 data-en="Content">Contenus</h2>
+  <div class="groupe">
+    <button class="ligne" data-vue="contenus">
+      <span class="icone" style="background:#1d6fd6"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></span>
+      <span class="nom" data-en="Encyclopedias">Encyclopédies</span><span class="valeur" id="val-contenus">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="sujets">
+      <span class="icone" style="background:#5f3dc4"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
+      <span class="nom" data-en="Most searched topics">Sujets les plus cherchés</span><span class="valeur" id="val-sujets"></span><span class="chevron">›</span>
+    </button>
+    <a class="ligne" href="/ajouter/">
+      <span class="icone" style="background:#1f8a4c"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span class="nom" data-en="Add files">Ajouter des fichiers</span><span class="chevron">›</span>
+    </a>
+    <button class="ligne" data-vue="stockage">
+      <span class="icone" style="background:#8e44ad"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+      <span class="nom" data-en="Storage">Stockage</span><span class="valeur" id="val-stockage">…</span><span class="chevron">›</span>
     </button>
   </div>
 
   <h2 data-en="Station">Station</h2>
   <div class="groupe">
-    <a class="ligne" href="/parametres/affiche.html">
-      <span class="icone" style="background:#343a40"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v8H6z"/></svg></span>
-      <span class="nom" data-en="Poster to print">Affiche à imprimer</span><span class="chevron">›</span>
-    </a>
     <button class="ligne" data-vue="wifi">
       <span class="icone" style="background:#0a84ff"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5 5 0 0 1 7 0"/><path d="M12 19.5h.01"/><path d="M1.5 9a15 15 0 0 1 21 0"/></svg></span>
       <span class="nom" data-en="Station Wi-Fi">Wi-Fi de la station</span><span class="valeur" id="val-wifi">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="panneau">
-      <span class="icone" style="background:#e8211c"><svg viewBox="0 0 24 24"><path d="M12 3l-3 2h6z"/><path d="M10 7h4l1 14H9z"/><path d="M5 9l-2-1M5 13H3M19 9l2-1M19 13h2"/></svg></span>
-      <span class="nom" data-en="Welcome board">Panneau d’accueil</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="energie">
+      <span class="icone" style="background:#2f9e44"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4M9.5 10v4"/></svg></span>
+      <span class="nom" data-en="Energy">Énergie</span><span class="valeur" id="val-energie">…</span><span class="chevron">›</span>
     </button>
+    <button class="ligne" data-vue="sante">
+      <span class="icone" style="background:#e67700"><svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
+      <span class="nom" data-en="Station health">État de la station</span><span class="valeur" id="val-sante">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="logiciels">
+      <span class="icone" style="background:#6e6e73"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></span>
+      <span class="nom" data-en="Software">Logiciels</span><span class="valeur" id="val-logiciels">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="sauvegarde">
+      <span class="icone" style="background:#0b7285"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
+      <span class="nom" data-en="Backup">Sauvegarde</span><span class="valeur" id="val-sauvegarde">…</span><span class="chevron">›</span>
+    </button>
+  </div>
+
+  <h2 data-en="Appearance">Apparence</h2>
+  <div class="groupe">
     <button class="ligne" data-vue="couleurs">
       <span class="icone" style="background:#c2410c"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1 0 1.5-.8 1.5-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-4.9-4.5-8.6-10-8.6z"/></svg></span>
       <span class="nom" data-en="Colors">Couleurs</span><span class="valeur" id="val-couleurs">…</span><span class="chevron">›</span>
@@ -177,37 +215,18 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     </button>
   </div>
 
-  <h2 data-en="System">Système</h2>
-  <div class="groupe">
-    <button class="ligne" data-vue="logiciels">
-      <span class="icone" style="background:#6e6e73"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></span>
-      <span class="nom" data-en="Software">Logiciels</span><span class="valeur" id="val-logiciels">…</span><span class="chevron">›</span>
-    </button>
-    <button class="ligne" data-vue="stockage">
-      <span class="icone" style="background:#8e44ad"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
-      <span class="nom" data-en="Storage">Stockage</span><span class="valeur" id="val-stockage">…</span><span class="chevron">›</span>
-    </button>
-    <button class="ligne" data-vue="energie">
-      <span class="icone" style="background:#2f9e44"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4M9.5 10v4"/></svg></span>
-      <span class="nom" data-en="Energy">Énergie</span><span class="valeur" id="val-energie">…</span><span class="chevron">›</span>
-    </button>
-    <button class="ligne" data-vue="sante">
-      <span class="icone" style="background:#e67700"><svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
-      <span class="nom" data-en="Station health">État de la station</span><span class="valeur" id="val-sante">…</span><span class="chevron">›</span>
-    </button>
-    <button class="ligne" data-vue="sauvegarde">
-      <span class="icone" style="background:#0b7285"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
-      <span class="nom" data-en="Backup">Sauvegarde</span><span class="valeur" id="val-sauvegarde">…</span><span class="chevron">›</span>
-    </button>
-  </div>
-
   <h2 data-en="Security">Sécurité</h2>
   <div class="groupe">
     <button class="ligne" data-vue="motdepasse">
       <span class="icone" style="background:#d62828"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
       <span class="nom" data-en="Password">Mot de passe</span><span class="chevron">›</span>
     </button>
+    <button class="ligne" data-vue="effacer">
+      <span class="icone" style="background:#d62828"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg></span>
+      <span class="nom" data-en="Erase what visitors wrote">Effacer les écrits des visiteurs</span><span class="valeur" id="val-effacer">…</span><span class="chevron">›</span>
+    </button>
   </div>
+
   <div class="actions-station">
     <button class="bouton redemarrer" id="bouton-redemarrer-station" data-en="Restart">Redémarrer</button>
     <button class="bouton eteindre" id="bouton-eteindre" data-en="Switch off">Éteindre</button>
@@ -559,8 +578,9 @@ function afficher(e) {
   $('val-contenus').textContent = enCours ? '↓ ' + ((enCours.progression || '').split(' — ')[0] || '…') : aFaire ? aFaire + T(' à faire', ' to do') : T('À jour', 'Up to date');
   $('val-contenus').className = 'valeur' + (enCours || aFaire ? ' alerte' : '');
 
-  // Wi-Fi
+  // Wi-Fi (et nom de la station sur la carte d'etat)
   $('val-wifi').textContent = e.ssid || '';
+  if (e.ssid) $('carte-nom').textContent = e.ssid;
   var champ = $('ssid');
   if (e.ssid && document.activeElement !== champ && !champ.dataset.touche) champ.value = e.ssid;
 
@@ -874,10 +894,14 @@ function sante() {
     $('val-sante').textContent = (d.temperature === null ? '' : d.temperature + ' °C') + (d.tension && d.tension !== 'ok' ? ' · ⚠' : '');
     var p = d.personnes || 0;
     $('sante-personnes').textContent = p;
-    // Une seule ligne en haut des Parametres : personnes connectees, temperature, duree depuis l'allumage
-    $('resume').textContent = [p + (p > 1 ? T(' personnes connectées', ' people connected') : T(' personne connectée', ' person connected')),
-      d.temperature === null ? '' : d.temperature + ' °C', T('allumée depuis ', 'on for ') + (j ? j + T(' j ', ' d ') : '') + duree(d.allumee % 86400)]
-      .filter(Boolean).join(' · ') + (d.tension && d.tension !== 'ok' ? T(' · alimentation faible', ' · weak power') : '');
+    // Carte d'etat en haut des Parametres : personnes connectees, puis temperature, duree, alimentation
+    $('carte-personnes').textContent = p + (p > 1 ? T(' personnes connectées', ' people connected') : T(' personne connectée', ' person connected'));
+    var puces = $('carte-puces'), chaud = d.temperature >= 80, faible = d.tension && d.tension !== 'ok';
+    puces.innerHTML = '';
+    if (d.temperature !== null) { var c1 = el('span', chaud ? 'mauvais' : '', d.temperature + ' °C'); puces.appendChild(c1); }
+    puces.appendChild(el('span', '', T('allumée ', 'on ') + (j ? j + T(' j ', ' d ') : '') + duree(d.allumee % 86400)));
+    puces.appendChild(el('span', faible ? 'mauvais' : '', faible ? T('alimentation faible', 'weak power') : T('alimentation bonne', 'power good')));
+    $('carte-etat').classList.toggle('alerte', chaud || faible);
     $('val-sante').className = 'valeur' + (d.temperature >= 80 || (d.tension && d.tension !== 'ok') ? ' alerte' : '');
   }).catch(function () {});
 }

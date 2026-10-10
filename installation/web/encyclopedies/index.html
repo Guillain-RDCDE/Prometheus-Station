@@ -107,6 +107,9 @@ document.getElementById('recherche').addEventListener('input', function (ev) {
   minuteur = setTimeout(function () { chercher(q); }, 200);
 });
 
+// Kiwix renvoie les titres avec leurs caracteres speciaux codes (&amp; pour &) : on les remet en clair
+function decoder(s) { var t = document.createElement('textarea'); t.innerHTML = s; return t.value; }
+
 // Sujets les plus cherches (Parametres) : on dit a la station quel article a ete ouvert, rien d'autre
 function compter() {
   // Adresse sans la date de l'encyclopedie : elle reste valable apres une mise a jour
@@ -137,7 +140,7 @@ function chercher(q) {
       zone.appendChild(el('h2', '', g.livre.titre + ' · ' + g.livre.langue));
       var ul = el('ul', 'liste');
       g.articles.forEach(function (x) {
-        var li = ligne(g.livre.lien + x.path.split('/').map(encodeURIComponent).join('/'), null, x.value);
+        var li = ligne(g.livre.lien + x.path.split('/').map(encodeURIComponent).join('/'), null, decoder(x.value));
         li.firstChild.addEventListener('click', compter);
         ul.appendChild(li);
       });

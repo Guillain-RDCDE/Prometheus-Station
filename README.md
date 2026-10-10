@@ -35,6 +35,37 @@ Just the accumulated knowledge of humanity, ready to restart civilization from s
 
 ---
 
+## 📱 What it looks like
+
+Join the open Wi-Fi with any phone: the home page opens by itself. No app, no account, no internet.
+
+<table>
+<tr>
+<td align="center" valign="top"><img src="docs/images/home.png" width="200" alt="Home: emergency, encyclopedias, library, messages"><br><sub>Home: emergency, encyclopedias, library, messages</sub></td>
+<td align="center" valign="top"><img src="docs/images/encyclopedias-search.png" width="200" alt="One search across every encyclopedia"><br><sub>One search across every encyclopedia</sub></td>
+<td align="center" valign="top"><img src="docs/images/article.jpg" width="200" alt="An article, read offline"><br><sub>An article, read offline</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top"><img src="docs/images/emergency.png" width="200" alt="Emergency: first aid in one tap"><br><sub>Emergency: first aid in one tap</sub></td>
+<td align="center" valign="top"><img src="docs/images/library.png" width="200" alt="Library: books read in the browser"><br><sub>Library: books read in the browser</sub></td>
+<td align="center" valign="top"><img src="docs/images/messages.png" width="200" alt="Message board"><br><sub>Message board</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top"><img src="docs/images/find-loved-ones.png" width="200" alt="Find your loved ones"><br><sub>Find your loved ones</sub></td>
+<td align="center" valign="top"><img src="docs/images/mutual-aid.png" width="200" alt="Mutual aid: needs and offers"><br><sub>Mutual aid: needs and offers</sub></td>
+<td align="center" valign="top"><img src="docs/images/welcome-board.png" width="200" alt="Welcome board and rules"><br><sub>Welcome board and rules</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top"><img src="docs/images/settings.png" width="200" alt="Settings, grouped and simple"><br><sub>Settings, grouped and simple</sub></td>
+<td align="center" valign="top"><img src="docs/images/settings-announcement.png" width="200" alt="A scrolling announcement on every page"><br><sub>A scrolling announcement on every page</sub></td>
+<td align="center" valign="top"><img src="docs/images/poster.png" width="200" alt="A poster to print, with the Wi-Fi QR code"><br><sub>A poster to print, with the Wi-Fi QR code</sub></td>
+</tr>
+</table>
+
+<sub>Screenshots in English with sample data. Every page is available in French and English.</sub>
+
+---
+
 ## 🛠️ Build your own
 
 **[Step-by-step build guide](docs/README.md)** — written for people who have never used Linux: from an empty memory card to a working station, every command given in full, every check shown.

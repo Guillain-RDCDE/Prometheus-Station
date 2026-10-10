@@ -9,6 +9,12 @@ Nothing here needs a command: everything happens in a phone or computer browser.
 
 ## For every visitor
 
+<p>
+<img src="images/home.png" width="190" alt="Home page">
+<img src="images/encyclopedias-search.png" width="190" alt="Encyclopedia search">
+<img src="images/messages.png" width="190" alt="Message board">
+</p>
+
 | Page | What you do there |
 |---|---|
 | **Encyclopedias** | type a subject: results come from every collection at once. Tap one to read it; the round magnifier brings you back to the search |
@@ -17,7 +23,13 @@ Nothing here needs a command: everything happens in a phone or computer browser.
 | **The lighthouse** (logo), or *About and rules* | the welcome board written by the station's keeper |
 | **Flags** | French or English, for this phone only |
 
-Three more doors appear only if the keeper turns them on (see *Community* below):
+Three more doors appear only if the keeper turns them on (see *For visitors* below):
+
+<p>
+<img src="images/emergency.png" width="190" alt="Emergency page">
+<img src="images/find-loved-ones.png" width="190" alt="Find your loved ones">
+<img src="images/mutual-aid.png" width="190" alt="Mutual aid">
+</p>
 
 | Page | What you do there |
 |---|---|
@@ -28,6 +40,12 @@ Three more doors appear only if the keeper turns them on (see *Community* below)
 When the keeper publishes an **announcement**, it scrolls in a coloured band at the top of every page, encyclopedia articles included. Tap it to stop it and read it whole.
 
 ## For the keeper: Settings (the gear, top right)
+
+<p>
+<img src="images/settings.png" width="190" alt="Settings">
+<img src="images/settings-announcement.png" width="190" alt="Announcement settings">
+<img src="images/poster.png" width="260" alt="Poster to print">
+</p>
 
 Protected by the password you chose in step 5.
 

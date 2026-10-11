@@ -21,7 +21,7 @@ jobs:
       SHELLCHECK_VERSION: v0.10.0
       SHELLCHECK_SHA256: 6c881ab0698e4e6ea235245f22832860544f17ba386442fe7e9d629f8cbedf87
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install shellcheck ${{ env.SHELLCHECK_VERSION }}
         run: |
           curl -fsSL -o shellcheck.tar.xz \
@@ -43,8 +43,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'   # the Python of Raspberry Pi OS Trixie
       - name: Compile every installation/prometheus-* with a python3 shebang
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install cloud-init
         run: |
           sudo apt-get update -qq

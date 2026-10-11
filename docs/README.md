@@ -22,6 +22,13 @@ Start here: **[0. Before you start](00-before-you-start.md)**
 | 13 | [The crisis test](13-crisis-test.md) | — |
 | 14 | [Troubleshooting](14-troubleshooting.md) | — |
 
+**Phase 2 — Meshtastic radio**
+
+| | Step | Script |
+|---|---|---|
+| 15 | [Meshtastic radios](15-meshtastic-radios.md) — the T-Beam, the T-Echo, their buttons, settings and updates | `10-radio.sh` |
+| 16 | [Radio and message board](16-radio-message-board.md) — the board on the air, both ways | — |
+
 How it works inside, and what comes next: **[Reference](REFERENCE.md)**. The hardware: **[HARDWARE.md](../HARDWARE.md)**.
 
 ## How this guide was written

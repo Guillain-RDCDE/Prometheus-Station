@@ -63,6 +63,49 @@ Type=oneshot
 ExecStart=/usr/local/bin/prometheus-ssid
 EOF
 
+echo "== Nom de la station sur le reseau (http://<nom>.local), reglable dans Parametres > Wi-Fi"
+cat > /usr/local/bin/prometheus-nom <<'EOF'
+#!/bin/bash
+# Applique le nom demande sur la page (fichier ecrit par prometheus-admin) : http://<nom>.local
+DEMANDE=/srv/prometheus/.admin/nom-demande
+while [ -s "$DEMANDE" ]; do
+  NOM=$(head -c 32 "$DEMANDE" | tr -cd 'a-z0-9-')
+  rm -f "$DEMANDE"
+  [[ "$NOM" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] || continue
+  ANCIEN=$(hostname)
+  [ "$NOM" = "$ANCIEN" ] && continue
+  hostnamectl set-hostname "$NOM" || continue
+  # Le nom doit aussi etre connu localement (sinon sudo et d'autres programmes se plaignent)
+  if grep -q '^127\.0\.1\.1' /etc/hosts; then
+    sed -i "s/^127\.0\.1\.1.*/127.0.1.1\t$NOM/" /etc/hosts
+  else
+    printf '127.0.1.1\t%s\n' "$NOM" >> /etc/hosts
+  fi
+  systemctl restart avahi-daemon
+  echo "Station renommee : $ANCIEN -> $NOM (http://$NOM.local)"
+  [ -x /usr/local/bin/prometheus-etat ] && /usr/local/bin/prometheus-etat >/dev/null 2>&1
+done
+EOF
+chmod 755 /usr/local/bin/prometheus-nom
+cat > /etc/systemd/system/prometheus-nom.path <<'EOF'
+[Unit]
+Description=Prometheus Station - surveille une demande de nouveau nom de station
+
+[Path]
+PathExists=/srv/prometheus/.admin/nom-demande
+
+[Install]
+WantedBy=multi-user.target
+EOF
+cat > /etc/systemd/system/prometheus-nom.service <<'EOF'
+[Unit]
+Description=Prometheus Station - change le nom de la station sur le reseau
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/prometheus-nom
+EOF
+
 echo "== Le surveillant du wifi"
 cat > /usr/local/bin/prometheus-wifi-auto <<'EOF'
 #!/bin/bash
@@ -135,6 +178,6 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now prometheus-wifi-auto.service prometheus-ssid.path
+systemctl enable --now prometheus-wifi-auto.service prometheus-ssid.path prometheus-nom.path
 
 echo "== Etape 5 terminee. Ajouter le wifi de la maison : sudo prometheus-wifi-maison"

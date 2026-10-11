@@ -17,17 +17,22 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .sous-titre { color: var(--gris); margin: -12px 0 22px; }
 
   /* Fil des messages : le plus recent en bas, comme une messagerie */
-  .fil { display: flex; flex-direction: column; gap: 18px; }
+  .fil { display: flex; flex-direction: column; gap: 26px; }
+  /* Un intertitre par jour : la date complete n'est ecrite qu'une fois */
+  .jour { display: flex; align-items: center; gap: 12px; color: var(--pale); font-size: .8rem; font-weight: 600; margin: 8px 0 -6px; }
+  .jour::before, .jour::after { content: ''; flex: 1; height: 1px; background: var(--trait); }
   .msg { display: flex; gap: 12px; align-items: flex-start; animation: arrivee .25s ease; }
   @keyframes arrivee { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .avatar { width: 38px; height: 38px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1rem; }
   .corps { flex: 1; min-width: 0; }
-  .entete-msg { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .entete-msg { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
   .entete-msg b { font-weight: 650; }
   .entete-msg time { color: var(--pale); font-size: .82rem; }
   .bulle { display: inline-block; max-width: 100%; background: var(--carte); border: 1px solid var(--trait); border-radius: 4px 18px 18px 18px; padding: 10px 14px; white-space: pre-wrap; word-wrap: break-word; font-size: 1.02rem; line-height: 1.45; }
   .msg.moi .bulle { background: var(--accent-pale); border-color: transparent; }
-  .date { display: block; margin: 4px 0 0 4px; font-size: .72rem; color: var(--pale); }
+  .date { display: block; margin: 5px 0 0 6px; font-size: .74rem; color: var(--pale); }
+  /* Message arrive par radio : un liseré de couleur autour de la bulle */
+  .msg.radio .bulle { border: 1.5px solid var(--accent); }
   .effacer { margin-left: auto; font: inherit; font-size: .8rem; color: var(--pale); background: none; border: 0; cursor: pointer; padding: 0 2px; }
   .effacer:hover { color: var(--accent); }
 
@@ -47,6 +52,15 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .envoyer:disabled { opacity: .35; cursor: default; }
   .envoyer:not(:disabled):active { transform: scale(.92); }
   .erreur { color: #d62828; font-size: .85rem; margin: 6px 4px 0; min-height: 0; }
+
+  /* Radio : case « envoyer aussi par radio », compteur, et petit 📡 sur les messages concernes */
+  .radio-choix { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--gris); margin: 8px 4px 0; cursor: pointer; }
+  .radio-choix[hidden] { display: none; }
+  .radio-choix input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+  .radio-compte { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .radio-compte.trop { color: #d62828; font-weight: 600; }
+  .radio-note { font-size: .82rem; color: var(--gris); margin: 4px 4px 0; }
+  .radio-note:empty { display: none; }
 </style>
 </head>
 <body>
@@ -74,6 +88,12 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
       </button>
     </form>
+    <label class="radio-choix" id="radio-choix" hidden>
+      <input type="checkbox" id="par-radio">
+      <span data-en="📡 Also send by radio">📡 Envoyer aussi par radio</span>
+      <span class="radio-compte" id="radio-compte"></span>
+    </label>
+    <p class="radio-note" id="radio-note"></p>
     <p class="erreur" id="erreur"></p>
   </div>
 </div>
@@ -86,7 +106,8 @@ if (new URLSearchParams(location.search).get('depuis') === 'parametres') {
   $('retour').dataset.en = '← Settings';
   $('retour').textContent = '← Paramètres';
 }
-var ecart = 0, nom = '', dernierId = null;
+var ecart = 0, nom = '', dernierId = null, radio = { active: false, peut: false };
+var MAX_RADIO = 228;   // octets au plus dans un message radio (le prenom part devant le texte)
 var COULEURS = ['#1d6fd6', '#1f8a4c', '#d62828', '#d9750a', '#6a4fd6', '#0e7490', '#be185d', '#4d7c0f'];
 
 function couleur(n) {
@@ -95,20 +116,14 @@ function couleur(n) {
   return COULEURS[h % COULEURS.length];
 }
 
-function depuis(t) {
-  var s = Math.max(0, Math.round((Date.now() / 1000 + ecart) - t));
-  if (s < 60) return T('à l’instant', 'just now');
-  if (s < 3600) return T('il y a ', '') + Math.round(s / 60) + T(' min', ' min ago');
-  if (s < 86400) return T('il y a ', '') + Math.round(s / 3600) + T(' h', ' h ago');
-  var d = new Date(t * 1000), l = LANGUE === 'en' ? 'en-GB' : 'fr-FR';
-  return d.toLocaleDateString(l, { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString(l, { hour: '2-digit', minute: '2-digit' });
-}
 
-// Date et heure completes, en petit sous chaque message (utile des mois plus tard)
-function dateComplete(t) {
-  var d = new Date(t * 1000), l = LANGUE === 'en' ? 'en-GB' : 'fr-FR';
-  return d.toLocaleDateString(l, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + T(' à ', ', ') +
-         d.toLocaleTimeString(l, { hour: '2-digit', minute: '2-digit' });
+// La date complete, une fois par jour en intertitre (utile des mois plus tard) ; l'heure sous chaque message
+function leJour(t) {
+  var j = new Date(t * 1000).toLocaleDateString(LANGUE === 'en' ? 'en-GB' : 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return j.charAt(0).toUpperCase() + j.slice(1);
+}
+function lHeure(t) {
+  return new Date(t * 1000).toLocaleTimeString(LANGUE === 'en' ? 'en-GB' : 'fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function afficherNom() {
@@ -126,19 +141,25 @@ function afficherNom() {
 function charger() {
   fetch('/api/messages', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
     ecart = d.maintenant - Date.now() / 1000;
+    if (d.radio) { radio = d.radio; afficherRadio(); }
     var messages = d.messages.slice().reverse();   // le plus ancien en haut, le plus recent en bas
     var fil = $('fil'), basAvant = innerHeight + scrollY >= document.body.scrollHeight - 80;
     fil.innerHTML = '';
+    var jourPrecedent = '';
     messages.forEach(function (m) {
+      var jour = leJour(m.heure);
+      if (jour !== jourPrecedent) {
+        var j = document.createElement('div'); j.className = 'jour'; j.textContent = jour;
+        fil.appendChild(j); jourPrecedent = jour;
+      }
       var qui = m.nom || T('Anonyme', 'Anonymous');
-      var msg = document.createElement('div'); msg.className = 'msg' + (nom && m.nom === nom ? ' moi' : '');
+      var msg = document.createElement('div'); msg.className = 'msg' + (nom && m.nom === nom ? ' moi' : '') + (m.radio === 'recu' ? ' radio' : '');
       var av = document.createElement('div'); av.className = 'avatar'; av.style.background = couleur(qui);
       av.textContent = qui.charAt(0).toUpperCase();
       var corps = document.createElement('div'); corps.className = 'corps';
       var tete = document.createElement('div'); tete.className = 'entete-msg';
       var b = document.createElement('b'); b.textContent = qui;
-      var t = document.createElement('time'); t.textContent = depuis(m.heure);
-      tete.appendChild(b); tete.appendChild(t);
+      tete.appendChild(b);
       if (d.admin) {
         var x = document.createElement('button'); x.className = 'effacer'; x.textContent = T('Effacer', 'Delete');
         x.onclick = function () {
@@ -147,7 +168,9 @@ function charger() {
         tete.appendChild(x);
       }
       var bulle = document.createElement('div'); bulle.className = 'bulle'; bulle.textContent = m.texte;
-      var date = document.createElement('time'); date.className = 'date'; date.textContent = dateComplete(m.heure);
+      // Sous la bulle : l'heure seule, et un petit 📡 si le message est passe par la radio
+      var date = document.createElement('time'); date.className = 'date';
+      date.textContent = lHeure(m.heure) + (m.radio === 'attente' ? T(' · 📡 en attente', ' · 📡 waiting') : m.radio ? ' · 📡' : '');
       corps.appendChild(tete); corps.appendChild(bulle); corps.appendChild(date);
       msg.appendChild(av); msg.appendChild(corps);
       fil.appendChild(msg);
@@ -160,10 +183,30 @@ function charger() {
   }).catch(function () {});
 }
 
+// Radio : la case n'apparait que si la radio est activee (et permise a ce telephone)
+function octets(t) { return new TextEncoder().encode(t).length; }
+function resteRadio() {
+  var n = ($('nom').hidden ? nom : $('nom').value.trim());
+  var envoi = (n ? n + ' : ' : '') + $('texte').value.trim().split(/\s+/).join(' ');
+  return MAX_RADIO - octets(envoi);
+}
+function afficherRadio() {
+  $('radio-choix').hidden = !radio.peut;
+  if (!radio.peut) $('par-radio').checked = false;
+  var coche = $('par-radio').checked, reste = resteRadio();
+  $('radio-compte').textContent = coche ? (reste >= 0 ? T('reste ', '') + reste + T('', ' left') : T('trop long de ', 'too long by ') + (-reste)) : '';
+  $('radio-compte').className = 'radio-compte' + (coche && reste < 0 ? ' trop' : '');
+  $('radio-note').textContent = !coche ? '' : radio.etat === 'absente' ? T('La radio n’est pas branchée : le message partira dès qu’elle le sera.', 'The radio is not plugged in: the message will go as soon as it is.')
+    : radio.etat === 'muette' ? T('La radio ne répond pas : le message partira dès qu’elle répondra.', 'The radio does not respond: the message will go as soon as it does.') : '';
+  $('envoyer').disabled = !$('texte').value.trim() || (coche && reste < 0);
+}
+$('par-radio').onchange = function () { try { localStorage.setItem('par-radio', this.checked ? '1' : ''); } catch (e) {} afficherRadio(); };
+
 // Le champ grandit avec le texte
 $('texte').addEventListener('input', function () {
   this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 140) + 'px';
   $('envoyer').disabled = !this.value.trim();
+  afficherRadio();
 });
 // Entree envoie (Maj + Entree = retour a la ligne)
 $('texte').addEventListener('keydown', function (e) {
@@ -178,7 +221,7 @@ $('form').onsubmit = function (ev) {
   if (!texte) return;
   if (!$('nom').hidden) { nom = $('nom').value.trim(); try { localStorage.setItem('nom', nom); } catch (e) {} }
   $('envoyer').disabled = true; $('erreur').textContent = '';
-  fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom: nom, texte: texte }) })
+  fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom: nom, texte: texte, radio: $('par-radio').checked }) })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
     .then(function (r) {
       if (r.ok) { $('texte').value = ''; $('texte').style.height = 'auto'; afficherNom(); dernierId = 'x'; charger(); setTimeout(function () { scrollTo(0, document.body.scrollHeight); }, 300); }
@@ -187,7 +230,7 @@ $('form').onsubmit = function (ev) {
     .catch(function () { $('erreur').textContent = T('La station ne répond pas.', 'The station does not respond.'); $('envoyer').disabled = false; });
 };
 
-try { nom = localStorage.getItem('nom') || ''; } catch (e) {}
+try { nom = localStorage.getItem('nom') || ''; $('par-radio').checked = localStorage.getItem('par-radio') === '1'; } catch (e) {}
 afficherNom();
 charger();
 setInterval(charger, 15000);   // les nouveaux messages arrivent tout seuls

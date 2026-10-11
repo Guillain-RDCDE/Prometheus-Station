@@ -9,7 +9,7 @@
 <!-- opening -->
 > A battery-powered box that serves all of Wikipedia with no internet and no network at all.
 >
-> A Raspberry Pi with offline Wikipedia, medical and repair references, books and a message board, on its own Wi-Fi; solar power and mesh radio come next; a build anyone can repeat.
+> A Raspberry Pi with offline Wikipedia, medical and repair references, books and a message board, on its own Wi-Fi; a mesh radio carries the board over kilometres; solar power comes next; a build anyone can repeat.
 >
 > Designed for the day the infrastructure isn’t there. Part of the work of [Guillain d’Erceville](https://github.com/Guillain-RDCDE), forward deployed engineer.
 <!-- opening -->
@@ -57,6 +57,11 @@ Join the open Wi-Fi with any phone: the home page opens by itself. No app, no ac
 <td align="center" valign="top"><img src="docs/images/settings-announcement.png" width="200" alt="A scrolling announcement on every page"><br><sub>A scrolling announcement on every page</sub></td>
 <td align="center" valign="top"><img src="docs/images/poster.png" width="200" alt="A poster to print, with the Wi-Fi QR code"><br><sub>A poster to print, with the Wi-Fi QR code</sub></td>
 </tr>
+<tr>
+<td align="center" valign="top"><img src="docs/images/radio-messages.png" width="200" alt="The board on the air: messages to and from the radios"><br><sub>The board on the air: messages to and from the radios</sub></td>
+<td align="center" valign="top"><img src="docs/images/radio-techo-board-message.jpg" width="200" alt="A board message on a handheld Meshtastic radio"><br><sub>A board message on a handheld Meshtastic radio</sub></td>
+<td align="center" valign="top"><img src="docs/images/radio-eink-message.png" width="200" alt="A radio message on the station's e-ink screen"><br><sub>A radio message on the station's e-ink screen</sub></td>
+</tr>
 </table>
 
 <sub>Screenshots in English with sample data. Every page is available in French and English.</sub>
@@ -70,7 +75,7 @@ Join the open Wi-Fi with any phone: the home page opens by itself. No app, no ac
 - **[Hardware](HARDWARE.md)** — what it is made of, why, and what it costs.
 - **[Reference](docs/REFERENCE.md)** — what is inside, how it works, and the project status.
 
-**Status (October 2026):** the knowledge station works and passed its crisis test (on battery, phone in airplane mode, no internet). Solar power and Meshtastic long-range radio are the next phases.
+**Status (October 2026):** the knowledge station works and passed its crisis test (on battery, phone in airplane mode, no internet). **Phase 2 has started:** a Meshtastic radio puts the message board on the air, both ways, with handheld radios ([chapters 15 and 16](docs/15-meshtastic-radios.md)); range tests come next. Solar power follows.
 
 ## 🏥 Medical disclaimer
 

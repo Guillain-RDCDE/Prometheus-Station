@@ -1,0 +1,185 @@
+#!/opt/prometheus-radio/bin/python3
+# Prometheus Station - la radio Meshtastic (carte branchee en USB) reliee au tableau des messages.
+# Ne fait rien tant que la radio est desactivee dans Parametres > Radio.
+# Echange avec prometheus-admin par des fichiers, dans /srv/prometheus/radio :
+#   a-envoyer/  messages ecrits sur le tableau, a emettre   {id, texte}   (depose par prometheus-admin)
+#   partis/     messages emis                               {id}          (lu puis efface par prometheus-admin)
+#   recus/      messages arrives par radio                  {heure, nom, texte}  (idem)
+#   etat.json   {etat: eteinte|absente|muette|ok, nom, depuis}  (lu par prometheus-admin pour les pages)
+# Avant d'utiliser l'outil « meshtastic » a la main : sudo systemctl stop prometheus-radio (un seul programme a la fois).
+import glob, json, os, secrets, time
+
+DOSSIER = '/srv/prometheus/radio'
+A_ENVOYER = os.path.join(DOSSIER, 'a-envoyer')
+PARTIS = os.path.join(DOSSIER, 'partis')
+RECUS = os.path.join(DOSSIER, 'recus')
+ETAT = os.path.join(DOSSIER, 'etat.json')
+REGLAGES = '/srv/prometheus/communaute/reglages.json'
+ECART = 15            # secondes au moins entre deux emissions (temps d'emission limite en Europe)
+SILENCE = 600         # sans nouvelles de la radio depuis 10 min : on verifie qu'elle repond encore
+MAX_TEXTE = 500
+
+radio = None          # la connexion en cours
+dernier_signe = 0     # derniere fois que la radio a donne signe de vie
+derniere_emission = 0
+deja_vus = []         # numeros des derniers paquets recus (une radio peut nous renvoyer le meme deux fois)
+
+
+def active():
+    try:
+        return json.load(open(REGLAGES)).get('radio', {}).get('active') is True
+    except (OSError, ValueError):
+        return False
+
+
+def ecrire(chemin, donnees):
+    tmp = chemin + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(donnees, f, ensure_ascii=False)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, chemin)
+
+
+ETAT_ACTUEL = None
+def noter_etat(etat, nom=''):
+    global ETAT_ACTUEL
+    if ETAT_ACTUEL != (etat, nom):
+        ETAT_ACTUEL = (etat, nom)
+        ecrire(ETAT, {'etat': etat, 'nom': nom, 'depuis': time.time()})
+        print('Radio :', etat, nom, flush=True)
+
+
+def trouver_port():
+    """La carte radio : la puce USB-serie de la T-Beam (1a86 = CH9102, CP210x) en priorite, sinon le premier port."""
+    ports = sorted(glob.glob('/dev/serial/by-id/*'))
+    for p in ports:
+        if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs')):
+            return p
+    return ports[0] if ports else None
+
+
+def fermer():
+    global radio
+    if radio:
+        try:
+            radio.close()
+        except Exception:
+            pass
+    radio = None
+
+
+def recu(packet, interface):
+    """Un message texte arrive par radio : on le depose pour le tableau."""
+    global dernier_signe
+    if interface is not radio:
+        return
+    dernier_signe = time.time()
+    try:
+        if packet.get('from') == radio.myInfo.my_node_num or packet.get('id') in deja_vus:
+            return
+        deja_vus.append(packet.get('id'))
+        del deja_vus[:-200]
+        texte = ' '.join(str(packet['decoded'].get('text', '')).split())[:MAX_TEXTE]
+        if not texte:
+            return
+        n = (radio.nodes or {}).get(packet.get('fromId') or '', {})
+        nom = (n.get('user') or {}).get('longName') or packet.get('fromId') or '?'
+        ecrire(os.path.join(RECUS, '%d-%s.json' % (time.time() * 1000, secrets.token_hex(3))),
+               {'heure': time.time(), 'nom': ' '.join(str(nom).split())[:40], 'texte': texte})
+    except Exception as e:
+        print('Message recu illisible :', e, flush=True)
+
+
+def signe(packet, interface):
+    global dernier_signe
+    if interface is radio:
+        dernier_signe = time.time()
+
+
+def perdue(interface, **_):
+    if interface is radio:
+        print('Liaison perdue', flush=True)
+        fermer()
+
+
+def connecter():
+    """Ouvre la liaison ; renvoie True si la radio a repondu."""
+    global radio, dernier_signe
+    import meshtastic.serial_interface
+    port = trouver_port()
+    if not port:
+        noter_etat('absente')
+        return False
+    try:
+        radio = meshtastic.serial_interface.SerialInterface(devPath=port, timeout=30)
+        dernier_signe = time.time()
+        noter_etat('ok', radio.getLongName() or '')
+        return True
+    except Exception as e:
+        print('La radio ne repond pas :', e, flush=True)
+        fermer()
+        noter_etat('muette')
+        return False
+
+
+def emettre():
+    """Envoie le plus ancien message en attente, en respectant l'ecart entre deux emissions."""
+    global derniere_emission
+    if time.time() - derniere_emission < ECART:
+        return
+    fichiers = sorted(glob.glob(os.path.join(A_ENVOYER, '*.json')))
+    if not fichiers:
+        return
+    f = fichiers[0]
+    try:
+        m = json.load(open(f))
+    except (OSError, ValueError):   # efface entre-temps depuis le tableau, ou illisible
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+        return
+    if not os.path.exists(f):       # efface depuis le tableau a l'instant : on ne l'envoie pas
+        return
+    radio.sendText(str(m.get('texte', ''))[:MAX_TEXTE])   # une erreur ici = liaison perdue, le message reste en attente
+    derniere_emission = time.time()
+    ecrire(os.path.join(PARTIS, os.path.basename(f)), {'id': m.get('id')})
+    try:
+        os.remove(f)
+    except OSError:
+        pass
+
+
+def main():
+    from pubsub import pub
+    pub.subscribe(recu, 'meshtastic.receive.text')
+    pub.subscribe(signe, 'meshtastic.receive')
+    pub.subscribe(perdue, 'meshtastic.connection.lost')
+    for d in (A_ENVOYER, PARTIS, RECUS):
+        os.makedirs(d, exist_ok=True)
+    while True:
+        if not active():
+            fermer()
+            noter_etat('eteinte')
+            time.sleep(10)
+            continue
+        if radio is None and not connecter():
+            time.sleep(30)
+            continue
+        # Sans nouvelles depuis longtemps : on reouvre la liaison, ce qui prouve que la radio repond encore
+        if time.time() - dernier_signe > SILENCE:
+            fermer()
+            continue
+        try:
+            emettre()
+        except Exception as e:
+            print('Emission impossible :', e, flush=True)
+            fermer()
+            noter_etat('muette')
+            time.sleep(10)
+            continue
+        time.sleep(2)
+
+
+if __name__ == '__main__':
+    main()

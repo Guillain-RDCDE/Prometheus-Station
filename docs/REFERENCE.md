@@ -14,7 +14,9 @@ A Raspberry Pi with a large memory card that creates its own Wi-Fi bubble. Anyon
 
 It runs on a USB power bank, and is built to be safe when the power cuts. When it finds internet again, it updates itself.
 
-**What it is not, yet:** it is not solar-powered and it has no long-range radio. Both are the next phases (see *Status*).
+**Long-range radio (phase 2, working):** a Meshtastic radio plugged into the station puts the message board on the air: people without a radio write from their phone, handheld radios kilometres away answer ([chapters 15 and 16](15-meshtastic-radios.md)).
+
+**What it is not, yet:** it is not solar-powered (see *Status*).
 
 ## Why it exists
 
@@ -68,7 +70,8 @@ Prometheus Station keeps a copy of that knowledge close at hand, readable by any
 | Encyclopedias | **Kiwix** (`kiwix-serve` 3.7), service `prometheus-kiwix` | listens only on the station itself, behind nginx at `/encyclopedies` |
 | Downloads | `prometheus-telecharger` (aria2), daily timer | always the newest version, checked, resumed, 5 GB safety margin |
 | Password, settings, messages, register, mutual aid, clock | `prometheus-admin` (Python, no extra module) | listens only on the station itself (127.0.0.1:8091) |
-| Settings actions needing the administrator | `prometheus-commande`, `prometheus-ssid`, `prometheus-sobre` | the pages drop a request file; a system service carries it out. No page ever runs a program itself |
+| Settings actions needing the administrator | `prometheus-commande`, `prometheus-ssid`, `prometheus-nom`, `prometheus-sobre` | the pages drop a request file; a system service carries it out. No page ever runs a program itself |
+| Meshtastic radio | `prometheus-radio` (Python, Meshtastic library in `/opt/prometheus-radio`) | links the message board to the T-Beam plugged in by USB; off until turned on in the Settings |
 | Wi-Fi | NetworkManager + watchdog `prometheus-wifi-auto` | captive portal: every web address leads to the station |
 | Remote access | Tailscale | optional |
 | E-ink screen | `prometheus-ecran` (Python) | Waveshare 2.13" V4 |
@@ -87,6 +90,7 @@ The script and program names are in French; the guide gives each one's role.
 | `/srv/prometheus/contenus.txt` | the list of encyclopedias to keep up to date |
 | `/srv/prometheus/messages/` | the message board |
 | `/srv/prometheus/panneau/` | the welcome board text |
+| `/srv/prometheus/radio/` | radio messages waiting, sent and received, and the radio's state |
 | `/srv/prometheus/communaute/` | community settings, register of people, mutual-aid posts, most searched topics (title and count only) |
 | `/srv/prometheus/.admin/` | password (scrambled), sessions, chosen colors, low-power mode |
 | `/srv/prometheus/sauvegardes/` | the last 7 settings backups |
@@ -99,7 +103,7 @@ The script and program names are in French; the guide gives each one's role.
 | Station Wi-Fi | open, `Prometheus-Station` (renamable), 2.4 GHz channel 6, station at `10.42.0.1`, phones isolated from each other |
 | Ports open to visitors | 80 only |
 | Administration | SSH by key only, from the cable, the home Wi-Fi or Tailscale — never from the station's Wi-Fi |
-| Name at home | `prometheus-station.local` |
+| Name | `prometheus-station.local` (changeable in the Settings), at home and on the station's Wi-Fi |
 
 ### Power (measured)
 
@@ -120,15 +124,18 @@ The script and program names are in French; the guide gives each one's role.
 - automatic switching between home Wi-Fi and the station's Wi-Fi;
 - e-ink screen;
 - clean shutdown on weak power (simulated in real time);
-- **the crisis test**: on battery, phone in airplane mode, no internet — Wi-Fi, home page, encyclopedias, books, messages and settings all worked ([step 13](13-crisis-test.md)).
+- **the crisis test**: on battery, phone in airplane mode, no internet — Wi-Fi, home page, encyclopedias, books, messages and settings all worked ([step 13](13-crisis-test.md));
+- **Meshtastic radio** (phase 2): a T-Beam on the station, two T-Echo handhelds, all on the same Meshtastic version; the message board on the air both ways, the e-ink screen showing radio messages ([chapters 15 and 16](15-meshtastic-radios.md)). Tested indoors only.
 
 **Built, not yet tested in real conditions**
 - firewall and phone isolation, seen from a phone on the station's Wi-Fi;
 - automatic shutdown without visitors, with its message on the screen;
-- several phones at once; a full battery discharge.
+- several phones at once; a full battery discharge;
+- **radio range**: outdoors, then with the antenna on the mast.
 
 **Next**
-- **Meshtastic** (phase 2, the purpose of the project): LoRa radios that carry text messages over kilometres without any network, and a page on the station to read and answer them from a phone;
+- **more from the radio**: the time from the T-Beam's GPS (a station with no internet and no phone still knows the time), ready-made messages and an SOS from the handhelds without a phone, a roll call that warns when a radio has gone silent, a "radar" showing how far and in which direction each radio is, messages that wait for a radio out of range, Wikipedia answers by radio;
+- **the antenna on the mast**, and a range map;
 - **solar power**: a 30 W folding panel feeding the battery;
 - **a battery sensor**, to know the real charge level;
 - **linking stations together**: messages, announcements, the register of people and mutual-aid posts travel from one station to another — by Meshtastic radio, or failing that on a USB stick carried by hand — so that someone safe in one village can be found from the next;

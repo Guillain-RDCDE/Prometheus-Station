@@ -102,6 +102,9 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   #annonce-texte { resize: vertical; margin-bottom: 0; }
   a.bouton[hidden] { display: none; }
   .valeur.bien { color: #2f9e44; font-weight: 600; }
+  .adresse-champ { display: flex; align-items: center; gap: 4px; color: var(--gris); }
+  .adresse-champ .champ { flex: 1; min-width: 0; margin: 0; }
+  #form-adresse .bouton { margin-top: 10px; }
 
   /* Panneau d'accueil : barre de mise en forme et zone d'ecriture */
   .outils { display: flex; gap: 6px; margin-bottom: 8px; }
@@ -188,6 +191,10 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <button class="ligne" data-vue="energie">
       <span class="icone" style="background:#2f9e44"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4M9.5 10v4"/></svg></span>
       <span class="nom" data-en="Energy">Énergie</span><span class="valeur" id="val-energie">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="radio">
+      <span class="icone" style="background:#c2255c"><svg viewBox="0 0 24 24"><path d="M12 13v8"/><circle cx="12" cy="11" r="2"/><path d="M8.5 7.5a5 5 0 0 0 0 7"/><path d="M15.5 7.5a5 5 0 0 1 0 7"/><path d="M5.6 4.6a9 9 0 0 0 0 12.8"/><path d="M18.4 4.6a9 9 0 0 1 0 12.8"/></svg></span>
+      <span class="nom" data-en="Radio">Radio</span><span class="valeur" id="val-radio">…</span><span class="chevron">›</span>
     </button>
     <button class="ligne" data-vue="sante">
       <span class="icone" style="background:#e67700"><svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
@@ -338,6 +345,27 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   </div>
 </section>
 
+<!-- ===== Radio Meshtastic ===== -->
+<section class="vue" id="vue-radio" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Radio">Radio</span><button class="aide-bouton" aria-controls="aide-radio" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-radio"><div><p data-en="Links the message board to the Meshtastic radio plugged into the station: a message written here can also leave by radio, up to several kilometers, and what the radios send appears on the board. The radio carries little: short messages only, a few per minute.">Relie le tableau des messages à la radio Meshtastic branchée sur la station : un message écrit ici peut aussi partir par radio, jusqu’à plusieurs kilomètres, et ce qu’envoient les radios s’affiche sur le tableau. La radio transporte peu : des messages courts seulement, quelques-uns par minute.</p></div></div>
+  <div class="groupe">
+    <div class="ligne"><label class="nom" for="radio-active" data-en="Turned on">Activée</label><input type="checkbox" class="interrupteur" id="radio-active"></div>
+    <div class="ligne"><span class="nom" data-en="Radio">Radio</span><span class="valeur" id="radio-etat">…</span></div>
+    <div class="ligne"><span class="nom" data-en="Messages waiting to leave">Messages en attente d’envoi</span><span class="valeur" id="radio-attente">…</span></div>
+  </div>
+  <h2 data-en="Who can send by radio">Qui peut envoyer par radio</h2>
+  <div class="puces" id="radio-qui"></div>
+  <h2 data-en="One radio message per phone every">Un message radio par téléphone toutes les</h2>
+  <div class="puces" id="radio-delai"></div>
+  <h2 data-en="Show received radio messages on the station's screen">Afficher sur l’écran de la station les messages reçus par radio</h2>
+  <div class="puces" id="radio-ecran"></div>
+  <div class="groupe" style="margin-top:14px">
+    <a class="ligne" href="/messages/?depuis=parametres"><span class="nom" data-en="Open the message board">Ouvrir le tableau des messages</span><span class="chevron">›</span></a>
+  </div>
+</section>
+
 <!-- ===== Effacer les ecrits des visiteurs ===== -->
 <section class="vue" id="vue-effacer" hidden>
   <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
@@ -369,6 +397,13 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <button class="bouton" data-en="Rename">Renommer</button>
   </form>
   <p class="note" id="note-wifi" data-en="This is the open Wi-Fi the station creates when it is far from your own Wi-Fi networks. The station screen shows this name and its QR code.">C’est le wifi ouvert que la station crée quand elle est loin de vos wifis. L’écran de la station affiche ce nom et son QR code.</p>
+  <h2 class="avec-aide"><span data-en="Station address">Adresse de la station</span><button class="aide-bouton" aria-controls="aide-adresse" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
+  <div class="aide" id="aide-adresse"><div><p data-en="The name to type in the browser to open the station, on your home Wi-Fi as on the station's Wi-Fi. Add it to your phone's home screen (Share › Add to Home Screen) to open it in one tap.">Le nom à taper dans le navigateur pour ouvrir la station, sur le wifi de la maison comme sur celui de la station. Ajoutez-la à l’écran d’accueil du téléphone (Partager › Sur l’écran d’accueil) pour l’ouvrir d’un toucher.</p></div></div>
+  <form id="form-adresse">
+    <div class="adresse-champ"><span>http://</span><input class="champ" id="adresse" maxlength="32" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off"><span>.local</span></div>
+    <button class="bouton" data-en="Change">Changer</button>
+  </form>
+  <p class="note" id="note-adresse"></p>
 </section>
 
 <!-- ===== Panneau d'accueil ===== -->
@@ -445,7 +480,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
       <button class="aide-bouton" aria-controls="aide-sobre" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button>
       <input type="checkbox" class="interrupteur" id="sobre">
     </div>
-    <div class="aide" id="aide-sobre"><div><p data-en="The station uses a little less power, so the battery lasts a little longer. In return, searching the encyclopedias is a bit slower and USB ports stop working.">La station consomme un peu moins, la batterie tient donc un peu plus longtemps. En échange, la recherche dans les encyclopédies est un peu plus lente et les prises USB ne marchent plus.</p></div></div>
+    <div class="aide" id="aide-sobre"><div><p data-en="The station uses a little less power, so the battery lasts a little longer. In return, searching the encyclopedias is a bit slower and USB ports stop working (unless the radio is turned on).">La station consomme un peu moins, la batterie tient donc un peu plus longtemps. En échange, la recherche dans les encyclopédies est un peu plus lente et les prises USB ne marchent plus (sauf si la radio est activée).</p></div></div>
   </div>
   <h2 class="avec-aide"><span data-en="Automatic shutdown">Extinction automatique</span><button class="aide-bouton" aria-controls="aide-extinction" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
   <div class="aide seule" id="aide-extinction"><div><p data-en="If nobody connects for that long, the station switches itself off to save the battery. To switch it back on, unplug the battery and plug it in again: it then starts with no shutdown planned.">Si personne ne se connecte pendant ce temps, la station s’éteint toute seule pour garder la batterie. Pour la rallumer, débranchez puis rebranchez la batterie : elle repart alors sans extinction prévue.</p></div></div>
@@ -584,6 +619,13 @@ function afficher(e) {
   var champ = $('ssid');
   if (e.ssid && document.activeElement !== champ && !champ.dataset.touche) champ.value = e.ssid;
 
+  // Adresse de la station (http://<nom>.local)
+  if (e.adresse) {
+    var ch = $('adresse');
+    if (document.activeElement !== ch && !ch.dataset.touche) ch.value = e.adresse;
+    if (!$('note-adresse').dataset.fait) $('note-adresse').textContent = T('Pour ouvrir la station : http://', 'To open the station: http://') + e.adresse + '.local';
+  }
+
   // Couleurs
   var t = THEMES.filter(function (x) { return x[0] === (e.theme || 'ocean'); })[0] || THEMES[0];
   $('val-couleurs').textContent = t[1];
@@ -694,9 +736,15 @@ function verifier() {
 }
 
 // ----- Messages : nombre, et tout effacer (en deux temps pour eviter une fausse manoeuvre)
+var attenteRadio = 0;   // messages pas encore partis par radio (ils seront annules si on efface)
+function avertirRadio() {
+  return attenteRadio ? T('Attention : ' + attenteRadio + ' message(s) pas encore parti(s) par radio ne partiront pas. ',
+                          'Warning: ' + attenteRadio + ' message(s) not yet sent by radio will not be sent. ') : '';
+}
 function compterMessages() {
   fetch('/api/messages', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
     var n = d.messages.length;
+    attenteRadio = d.radio ? d.radio.attente : 0;
     $('val-messages').textContent = n ? n + ' message' + (n > 1 ? 's' : '') : T('Aucun', 'None');
     $('nb-messages').textContent = n || '';
     var b = $('bouton-vider');
@@ -708,12 +756,18 @@ $('bouton-vider').onclick = function () {
   if (!b.dataset.confirmer) {
     b.dataset.confirmer = '1';
     b.textContent = T('Toucher encore pour confirmer', 'Tap again to confirm');
+    $('note-messages').textContent = avertirRadio() + T('Ceux déjà partis par radio restent sur les radios.', 'Those already sent by radio stay on the radios.');
     setTimeout(function () { if (b.dataset.confirmer) compterMessages(); }, 5000);
     return;
   }
   b.disabled = true;
   fetch('/api/messages/vider', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-    .then(function (r) { $('note-messages').textContent = r.ok ? T('Tous les messages ont été effacés.', 'All messages have been deleted.') : T('Erreur.', 'Error.'); compterMessages(); });
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (r) {
+      $('note-messages').textContent = !r.ok ? T('Erreur.', 'Error.') : T('Tous les messages ont été effacés.', 'All messages have been deleted.') +
+        (r.d.annules ? T(' ' + r.d.annules + ' message(s) radio en attente ont été annulés.', ' ' + r.d.annules + ' waiting radio message(s) were cancelled.') : '');
+      compterMessages();
+    });
 };
 compterMessages();
 
@@ -740,6 +794,19 @@ $('form-wifi').onsubmit = function (ev) {
           'Done: the Wi-Fi is now called “' + nom + '”. If you are connected to it, reconnect to this new name.')
       : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
     if (r.ok) { delete $('ssid').dataset.touche; $('val-wifi').textContent = nom; }
+  });
+};
+$('adresse').addEventListener('input', function () { this.dataset.touche = '1'; });
+$('form-adresse').onsubmit = function (ev) {
+  ev.preventDefault();
+  var nom = $('adresse').value.trim().toLowerCase();
+  poster('adresse', { nom: nom }).then(function (r) {
+    $('note-adresse').dataset.fait = '1';
+    $('note-adresse').textContent = r.ok
+      ? T('C’est fait : la station s’ouvre maintenant à l’adresse http://' + nom + '.local. Pensez à refaire le raccourci de l’écran d’accueil.',
+          'Done: the station now opens at http://' + nom + '.local. Remember to redo the home screen shortcut.')
+      : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+    if (r.ok) delete $('adresse').dataset.touche;
   });
 };
 $('form-mdp').onsubmit = function (ev) {
@@ -830,7 +897,29 @@ function afficherCommunaute() {
     function (v) { return v === e.duree; }, function (v) { regler('entraide', { duree: v }); });
 
   $('urgence-active').checked = u.active;
+
+  var ra = reg.radio;
+  $('radio-active').checked = ra.active;
+  puces($('radio-qui'), [['tous', T('Tout le monde', 'Everyone')], ['admin', T('Administrateur seulement', 'Administrator only')]],
+    function (v) { return v === ra.qui; }, function (v) { regler('radio', { qui: v }); });
+  puces($('radio-delai'), [[30, '30 s'], [60, '1 min'], [300, '5 min']],
+    function (v) { return v === ra.delai; }, function (v) { regler('radio', { delai: v }); });
+  puces($('radio-ecran'), [[0, T('Non', 'No')], [1, '1 min'], [2, '2 min'], [5, '5 min'], [15, '15 min']],
+    function (v) { return v === ra.ecran_minutes; }, function (v) { regler('radio', { ecran_minutes: v }); });
+  etatRadio();
 }
+// Etat de la radio, tenu a jour par le programme prometheus-radio
+function etatRadio() {
+  fetch('/api/radio', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    var txt = !d.active ? T('Désactivée', 'Off') : d.etat === 'ok' ? (d.nom || T('Branchée', 'Plugged in'))
+      : d.etat === 'absente' ? T('Pas branchée', 'Not plugged in') : d.etat === 'muette' ? T('Ne répond pas', 'Not responding') : T('Démarrage…', 'Starting…');
+    var alerte = d.active && (d.etat === 'absente' || d.etat === 'muette');
+    $('val-radio').textContent = txt; $('val-radio').className = 'valeur' + (alerte ? ' alerte' : '');
+    $('radio-etat').textContent = d.active ? txt : '—'; $('radio-etat').className = 'valeur' + (alerte ? ' alerte' : d.etat === 'ok' ? ' bien' : '');
+    $('radio-attente').textContent = d.attente;
+  }).catch(function () {});
+}
+setInterval(etatRadio, 30000);
 function compter(fonction, champ) {
   fetch('/api/' + fonction, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
     var n = d[champ].length;
@@ -847,7 +936,7 @@ function communaute() {
 // Interrupteurs : effet immediat
 [['annonce-active', 'annonce', 'active'], ['annonce-defile', 'annonce', 'defile'], ['annonce-ecran', 'annonce', 'ecran'],
  ['registre-active', 'registre', 'active'], ['registre-lieu', 'registre', 'lieu'],
- ['entraide-active', 'entraide', 'active'], ['urgence-active', 'urgence', 'active']].forEach(function (x) {
+ ['entraide-active', 'entraide', 'active'], ['urgence-active', 'urgence', 'active'], ['radio-active', 'radio', 'active']].forEach(function (x) {
   $(x[0]).onchange = function () { var v = {}; v[x[2]] = this.checked; regler(x[1], v); };
 });
 // Texte de l'annonce : bouton Enregistrer
@@ -961,7 +1050,7 @@ var nbEcrits = null;
 function compterEcrits() {
   Promise.all(['messages', 'registre', 'entraide'].map(function (f) {
     return fetch('/api/' + f, { cache: 'no-store' }).then(function (r) { return r.json(); })
-      .then(function (d) { return (d.messages || d.fiches || d.annonces || []).length; }).catch(function () { return 0; });
+      .then(function (d) { if (d.radio) attenteRadio = d.radio.attente; return (d.messages || d.fiches || d.annonces || []).length; }).catch(function () { return 0; });
   })).then(function (n) {
     nbEcrits = n;
     $('effacer-messages').textContent = n[0]; $('effacer-registre').textContent = n[1]; $('effacer-entraide').textContent = n[2];
@@ -973,7 +1062,8 @@ function compterEcrits() {
 $('bouton-effacer-tout').onclick = function () {
   if (!nbEcrits) return;
   $('texte-confirmation').textContent = T('Vraiment tout effacer ? ', 'Really erase everything? ') + nbEcrits[0] + T(' message(s), ', ' message(s), ') +
-    nbEcrits[1] + T(' fiche(s) et ', ' entry(ies) and ') + nbEcrits[2] + T(' annonce(s) d’entraide disparaîtront pour toujours.', ' mutual-aid post(s) will be gone for good.');
+    nbEcrits[1] + T(' fiche(s) et ', ' entry(ies) and ') + nbEcrits[2] + T(' annonce(s) d’entraide disparaîtront pour toujours. ', ' mutual-aid post(s) will be gone for good. ') +
+    avertirRadio() + T('Les messages déjà partis par radio restent sur les radios.', 'Messages already sent by radio stay on the radios.');
   $('confirmation-effacer').hidden = false; this.hidden = true; $('note-effacer').textContent = '';
 };
 $('effacer-annuler').onclick = function () { $('confirmation-effacer').hidden = true; $('bouton-effacer-tout').hidden = false; };
@@ -981,7 +1071,9 @@ $('effacer-oui').onclick = function () {
   var b = this; b.disabled = true;
   poster('effacer-ecrits', {}).then(function (r) {
     b.disabled = false; $('confirmation-effacer').hidden = true; $('bouton-effacer-tout').hidden = false;
-    $('note-effacer').textContent = r.ok ? T('C’est fait : tout ce que les visiteurs avaient écrit a été effacé.', 'Done: everything visitors had written has been erased.') : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+    $('note-effacer').textContent = r.ok ? T('C’est fait : tout ce que les visiteurs avaient écrit a été effacé.', 'Done: everything visitors had written has been erased.') +
+      (r.d.radio_annules ? T(' ' + r.d.radio_annules + ' message(s) radio en attente ont été annulés.', ' ' + r.d.radio_annules + ' waiting radio message(s) were cancelled.') : '')
+      : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
     compterEcrits(); compterMessages(); communaute();
   });
 };

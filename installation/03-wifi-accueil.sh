@@ -17,7 +17,7 @@ cp "$ICI"/web/themes/*.css "$WEB/themes/"
 THEME=$(cat /srv/prometheus/.admin/theme 2>/dev/null || cat /srv/prometheus/.theme 2>/dev/null || echo ocean)
 [ -f "$WEB/themes/$THEME.css" ] || THEME=ocean
 cp "$WEB/themes/$THEME.css" "$WEB/theme.css"
-cp "$ICI/web/index.html" "$ICI/web/style.css" "$ICI/web/logo.svg" "$ICI/web/connexion.html" "$ICI/web/langue.js" "$ICI/web/panneau.js" "$ICI/web/annonce.js" "$ICI/web/communaute.css" "$WEB/"
+cp "$ICI/web/index.html" "$ICI/web/style.css" "$ICI/web/logo.svg" "$ICI/web/connexion.html" "$ICI/web/langue.js" "$ICI/web/panneau.js" "$ICI/web/annonce.js" "$ICI/web/communaute.css" "$ICI/web/apple-touch-icon.png" "$WEB/"
 # Annonce, Retrouver ses proches, Entraide, Urgence (eteintes au depart, Parametres > Communaute)
 for P in registre entraide urgence; do mkdir -p "$WEB/$P"; cp "$ICI/web/$P/index.html" "$WEB/$P/"; done
 mkdir -p "$WEB/panneau"
@@ -163,7 +163,8 @@ server {
 
 server {
     listen 80;
-    server_name ~^[0-9.]+$ prometheus-station.local localhost;
+    # Toute adresse en .local : le nom de la station se regle dans Parametres > Wi-Fi (http://<nom>.local)
+    server_name ~^[0-9.]+$ ~\.local$ localhost;
     root /var/www/prometheus;
     index index.html;
     charset utf-8;

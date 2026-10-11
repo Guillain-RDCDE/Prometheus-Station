@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Prometheus Station - etat des contenus pour la page Mises a jour (etat.json).
 # Compare la version installee de chaque contenu a la derniere version en ligne chez Kiwix.
-import json, os, re, shutil, subprocess, time, urllib.request
+import json, os, re, shutil, socket, subprocess, time, urllib.request
 
 LISTE = '/srv/prometheus/contenus.txt'
 DIR = '/srv/prometheus/encyclopedies'
@@ -80,6 +80,7 @@ try:
 except OSError:
     theme = 'ocean'
 
+adresse = socket.gethostname()   # la station se trouve aussi a http://<adresse>.local
 ssid = subprocess.run(['nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', 'prometheus-wifi'],
                       capture_output=True, text=True).stdout.strip()
 
@@ -108,7 +109,7 @@ try:
 except (OSError, IndexError, ValueError):
     restauration = None
 
-etat = {'restauration': restauration, 'sauvegarde': sauvegarde, 'fichiers': fichiers, 'total_go': round(shutil.disk_usage(DIR).total / 1e9), 'ssid': ssid, 'theme': theme, 'systeme': systeme, 'verifie': time.strftime('%d/%m/%Y a %H:%M'), 'horodatage': time.time(), 'internet': internet, 'telechargement': actif,
+etat = {'restauration': restauration, 'sauvegarde': sauvegarde, 'fichiers': fichiers, 'total_go': round(shutil.disk_usage(DIR).total / 1e9), 'ssid': ssid, 'adresse': adresse, 'theme': theme, 'systeme': systeme, 'verifie': time.strftime('%d/%m/%Y a %H:%M'), 'horodatage': time.time(), 'internet': internet, 'telechargement': actif,
         'libre_go': round(libre / 1e9), 'contenus': contenus}
 tmp = SORTIE + '.tmp'
 with open(tmp, 'w', encoding='utf-8') as f:

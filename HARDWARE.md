@@ -2,7 +2,7 @@
 
 What the station is made of, why, and what it costs. Prices are those paid in December 2025, rounded.
 
-The list has two parts: what **runs the station today**, and what was **bought for the next phases** (long-range radio, solar) and is not in service yet.
+The list has two parts: what **runs the station today** (including the Meshtastic radios since October 2026), and what was **bought for the next phases** and is not in service yet.
 
 ## In service today
 
@@ -44,22 +44,29 @@ A large USB power bank.
 
 A paper-like screen: it **keeps its image without power** and only uses energy when it changes. It shows the QR code to join the Wi-Fi, the station's addresses at home, and "Station éteinte" (switched off) when it shuts down ([step 8](docs/08-eink-screen.md)). Check the **version** (V2, V3, V4): each needs its own driver.
 
+## Meshtastic radio (phase 2, in service)
+
+| Item | Role | Price |
+|---|---|---|
+| LILYGO T-Beam LoRa32 **868 MHz** (ESP32 + GPS, here v1.2) | the station's radio, plugged into the Pi by USB | ~47 € |
+| LILYGO T-Echo Meshtastic terminals × 2 | handheld radios with e-ink screen, GPS and battery | ~97 € |
+| Samsung 18650 batteries (3,450 mAh) × 4 | the T-Beam's battery (and spares) | ~14 € |
+| Xtar MC2 charger | charging the 18650s safely | ~20 € |
+
+Setting them up: [chapter 15](docs/15-meshtastic-radios.md). Use **data** USB cables (micro-USB for the T-Beam, USB-A to USB-C for the T-Echo): many cables only charge.
+
 ## Bought for the next phases (not in service yet)
 
 | Item | Planned role | Price |
 |---|---|---|
-| LILYGO T-Beam LoRa32 **868 MHz** (ESP32 + GPS) | LoRa radio gateway for the station (Meshtastic) | ~47 € |
-| 868 MHz omnidirectional antenna | radio range | ~30 € |
-| LILYGO T-Echo Meshtastic terminals × 2 | handheld radios with e-ink screen | ~97 € |
-| Samsung 18650 batteries (3,450 mAh) × 4 | power for the T-Beam and terminals | ~14 € |
-| Xtar MC2 charger | charging the 18650s safely | ~20 € |
+| 868 MHz omnidirectional antenna | radio range, on the mast | ~30 € |
 | Anker SOLIX PS30 solar panel (30 W, foldable) | charging the battery | ~73 € |
 | Spiderbeam 7 m telescopic fiberglass mast | height for the antennas | ~55 € |
 | USB cables (right-angle, 2 m 100 W PD...) | connections | ~34 € |
 
 ### Why LoRa and Meshtastic
 
-LoRa radios carry short text messages over **kilometres** (1 to 15 km depending on terrain and height) using very little power, with no network at all. **Meshtastic** is free software that turns them into a mesh: messages hop from radio to radio. The plan: the station shows the radio messages on a web page, so people without a radio can read and answer them from their phone.
+LoRa radios carry short text messages over **kilometres** (1 to 15 km depending on terrain and height) using very little power, with no network at all. **Meshtastic** is free software that turns them into a mesh: messages hop from radio to radio. The station shows the radio messages on its message board, so people without a radio can read and answer them from their phone ([chapter 16](docs/16-radio-message-board.md)).
 
 ### Why a mast
 

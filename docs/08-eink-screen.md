@@ -24,10 +24,11 @@ It downloads only the files it needs from Waveshare's official driver and instal
 | Connected to a home Wi-Fi | the network's name, the station's address (and its QR code), the Tailscale address |
 | Only the cable | the address |
 | Switching off | **"Station éteinte — Rebranchez la batterie pour la rallumer"** (station off, plug the battery back to switch it on) |
+| A message just arrived by radio *(phase 2, if turned on)* | **"NOUVEAU MESSAGE"**, who sent it and the text, for the chosen time ([chapter 16](16-radio-message-board.md)) |
 
 The last line exists because the screen keeps its image: without it, a switched-off station would still show a QR code. It is drawn on a real shutdown, not on a restart.
 
-The screen is redrawn only when the situation changes (checked every 20 seconds).
+The screen is redrawn only when the situation changes (checked every 5 seconds).
 
 > ⚠️ Never run a test program for the screen while the service is running: both would fight for the pins (`GPIO busy`). Stop it first: `sudo systemctl stop prometheus-ecran`.
 

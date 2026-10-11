@@ -48,7 +48,7 @@ Both are **off** by default.
 | network socket off | nothing (left on: it is the rescue access) |
 | weaker Wi-Fi signal | nothing at rest (left at full power, for range) |
 
-So about **2.1 W → 1.9 W**. The price: searching the encyclopedias is 3 to 5 times slower (usually still under a second). The USB ports don't work in this mode.
+So about **2.1 W → 1.9 W**. The price: searching the encyclopedias is 3 to 5 times slower (usually still under a second). The USB ports don't work in this mode, **except when the radio is turned on** ([chapter 16](16-radio-message-board.md)): then they stay on, for the T-Beam.
 
 **Automatic shutdown**: *Never*, or after 1, 2, 4 or 8 hours **without a visitor** (a phone on the station's Wi-Fi, a page being opened, or a remote connection). Useful at night when someone sleeps next to the station and can plug it back in the morning: once switched off, nobody can reach it until the battery is unplugged and plugged back in. **A restarted station always starts with no shutdown planned.** It never shuts down in the middle of a system update.
 

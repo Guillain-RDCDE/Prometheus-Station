@@ -8,14 +8,17 @@
 #   POST /changer   -> changer le mot de passe (ancien + nouveau)
 #   POST /theme     -> changer les couleurs de la station (immediat)
 #   POST /wifi      -> renommer le wifi de la station (applique par le service prometheus-ssid)
+#   POST /adresse   -> changer le nom de la station sur le reseau : http://<nom>.local (applique par prometheus-nom)
 #   GET  /sante     -> {temperature (degres), tension ('ok' / 'basse' / 'basse_avant'), allumee (secondes)}
 #   GET  /energie   -> {sobre, extinction (minutes, 0 = jamais), restant (secondes ou null)}
 #   POST /energie   -> {sobre: true/false} (applique par prometheus-sobre) et/ou {extinction: minutes}
 # Pour tous les visiteurs (nginx : /api/...) :
 #   GET  /api/messages          -> les messages du tableau, les plus recents d'abord
-#   POST /api/messages          -> publier un message {nom, texte}
+#   POST /api/messages          -> publier un message {nom, texte, radio: true/false (l'envoyer aussi par la radio)}
+#   GET  /api/radio             -> etat de la radio Meshtastic {active, peut, etat, nom, attente, delai}
 #   POST /api/messages/effacer  -> effacer un message {id} (administrateur connecte seulement)
-#   POST /api/messages/vider    -> effacer tous les messages (administrateur connecte seulement)
+#   POST /api/messages/vider    -> effacer tous les messages (administrateur connecte seulement) -> {annules}
+#   (un message pas encore parti par radio est retire de la file : il ne partira pas ; ceux deja partis restent sur les radios)
 #   POST /api/heure             -> heure du telephone {ms}, pour regler la station quand elle n'a pas internet
 #   GET  /api/panneau           -> le texte du panneau d'accueil {texte}
 #   GET  /api/reglages          -> ce qui est allume : annonce, registre, entraide, urgence (et leurs options)
@@ -37,7 +40,7 @@
 #   POST /reglages  -> allumer, eteindre, regler une fonction {section, valeurs}
 #   POST /effacer-ecrits -> effacer d'un coup tout ce que les visiteurs ont ecrit (messages, registre, entraide)
 #                           -> {messages, registre, entraide} = combien il y en avait ; les reglages ne changent pas
-import hashlib, hmac, json, os, secrets, subprocess, threading, time
+import glob, hashlib, hmac, json, os, re, secrets, subprocess, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 
@@ -70,14 +73,20 @@ DEFAUT = {
     'entraide': {'active': False, 'categories': CATEGORIES, 'duree': 72},
     'urgence': {'active': False},
     'recherches': {'epingles': []},     # sujets epingles sur l'accueil : [{titre, lien}]
+    # Radio Meshtastic reliee au tableau des messages (programme prometheus-radio)
+    'radio': {'active': False, 'qui': 'tous', 'delai': 60, 'ecran_minutes': 0},   # ecran : 0 = pas sur l'ecran e-ink
 }
-CHOIX = {'couleur': ('info', 'important', 'urgent'), 'vitesse': ('lente', 'normale', 'rapide'), 'duree': (0, 24, 72, 168)}
+CHOIX = {'couleur': ('info', 'important', 'urgent'), 'vitesse': ('lente', 'normale', 'rapide'), 'duree': (0, 24, 72, 168),
+         'qui': ('tous', 'admin'), 'delai': (30, 60, 300), 'ecran_minutes': (0, 1, 2, 5, 15)}
 MAX_FICHES = 2000
 RECHERCHES = os.path.join(COMMUNAUTE, 'recherches.json')   # {lien: {titre, n}} : aucun visiteur n'y est note
 DEJA_COMPTE = {}                # (adresse, lien) -> heure : un meme telephone ne compte qu'une fois par heure
 VUS = {}                        # adresse -> heure de la derniere page ouverte (pour « personnes connectees »)
 MAX_EPINGLES = 8
 DERNIER_ENVOI = {}              # (adresse, fonction) -> heure du dernier envoi (un toutes les 20 s au plus)
+RADIO = '/srv/prometheus/radio'  # echanges avec prometheus-radio (voir ce programme)
+DERNIER_RADIO = {}              # adresse -> heure du dernier message envoye par radio
+MAX_RADIO = 228                 # octets au plus dans un message Meshtastic
 
 
 def hacher(mdp, sel=None):
@@ -124,6 +133,62 @@ def lire_messages():
         return json.load(open(MESSAGES))
     except (OSError, ValueError):
         return []
+
+
+def fusionner_radio():
+    """Range dans le tableau ce que prometheus-radio a recu ou emis. A appeler sous VERROU."""
+    recus = sorted(glob.glob(os.path.join(RADIO, 'recus', '*.json')))
+    partis = sorted(glob.glob(os.path.join(RADIO, 'partis', '*.json')))
+    if not recus and not partis:
+        return
+    m = lire_messages()
+    for f in recus:
+        try:
+            r = json.load(open(f))
+            m.insert(0, {'id': secrets.token_hex(6), 'heure': float(r['heure']), 'nom': str(r.get('nom', ''))[:40],
+                         'texte': str(r['texte'])[:500], 'radio': 'recu'})
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    ids = set()
+    for f in partis:
+        try:
+            ids.add(json.load(open(f)).get('id'))
+        except (OSError, ValueError):
+            pass
+    for x in m:
+        if x.get('id') in ids:
+            x['radio'] = 'parti'
+    m.sort(key=lambda x: -x.get('heure', 0))
+    ecrire_public(MESSAGES, json.dumps(m[:MAX_MESSAGES], ensure_ascii=False))
+    for f in recus + partis:
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+
+
+def annuler_radio(ids=None):
+    """Retire de la file de la radio les messages pas encore partis (tous, ou ceux de la liste ids). Renvoie combien."""
+    n = 0
+    for f in glob.glob(os.path.join(RADIO, 'a-envoyer', '*.json')):
+        if ids is None or os.path.basename(f)[:-5].split('-', 1)[-1] in ids:
+            try:
+                os.remove(f)
+                n += 1
+            except OSError:
+                pass
+    return n
+
+
+def etat_radio(admin):
+    r = reglages()['radio']
+    try:
+        e = json.load(open(os.path.join(RADIO, 'etat.json')))
+    except (OSError, ValueError):
+        e = {}
+    return {'active': r['active'], 'peut': r['active'] and (r['qui'] == 'tous' or admin), 'qui': r['qui'],
+            'delai': r['delai'], 'etat': e.get('etat', 'eteinte') if r['active'] else 'eteinte', 'nom': e.get('nom', ''),
+            'attente': len(glob.glob(os.path.join(RADIO, 'a-envoyer', '*.json')))}
 
 
 def lire_fichier(chemin, defaut=''):
@@ -301,8 +366,13 @@ class Admin(BaseHTTPRequestHandler):
             sujets = sorted(({'lien': l, 'titre': v['titre'], 'n': v['n']} for l, v in r.items()), key=lambda x: -x['n'])[:30]
             return self.repondre(200, {'sujets': sujets, 'epingles': reglages()['recherches']['epingles']})
         if self.path == '/api/messages':
+            with VERROU:
+                fusionner_radio()
+            admin = self.connecte()
             return self.repondre(200, {'messages': lire_messages(), 'maintenant': time.time(),
-                                       'admin': self.connecte()})
+                                       'admin': admin, 'radio': etat_radio(admin)})
+        if self.path == '/api/radio':
+            return self.repondre(200, etat_radio(self.connecte()))
         if self.path == '/api/panneau':
             return self.repondre(200, {'texte': lire_fichier(PANNEAU)})
         if self.path == '/api/reglages':
@@ -340,12 +410,31 @@ class Admin(BaseHTTPRequestHandler):
             nom = ' '.join(str(d.get('nom', '')).split())[:40]
             if not texte:
                 return self.repondre(400, {'erreur': 'Message vide.'})
+            par_radio = d.get('radio') is True
+            if par_radio:
+                r = etat_radio(self.connecte())
+                if not r['active']:
+                    return self.repondre(403, {'erreur': 'Cette fonction est désactivée.'})
+                if not r['peut']:
+                    return self.repondre(403, {'erreur': 'Réservé à l’administrateur.'})
+                # Le nom part devant le texte : sur les radios, tout semble venir de la station
+                envoi = (nom + ' : ' if nom else '') + texte
+                if len(envoi.encode()) > MAX_RADIO:
+                    return self.repondre(400, {'erreur': 'Trop long pour la radio.'})
+                if time.time() - DERNIER_RADIO.get(ip, 0) < r['delai']:
+                    return self.repondre(429, {'erreur': 'Un seul message radio à la fois : réessayez dans un moment.'})
             if time.time() - DERNIER_MESSAGE.get(ip, 0) < 20:
                 return self.repondre(429, {'erreur': 'Attendez quelques secondes avant le message suivant.'})
             DERNIER_MESSAGE[ip] = time.time()
+            message = {'id': secrets.token_hex(6), 'heure': time.time(), 'nom': nom, 'texte': texte}
             with VERROU:
+                if par_radio:
+                    DERNIER_RADIO[ip] = time.time()
+                    message['radio'] = 'attente'
+                    f = os.path.join(RADIO, 'a-envoyer', '%d-%s.json' % (time.time() * 1000, message['id']))
+                    ecrire_public(f, json.dumps({'id': message['id'], 'texte': envoi}, ensure_ascii=False))
                 m = lire_messages()
-                m.insert(0, {'id': secrets.token_hex(6), 'heure': time.time(), 'nom': nom, 'texte': texte})
+                m.insert(0, message)
                 ecrire_public(MESSAGES, json.dumps(m[:MAX_MESSAGES], ensure_ascii=False))
             return self.repondre(200)
 
@@ -355,6 +444,7 @@ class Admin(BaseHTTPRequestHandler):
             with VERROU:
                 m = [x for x in lire_messages() if x.get('id') != d.get('id')]
                 ecrire_public(MESSAGES, json.dumps(m, ensure_ascii=False))
+                annuler_radio({str(d.get('id'))})
             return self.repondre(200)
 
         if self.path == '/api/messages/vider':
@@ -362,7 +452,8 @@ class Admin(BaseHTTPRequestHandler):
                 return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             with VERROU:
                 ecrire_public(MESSAGES, '[]')
-            return self.repondre(200)
+                annules = annuler_radio()
+            return self.repondre(200, {'annules': annules})
 
         if self.path == '/api/heure':
             return self.repondre(200, {'regle': regler_heure(d.get('ms'))})
@@ -493,6 +584,15 @@ class Admin(BaseHTTPRequestHandler):
             ecrire(os.path.join(DOSSIER, 'ssid-demande'), nom)
             return self.repondre(200)
 
+        if self.path == '/adresse':
+            nom = str(d.get('nom', '')).strip().lower()
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            if not re.fullmatch(r'[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?', nom):
+                return self.repondre(400, {'erreur': 'Lettres minuscules, chiffres et tirets seulement.'})
+            ecrire(os.path.join(DOSSIER, 'nom-demande'), nom)
+            return self.repondre(200)
+
         if self.path in ('/recherches/epingler', '/recherches/vider'):
             if not self.connecte():
                 return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
@@ -521,6 +621,7 @@ class Admin(BaseHTTPRequestHandler):
             with VERROU:
                 n = {'messages': len(lire_messages()), 'registre': len(lire_liste(REGISTRE)), 'entraide': len(lire_liste(ENTRAIDE))}
                 ecrire_public(MESSAGES, '[]')
+                n['radio_annules'] = annuler_radio()
                 os.makedirs(COMMUNAUTE, exist_ok=True)
                 ecrire_public(REGISTRE, '[]')
                 ecrire_public(ENTRAIDE, '[]')
@@ -533,6 +634,9 @@ class Admin(BaseHTTPRequestHandler):
                 s = regler(d.get('section'), d.get('valeurs'))
             if s is None:
                 return self.repondre(400, {'erreur': 'Réglage invalide.'})
+            if d.get('section') == 'radio':
+                # Le mode sobre coupe les prises USB, sauf quand la radio est activee : on le lui fait reappliquer
+                ecrire(os.path.join(DOSSIER, 'sobre-demande'), 'oui' if energie()['sobre'] else 'non')
             return self.repondre(200, s)
 
         if self.path == '/panneau':

@@ -5,7 +5,8 @@ Nothing here needs a command: everything happens in a phone or computer browser.
 ## Joining
 
 - **Phone**: join the **Prometheus-Station** Wi-Fi (or scan the QR code on the e-ink screen). The home page opens by itself. If it doesn't, open any web address.
-- **At home**, when the station is on your home Wi-Fi: http://prometheus-station.local/ (or the address shown on the e-ink screen).
+- **At home**, when the station is on your home Wi-Fi: http://prometheus-station.local/ (or the address shown on the e-ink screen). This name works on the station's own Wi-Fi too, and it can be changed (see *Station Wi-Fi* below).
+- **One tap from the phone's home screen**: open the station in the browser, then *Share › Add to Home Screen*. The shortcut gets the station's icon, a white lighthouse on red.
 
 ## For every visitor
 
@@ -19,7 +20,7 @@ Nothing here needs a command: everything happens in a phone or computer browser.
 |---|---|
 | **Encyclopedias** | type a subject: results come from every collection at once. Tap one to read it; the round magnifier brings you back to the search |
 | **Library** | the list of books; tap one to read it (EPUB pages turn, PDFs open) |
-| **Messages** | write a message (500 characters at most), with your name if you want. Newest at the bottom, each with its full date and time. One message every 20 seconds per device |
+| **Messages** | write a message (500 characters at most), with your name if you want. Newest at the bottom, one heading per day, the time under each message. One message every 20 seconds per device. With the radio turned on, a box *Also send by radio* sends it to the radios too ([chapter 16](16-radio-message-board.md)) |
 | **The lighthouse** (logo), or *About and rules* | the welcome board written by the station's keeper |
 | **Flags** | French or English, for this phone only |
 
@@ -61,7 +62,7 @@ Below, the settings are grouped by who they are for. The community features (ann
 - **Emergency page**: on/off.
 - **Find your loved ones**: on/off, whether to ask *where*, how many entries, a link to the register, **Delete all entries** (tap twice). Signed in, you can also delete entries one by one.
 - **Mutual aid**: on/off, which categories are offered, how long posts stay visible (1, 3 or 7 days, or no limit), how many posts, **Delete all posts**.
-- **Messages**: how many there are, a link to the board, and **Delete all messages** (tap twice to confirm). Signed in, you can also delete messages one by one on the board.
+- **Messages**: how many there are, a link to the board, and **Delete all messages** (tap twice to confirm). Signed in, you can also delete messages one by one on the board. Messages already sent by radio stay on the radios; those still waiting are cancelled, and you are warned before.
 - **Poster to print**: an A4 poster in French and English — "Free Wi-Fi", a large QR code that joins the station's Wi-Fi, the network's name, the address, and what visitors will find (it follows the features you turned on). Open it on your phone and print it from the browser's menu.
 
 **Content**
@@ -71,7 +72,11 @@ Below, the settings are grouped by who they are for. The community features (ann
 - **Storage**: how full the card is, and what takes the room, biggest first, each with a **Delete** button (tap twice). A deleted encyclopedia is no longer downloaded.
 
 **Station**
-- **Station Wi-Fi**: rename the open Wi-Fi. The e-ink screen follows.
+- **Station Wi-Fi**: rename the open Wi-Fi (the e-ink screen follows), and change the **station address**: the name to type in a browser, `http://<name>.local` (lowercase letters, digits and hyphens). Redo the home-screen shortcut after a change.
+
+<img src="images/settings-address.png" width="190" alt="Station address">
+
+- **Radio** *(phase 2)*: link the message board to the Meshtastic radio ([chapter 16](16-radio-message-board.md)).
 - **Energy**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
 - **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*), time since switch-on and people connected. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
 - **Software**: number of system updates waiting, **Update**, and **Restart** when an update needs it. Your settings are kept.

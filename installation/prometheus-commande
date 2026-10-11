@@ -24,6 +24,8 @@ for F in "$DOSSIER"/*; do
       # Garde nos fichiers de reglage (--force-confold) ; tourne a part pour ne pas bloquer la page
       if ! systemctl is-active --quiet prometheus-maj-systeme; then
         systemctl reset-failed prometheus-maj-systeme 2>/dev/null
+        # Guillemets simples voulus : $O et $? sont developpes par le bash lance, pas ici
+        # shellcheck disable=SC2016
         systemd-run --unit=prometheus-maj-systeme --description="Prometheus Station - mise a jour du systeme" \
           --setenv=DEBIAN_FRONTEND=noninteractive bash -c \
           'O="-o DPkg::Lock::Timeout=600 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"

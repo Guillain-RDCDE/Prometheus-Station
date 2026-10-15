@@ -378,6 +378,14 @@ class StationMeshCore:
 
     async def connecter(self):
         from meshcore import MeshCore, EventType
+        # Apres un arret du service (ou de l'outil radio), le systeme Bluetooth peut garder l'ancienne
+        # connexion ouverte : la nouvelle echoue alors en boucle (vu le 15/10/2026). On la coupe d'abord.
+        try:
+            import subprocess
+            subprocess.run(['bluetoothctl', 'disconnect', self.adresse], capture_output=True, timeout=20)
+            await asyncio.sleep(2)
+        except Exception:
+            pass
         try:
             self.mc = await asyncio.wait_for(MeshCore.create_ble(self.adresse), 45)
         except Exception as e:

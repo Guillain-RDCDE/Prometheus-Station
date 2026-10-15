@@ -121,7 +121,9 @@ Installed by `10-radio.sh` ([chapter 15](15-meshtastic-radios.md)), which also f
 
 **Tested for real:** the page with two T-Echo heard; sending on a channel; a direct message delivered to a T-Echo on battery, and a T-Echo's direct message received with its acknowledgement; name, short name, role and range changed and put back; fetching both networks' software with their fingerprints; updating the T-Beam and a T-Echo with settings and identity unchanged; **two full round trips Meshtastic → MeshCore → Meshtastic**, the second without anyone, the MeshCore identity identical on return and the Meshtastic identity checked each time; the automatic return to Meshtastic when MeshCore failed.
 
-**Not tested:** setting a fixed position (it would have broadcast one); **receiving** on MeshCore (there was no other MeshCore radio around to send one); range outdoors.
+**On MeshCore, with a T-Echo put on MeshCore for the test, one metre away:** messages on *Public* both ways, each radio adding the other to its contacts from its announcement, and direct messages from the station **delivered**. A direct message only gets through once the other radio has heard the station's announcement (it needs the station's key); before that, it comes back *not delivered*.
+
+**Not tested:** setting a fixed position (it would have broadcast one); range outdoors.
 
 ## Troubleshooting
 
@@ -130,7 +132,8 @@ Installed by `10-radio.sh` ([chapter 15](15-meshtastic-radios.md)), which also f
 | *Switch to MeshCore* is greyed out | no MeshCore software kept: **Fetch the latest versions** with internet first |
 | The switch stopped at *CODE À TAPER* | read the 6 digits on the T-Beam's screen and type them in the field; without a code within 10 minutes, the station goes back to Meshtastic |
 | *The operation did not start* | another radio operation is running: wait for it, then try again |
-| A direct message is *not delivered* | is the other radio on and in range? A T-Echo plugged into a computer without an app may not answer (see *Messages*) |
+| A direct message is *not delivered* | is the other radio on and in range? A T-Echo plugged into a computer without an app may not answer (see *Messages*). On MeshCore, the other radio must first have heard the station's announcement: the station announces itself when it connects and every 6 hours |
+| On MeshCore, nothing is ever received | same radio settings on both sides (frequency, bandwidth, SF, CR)? Then it is range: the station's short antenna indoors did not reach a repeater 1.4 km away during the tests; put it by a window, outdoors or on the mast |
 | The T-Echo doesn't appear under *Plugged in by USB* | a charge-only cable: `dmesg` shows *device descriptor read/64, error -32* |
 | What the radio tool did | the window at the bottom of the page, or `sudo journalctl -u prometheus-radio-outil -n 50` |
 

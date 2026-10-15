@@ -12,15 +12,14 @@
 addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
 </script>
 <style>
-  h1 { color: #c92a2a; }
-  .sous-titre { color: var(--gris); margin: -12px 0 22px; }
-  .urgences { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .urgence { display: flex; flex-direction: column; justify-content: center; min-height: 86px; padding: 14px; border-radius: var(--rayon); background: var(--carte); border: 1px solid var(--trait); border-top: 4px solid #c92a2a; font-weight: 700; font-size: 1.05rem; line-height: 1.25; transition: transform .12s ease, background .15s ease; }
-  .urgence:active { transform: scale(.97); }
-  .urgence:hover { background: #fff5f5; }
+  h1 { color: var(--rouge-urgence); }
+  /* Des cases nettes, deux par ligne : le nom de la situation, et en petit ce qu'on y trouve */
+  .urgences { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .urgence { display: flex; flex-direction: column; justify-content: center; min-height: 84px; padding: 14px 15px; border-radius: var(--rayon); background: var(--carte); border: 1px solid var(--trait); font-weight: 600; font-size: 1.02rem; line-height: 1.25; transition: border-color .15s ease; }
+  .urgence:hover, .urgence:active { border-color: var(--rouge-urgence); }
   .urgence small { display: block; font-weight: 400; font-size: .82rem; color: var(--gris); margin-top: 4px; }
   .urgence[hidden] { display: none; }
-  .tout { margin-top: 22px; }
+  .tout { margin-top: 28px; }
 </style>
 </head>
 <body>

@@ -110,6 +110,13 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .outils { display: flex; gap: 6px; margin-bottom: 8px; }
   .outils button { width: 44px; height: 40px; font: inherit; font-size: 1.05rem; color: var(--encre); background: var(--carte); border: 1px solid var(--trait); border-radius: 12px; cursor: pointer; }
   .outils button:active { background: var(--accent-pale); }
+  /* Logiciels : le detail de la mise a jour, tel qu'apt l'ecrit */
+  .console { margin: 12px 0 0; padding: 12px 14px; max-height: 340px; overflow: auto; background: var(--carte); border: 1px solid var(--trait); border-radius: var(--rayon); font: .76rem/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--gris); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .console[hidden], .resultat-maj[hidden], .lien-detail[hidden] { display: none; }
+  .resultat-maj { margin: 14px 2px 0; font-weight: 600; }
+  .resultat-maj.bien { color: #2b8a3e; } .resultat-maj.alerte { color: #c92a2a; }
+  .lien-detail { display: block; margin: 12px auto 0; font: inherit; font-size: .9rem; color: var(--gris); background: none; border: 0; border-bottom: 1px solid var(--trait); padding: 0; cursor: pointer; }
+  .lien-detail:hover { color: var(--encre); border-color: var(--encre); }
   .editeur { display: block; min-height: 260px; resize: vertical; font-size: 1rem; line-height: 1.5; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 </style>
 </head>
@@ -362,6 +369,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <h2 data-en="Show received radio messages on the station's screen">Afficher sur l’écran de la station les messages reçus par radio</h2>
   <div class="puces" id="radio-ecran"></div>
   <div class="groupe" style="margin-top:14px">
+    <a class="ligne" href="/parametres/radio.html"><span class="nom" data-en="Open the radio page (state, radios heard, all channels)">Ouvrir la page Radio (état, radios entendues, tous les canaux)</span><span class="chevron">›</span></a>
     <a class="ligne" href="/messages/?depuis=parametres"><span class="nom" data-en="Open the message board">Ouvrir le tableau des messages</span><span class="chevron">›</span></a>
   </div>
 </section>
@@ -450,9 +458,13 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
   <h1 data-en="Software">Logiciels</h1>
   <div class="groupe">
-    <div class="ligne"><span class="nom" data-en="Station software">Programmes de la station</span><span class="valeur" id="etat-logiciels">…</span></div>
+    <div class="ligne"><span class="nom"><span data-en="Station software">Programmes de la station</span><span class="sous" id="paquets"></span></span><span class="valeur" id="etat-logiciels">…</span></div>
   </div>
   <button class="bouton" id="bouton-systeme" disabled data-en="Update">Mettre à jour</button>
+  <p class="resultat-maj" id="resultat-maj" hidden></p>
+  <!-- Le detail de la mise a jour : defile pendant qu'elle tourne, reste visible ensuite (erreurs comprises) -->
+  <pre class="console" id="console-maj" hidden></pre>
+  <button class="lien-detail" id="voir-detail" hidden data-en="Show the details of the last update">Voir le détail de la dernière mise à jour</button>
   <button class="bouton secondaire" id="bouton-redemarrer" hidden data-en="Restart the station">Redémarrer la station</button>
   <p class="note" id="note-logiciels" data-en="System, web server, Kiwix, Tailscale… Your settings are kept.">Système, serveur web, Kiwix, Tailscale… Vos réglages sont conservés.</p>
 </section>
@@ -637,8 +649,13 @@ function afficher(e) {
   $('etat-logiciels').textContent = texte;
   $('val-logiciels').textContent = s.redemarrage && !s.en_cours ? T('Redémarrage requis', 'Restart required') : texte;
   $('val-logiciels').className = 'valeur' + (s.a_jour || s.echec || s.redemarrage || s.en_cours ? ' alerte' : '');
-  $('bouton-systeme').disabled = !s.a_jour || s.en_cours || !e.internet;
-  $('bouton-systeme').textContent = s.en_cours ? T('Mise à jour en cours…', 'Updating…') : T('Mettre à jour', 'Update');
+  $('paquets').textContent = (s.paquets || []).join(', ');
+  if (!suiviMaj) {
+    $('bouton-systeme').disabled = !s.a_jour || s.en_cours || !e.internet;
+    $('bouton-systeme').textContent = s.en_cours ? T('Mise à jour en cours…', 'Updating…') : T('Mettre à jour', 'Update');
+    $('voir-detail').hidden = !s.journal || s.en_cours || !$('console-maj').hidden;
+    if (s.en_cours) suivreMaj(null);   // page ouverte pendant une mise a jour : on montre le detail tout de suite
+  }
   $('bouton-redemarrer').hidden = !s.redemarrage || s.en_cours;
 
   // Stockage
@@ -776,9 +793,62 @@ $('bouton-contenus').onclick = function () {
   this.disabled = true; this.textContent = T('Lancement…', 'Starting…');
   ordre('mettre-a-jour').then(function () { setTimeout(suivre, 8000); });
 };
+// ----- Mise a jour du systeme : le detail defile pendant qu'elle tourne (fichier ecrit par prometheus-commande)
+var suiviMaj = false;
+function lireJournalMaj() {
+  return fetch('/ajouter/maj-systeme.txt?' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.text() : ''; }).catch(function () { return null; });
+}
+function montrerJournalMaj(texte) {
+  var c = $('console-maj'), enBas = c.scrollTop + c.clientHeight >= c.scrollHeight - 30;
+  c.hidden = false; $('voir-detail').hidden = true;
+  c.textContent = texte.replace(/\n?### FIN -?\d+\s*$/, '') || T('Lancement…', 'Starting…');
+  if (enBas) c.scrollTop = c.scrollHeight;
+}
+// debutAvant : premiere ligne du detail precedent (le « FIN » qu'il contient ne compte pas pour la nouvelle mise a jour)
+function suivreMaj(debutAvant) {
+  if (suiviMaj) return;
+  suiviMaj = true;
+  $('bouton-systeme').disabled = true; $('bouton-systeme').textContent = T('Mise à jour en cours…', 'Updating…');
+  $('resultat-maj').hidden = true;
+  var depart = Date.now(), vueEnCours = false;
+  (function tour() {
+    lireJournalMaj().then(function (texte) {
+      if (texte === null) { setTimeout(tour, 3000); return; }
+      var nouveau = texte.split('\n')[0] !== debutAvant;
+      var fin = nouveau && /### FIN (-?\d+)\s*$/.exec(texte);
+      // Reprise a l'ouverture de la page, mais c'etait deja fini (etat un peu en retard) : rien a montrer
+      if (fin && debutAvant === null && !vueEnCours) { suiviMaj = false; verifier(); return; }
+      if (!fin) vueEnCours = true;
+      if (nouveau) montrerJournalMaj(texte);
+      if (!fin) {
+        if (Date.now() - depart > 30000 && !nouveau) {   // rien n'a demarre en 30 s
+          suiviMaj = false;
+          $('resultat-maj').hidden = false; $('resultat-maj').className = 'resultat-maj alerte';
+          $('resultat-maj').textContent = T('La mise à jour n’a pas démarré. Réessayez dans un moment.', 'The update did not start. Try again in a moment.');
+          verifier(); return;
+        }
+        setTimeout(tour, 2000); return;
+      }
+      suiviMaj = false;
+      var ok = fin[1] === '0';
+      $('resultat-maj').hidden = false; $('resultat-maj').className = 'resultat-maj ' + (ok ? 'bien' : 'alerte');
+      $('resultat-maj').textContent = ok ? T('Mise à jour terminée.', 'Update finished.')
+        : T('La mise à jour a échoué (code ' + fin[1] + '). Le détail est ci-dessous.', 'The update failed (code ' + fin[1] + '). Details below.');
+      verifier();   // recompte ce qui reste a mettre a jour
+    });
+  })();
+}
 $('bouton-systeme').onclick = function () {
   this.disabled = true; this.textContent = T('Lancement…', 'Starting…');
-  ordre('systeme').then(function () { setTimeout(suivre, 8000); });
+  lireJournalMaj().then(function (texte) {
+    var debutAvant = (texte || '').split('\n')[0];
+    $('console-maj').textContent = T('Lancement…', 'Starting…'); $('console-maj').hidden = false;
+    ordre('systeme').then(function () { suivreMaj(debutAvant); });
+  });
+};
+$('voir-detail').onclick = function () {
+  lireJournalMaj().then(function (texte) { if (texte) montrerJournalMaj(texte); });
 };
 $('bouton-redemarrer').onclick = function () {
   this.disabled = true; this.textContent = T('Redémarrage… revenez dans 2 minutes', 'Restarting… come back in 2 minutes');

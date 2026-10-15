@@ -7,25 +7,31 @@
 set -euo pipefail
 ICI=$(cd "$(dirname "$0")" && pwd)
 
-echo "== Bibliotheque Meshtastic (environnement a part, dans /opt/prometheus-radio)"
-apt-get install -y -qq python3-venv >/dev/null
+echo "== Bibliotheques Meshtastic et MeshCore, outil d'ecriture des radios (environnement a part, /opt/prometheus-radio)"
+apt-get install -y -qq python3-venv bluez >/dev/null
 [ -x /opt/prometheus-radio/bin/python3 ] || python3 -m venv /opt/prometheus-radio
-/opt/prometheus-radio/bin/pip install -q --upgrade meshtastic
+/opt/prometheus-radio/bin/pip install -q --upgrade meshtastic meshcore esptool
 
-echo "== Programme et dossiers d'echange"
+echo "== Programmes et dossiers d'echange"
 install -m 755 "$ICI/prometheus-radio" /usr/local/bin/prometheus-radio
+install -m 755 "$ICI/prometheus-radio-outil" /usr/local/bin/prometheus-radio-outil
 install -d -o prometheus -g prometheus -m 755 /srv/prometheus/radio \
   /srv/prometheus/radio/a-envoyer /srv/prometheus/radio/partis /srv/prometheus/radio/recus
+# Logiciels des radios (telecharges par l'outil) et sauvegardes des reglages (identite des radios : root seulement)
+install -d -m 755 /srv/prometheus/radio/logiciels
+install -d -m 700 /srv/prometheus/radio/sauvegardes
 
 cat > /etc/systemd/system/prometheus-radio.service <<'EOF'
 [Unit]
-Description=Prometheus Station - radio Meshtastic reliee au tableau des messages
+Description=Prometheus Station - radio (Meshtastic ou MeshCore) reliee au tableau des messages
 After=network.target
 
 [Service]
 User=prometheus
 # Le droit d'ouvrir la carte radio branchee en USB
 SupplementaryGroups=dialout
+# Sur MeshCore, la radio se pilote par Bluetooth : on l'allume (en root : le « + »). Eteint sur Meshtastic.
+ExecStartPre=+/bin/sh -c 'if grep -q "\"meshcore\"" /srv/prometheus/radio/reseau.json 2>/dev/null; then /usr/sbin/rfkill unblock bluetooth; systemctl start bluetooth; fi'
 ExecStart=/usr/local/bin/prometheus-radio
 Restart=always
 RestartSec=10
@@ -37,4 +43,8 @@ EOF
 systemctl daemon-reload
 systemctl enable prometheus-radio.service
 systemctl restart prometheus-radio.service
+
+echo "== Logiciels des radios gardes sur la station (Meshtastic et MeshCore, derniere version stable)"
+# Pour changer de reseau et mettre les radios a jour sans internet. Sans internet ici : a refaire depuis la page Radio.
+/usr/local/bin/prometheus-radio-outil chercher || echo "(pas d'internet : page Radio > Logiciels des radios > Chercher, plus tard)"
 echo "== Radio installee (desactivee tant qu'elle n'est pas activee dans Parametres > Radio)"

@@ -106,7 +106,26 @@ def couper(d, texte, police, largeur):
     return lignes
 
 
-def dessiner(e, l, h):
+# Un message trop long pour l'ecran defile : une ligne toutes les PAS_DEFILEMENT secondes, sans clignoter
+# (rafraichissement partiel), pause en bas, puis retour au debut, tant que dure l'affichage choisi.
+PAS_DEFILEMENT = 3
+PAUSE_BAS = 5
+
+
+def mise_en_page(d, texte, l, h):
+    """Le texte d'un message : (police, interligne, lignes, nombre de lignes visibles). Le plus gros possible ;
+    s'il ne tient pas meme en 16 points, il reste en 16 (lisible) et defilera."""
+    haut = h - 42
+    for taille in (20, 18, 16):
+        police = ImageFont.truetype(NORMAL, taille)
+        pas = taille + 3
+        lignes = couper(d, texte, police, l - 10)
+        if len(lignes) * pas <= haut:
+            break
+    return police, pas, lignes, max(1, haut // pas)
+
+
+def dessiner(e, l, h, decalage=0):
     img = Image.new('1', (l, h), 255)
     d = ImageDraw.Draw(img)
     g16, g13, n12 = ImageFont.truetype(GRAS, 16), ImageFont.truetype(GRAS, 13), ImageFont.truetype(NORMAL, 12)
@@ -147,20 +166,8 @@ def dessiner(e, l, h):
         while len(qui) > 3 and d.textlength(qui, font=n12) > l - 10:
             qui = qui[:-1]
         d.text((5, 23), qui, font=n12, fill=0)
-        haut = h - 42
-        for taille in (20, 18, 16, 14, 12):
-            police = ImageFont.truetype(NORMAL, taille)
-            pas = taille + 3
-            lignes = couper(d, texte, police, l - 10)
-            if len(lignes) * pas <= haut:
-                break
-        n = max(1, haut // pas)
-        if len(lignes) > n:   # trop long meme en petit : on coupe, avec des points de suspension
-            lignes = lignes[:n]
-            while lignes[-1] and d.textlength(lignes[-1] + '…', font=police) > l - 10:
-                lignes[-1] = lignes[-1][:-1]
-            lignes[-1] += '…'
-        for i, t in enumerate(lignes):
+        police, pas, lignes, n = mise_en_page(d, texte, l, h)
+        for i, t in enumerate(lignes[decalage:decalage + n]):
             d.text((5, 40 + pas * i), t, font=police, fill=0)
     elif e[0] in ('maison', 'cable'):
         _, ssid, ip, ts = e
@@ -207,6 +214,32 @@ def si_extinction():
     epd.sleep()
 
 
+def lignes_en_trop(e, l, h):
+    """Combien de lignes d'un message ne tiennent pas sur l'ecran (0 = il tient, pas de defilement)."""
+    if e[0] != 'message':
+        return 0
+    d = ImageDraw.Draw(Image.new('1', (l, h), 255))
+    _, _, lignes, n = mise_en_page(d, e[2], l, h)
+    return max(0, len(lignes) - n)
+
+
+def defiler(epd, e, en_trop):
+    """Fait defiler un message long, en boucle, tant que l'ecran doit l'afficher."""
+    l, h = epd.height, epd.width
+    while True:
+        # Debut du message : image complete, qui sert de base aux rafraichissements partiels
+        epd.init()
+        epd.displayPartBaseImage(epd.getbuffer(dessiner(e, l, h, 0)))
+        for decalage in range(1, en_trop + 1):
+            time.sleep(PAS_DEFILEMENT)
+            if etat() != e:
+                return
+            epd.displayPartial(epd.getbuffer(dessiner(e, l, h, decalage)))
+        time.sleep(PAUSE_BAS)
+        if etat() != e:
+            return
+
+
 def main():
     if sys.argv[1:] == ['--si-extinction']:
         return si_extinction()
@@ -215,6 +248,11 @@ def main():
     while True:
         e = etat()
         if e != precedent:
+            en_trop = lignes_en_trop(e, epd.height, epd.width)
+            if en_trop:
+                defiler(epd, e, en_trop)
+                precedent = None   # au retour, on redessine franchement ce qu'il faut afficher
+                continue
             epd.init()
             epd.display(epd.getbuffer(dessiner(e, epd.height, epd.width)))
             epd.sleep()   # l'ecran garde l'image sans courant

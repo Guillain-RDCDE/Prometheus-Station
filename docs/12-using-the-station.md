@@ -10,6 +10,8 @@ Nothing here needs a command: everything happens in a phone or computer browser.
 
 ## For every visitor
 
+The pages are deliberately plain: text, thin lines, white space, and colour only on what you can tap. Six colour themes are available (see *Appearance*).
+
 <p>
 <img src="images/home.png" width="190" alt="Home page">
 <img src="images/encyclopedias-search.png" width="190" alt="Encyclopedia search">
@@ -20,7 +22,7 @@ Nothing here needs a command: everything happens in a phone or computer browser.
 |---|---|
 | **Encyclopedias** | type a subject: results come from every collection at once. Tap one to read it; the round magnifier brings you back to the search |
 | **Library** | the list of books; tap one to read it (EPUB pages turn, PDFs open) |
-| **Messages** | write a message (500 characters at most), with your name if you want. Newest at the bottom, one heading per day, the time under each message. One message every 20 seconds per device. With the radio turned on, a box *Also send by radio* sends it to the radios too ([chapter 16](16-radio-message-board.md)) |
+| **Messages** | write a message (500 characters at most), with your name if you want. Newest at the bottom, one heading per day, the name and time above each message. One message every 20 seconds per device. With the radio turned on, a box *Also send by radio* sends it to the radios too, and messages that went through the radio are marked **RADIO** ([chapter 16](16-radio-message-board.md)) |
 | **The lighthouse** (logo), or *About and rules* | the welcome board written by the station's keeper |
 | **Flags** | French or English, for this phone only |
 
@@ -34,7 +36,7 @@ Three more doors appear only if the keeper turns them on (see *For visitors* bel
 
 | Page | What you do there |
 |---|---|
-| **Emergency** (red, at the top) | large buttons — cardiac arrest, bleeding, choking, burn, fracture, stroke, severe allergy, hypothermia, heat stroke, dehydration, snakebite, safe water… — each opens the right article at once: Wikipedia in French, MDWiki in English |
+| **Emergency** (red, at the top) | large tiles — cardiac arrest, bleeding, choking, burn, fracture, stroke, severe allergy, hypothermia, heat stroke, dehydration, snakebite, safe water… — each opens the right article at once: Wikipedia in French, MDWiki in English |
 | **Find your loved ones** | say *I am safe* or *I am looking for someone* (name, where, a message), and search the register by name — accents and capitals don't matter. Your phone remembers your entries, so you can delete them |
 | **Mutual aid** | post what you need or what you can offer, by category (water, food, health, shelter, power, transport, tools, skills, other), with where to find you; filter by type and category. Posts disappear by themselves after the chosen time |
 
@@ -76,10 +78,10 @@ Below, the settings are grouped by who they are for. The community features (ann
 
 <img src="images/settings-address.png" width="190" alt="Station address">
 
-- **Radio** *(phase 2)*: link the message board to the Meshtastic radio ([chapter 16](16-radio-message-board.md)).
+- **Radio** *(phase 2)*: link the message board to the radio ([chapter 16](16-radio-message-board.md)), and open the **Radio page**: the station's radio up close, every channel, direct messages, its settings, switching between Meshtastic and MeshCore, and updating the radios ([chapter 17](17-radio-page.md)).
 - **Energy**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
 - **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*), time since switch-on and people connected. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
-- **Software**: number of system updates waiting, **Update**, and **Restart** when an update needs it. Your settings are kept.
+- **Software**: the system updates waiting, by name, **Update**, and **Restart** when an update needs it. Your settings are kept. While it runs, the details scroll in a window (what is downloaded, installed, and any error), then a line says *Update finished* or *The update failed*; *Show the details of the last update* brings them back later.
 - **Backup**: download the latest settings backup, make one now, or **restore one**: choose the file, tap twice, and the station puts the settings back and restarts (see [step 11](11-backup.md)).
 
 **Appearance**

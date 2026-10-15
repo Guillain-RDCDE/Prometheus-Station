@@ -35,6 +35,9 @@
 #   GET  /recherches            -> les sujets les plus cherches (et ceux epingles sur l'accueil)
 #   POST /recherches/epingler   -> epingler ou retirer un sujet de l'accueil {lien, titre, epingle}
 #   POST /recherches/vider      -> remettre les compteurs a zero (les sujets epingles restent)
+#   GET  /radio                 -> la page Radio : {etat, details (radio, canaux, radios entendues), journal}
+#   POST /radio/envoyer         -> envoyer depuis la page Radio {texte, canal, a} (a vide : tout le canal ; sinon message direct)
+#   POST /radio/code            -> code Bluetooth lu sur l'ecran de la radio, au premier passage a MeshCore {code}
 # Et pour l'administrateur connecte :
 #   POST /panneau   -> enregistrer le texte du panneau d'accueil {texte}
 #   POST /reglages  -> allumer, eteindre, regler une fonction {section, valeurs}
@@ -86,7 +89,7 @@ MAX_EPINGLES = 8
 DERNIER_ENVOI = {}              # (adresse, fonction) -> heure du dernier envoi (un toutes les 20 s au plus)
 RADIO = '/srv/prometheus/radio'  # echanges avec prometheus-radio (voir ce programme)
 DERNIER_RADIO = {}              # adresse -> heure du dernier message envoye par radio
-MAX_RADIO = 228                 # octets au plus dans un message Meshtastic
+MAX_RADIO = 228                 # octets au plus dans un message Meshtastic (MeshCore : moins, voir etat.json)
 
 
 def hacher(mdp, sel=None):
@@ -188,7 +191,9 @@ def etat_radio(admin):
         e = {}
     return {'active': r['active'], 'peut': r['active'] and (r['qui'] == 'tous' or admin), 'qui': r['qui'],
             'delai': r['delai'], 'etat': e.get('etat', 'eteinte') if r['active'] else 'eteinte', 'nom': e.get('nom', ''),
-            'attente': len(glob.glob(os.path.join(RADIO, 'a-envoyer', '*.json')))}
+            'attente': len(glob.glob(os.path.join(RADIO, 'a-envoyer', '*.json'))),
+            # Octets au plus dans un message : depend du reseau (ecrit par prometheus-radio)
+            'reseau': e.get('reseau', 'meshtastic'), 'max': e.get('max') or MAX_RADIO}
 
 
 def lire_fichier(chemin, defaut=''):
@@ -365,6 +370,25 @@ class Admin(BaseHTTPRequestHandler):
                 r = {}
             sujets = sorted(({'lien': l, 'titre': v['titre'], 'n': v['n']} for l, v in r.items()), key=lambda x: -x['n'])[:30]
             return self.repondre(200, {'sujets': sujets, 'epingles': reglages()['recherches']['epingles']})
+        if self.path == '/radio':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            def lu(nom, defaut):
+                try:
+                    return json.load(open(os.path.join(RADIO, nom)))
+                except (OSError, ValueError):
+                    return defaut
+            reseau = lu('reseau.json', {})
+            outil = lu('outil.json', {})
+            # Radios branchees en USB autres que celle de la station (les T-Echo a mettre a jour) : vues en direct
+            ports = sorted(glob.glob('/dev/serial/by-id/*'))
+            station = next((p for p in ports if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs'))), None)
+            outil['radios'] = [os.path.basename(p) for p in ports if p != station]
+            return self.repondre(200, {'etat': etat_radio(True), 'maintenant': time.time(),
+                                       'details': lu('details.json', {}), 'journal': lu('journal.json', []),
+                                       # outil radio : versions gardees, sauvegardes, radios branchees (outil.json)
+                                       'outil': outil,
+                                       'reseau': {'reseau': reseau.get('reseau', 'meshtastic'), 'puce': reseau.get('puce')}})
         if self.path == '/api/messages':
             with VERROU:
                 fusionner_radio()
@@ -419,7 +443,7 @@ class Admin(BaseHTTPRequestHandler):
                     return self.repondre(403, {'erreur': 'Réservé à l’administrateur.'})
                 # Le nom part devant le texte : sur les radios, tout semble venir de la station
                 envoi = (nom + ' : ' if nom else '') + texte
-                if len(envoi.encode()) > MAX_RADIO:
+                if len(envoi.encode()) > r['max']:
                     return self.repondre(400, {'erreur': 'Trop long pour la radio.'})
                 if time.time() - DERNIER_RADIO.get(ip, 0) < r['delai']:
                     return self.repondre(429, {'erreur': 'Un seul message radio à la fois : réessayez dans un moment.'})
@@ -615,6 +639,35 @@ class Admin(BaseHTTPRequestHandler):
                 ecrire_public(REGLAGES, json.dumps(tout, ensure_ascii=False))
             return self.repondre(200, {'epingles': ep})
 
+        if self.path == '/radio/envoyer':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            r = etat_radio(True)
+            if not r['active']:
+                return self.repondre(403, {'erreur': 'Cette fonction est désactivée.'})
+            texte = ' '.join(str(d.get('texte', '')).split())
+            canal, a = d.get('canal', 0), str(d.get('a') or '')
+            if not texte:
+                return self.repondre(400, {'erreur': 'Message vide.'})
+            if len(texte.encode()) > r['max']:
+                return self.repondre(400, {'erreur': 'Trop long pour la radio.'})
+            if type(canal) is not int or not 0 <= canal < 8 or len(a) > 80 or any(c in a for c in '/\\"<> '):
+                return self.repondre(400, {'erreur': 'Réglage invalide.'})
+            ident = 'r' + secrets.token_hex(6)
+            f = os.path.join(RADIO, 'a-envoyer', '%d-%s.json' % (time.time() * 1000, ident))
+            ecrire_public(f, json.dumps({'id': ident, 'texte': texte, 'canal': canal, 'a': a}, ensure_ascii=False))
+            return self.repondre(200, {'id': ident})
+
+        if self.path == '/radio/code':
+            # Premier passage a MeshCore : le code a 6 chiffres affiche sur l'ecran de la radio (lu par prometheus-radio-outil)
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            code = str(d.get('code', '')).strip()
+            if not re.fullmatch(r'\d{6}', code):
+                return self.repondre(400, {'erreur': 'Six chiffres.'})
+            ecrire_public(os.path.join(RADIO, 'code-ble'), code)
+            return self.repondre(200)
+
         if self.path == '/effacer-ecrits':
             if not self.connecte():
                 return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
@@ -622,6 +675,8 @@ class Admin(BaseHTTPRequestHandler):
                 n = {'messages': len(lire_messages()), 'registre': len(lire_liste(REGISTRE)), 'entraide': len(lire_liste(ENTRAIDE))}
                 ecrire_public(MESSAGES, '[]')
                 n['radio_annules'] = annuler_radio()
+                # Le journal de la page Radio aussi : prometheus-radio le vide en voyant cette demande
+                ecrire_public(os.path.join(RADIO, 'effacer-journal'), '1')
                 os.makedirs(COMMUNAUTE, exist_ok=True)
                 ecrire_public(REGISTRE, '[]')
                 ecrire_public(ENTRAIDE, '[]')

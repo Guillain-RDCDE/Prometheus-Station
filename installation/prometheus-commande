@@ -21,18 +21,38 @@ for F in "$DOSSIER"/*; do
       fi ;;
     systeme)
       echo "Mise a jour du systeme demandee depuis la page"
-      # Garde nos fichiers de reglage (--force-confold) ; tourne a part pour ne pas bloquer la page
+      # Garde nos fichiers de reglage (--force-confold) ; tourne a part pour ne pas bloquer la page.
+      # Tout ce qu'affiche apt va dans ajouter/maj-systeme.txt : la page le fait defiler pendant la mise a jour
+      # et le garde ensuite (erreurs comprises). La derniere ligne « ### FIN <code> » dit que c'est fini.
       if ! systemctl is-active --quiet prometheus-maj-systeme; then
         systemctl reset-failed prometheus-maj-systeme 2>/dev/null
-        # Guillemets simples voulus : $O et $? sont developpes par le bash lance, pas ici
+        # Guillemets simples voulus : $O, $L, $R sont developpes par le bash lance, pas ici
         # shellcheck disable=SC2016
         systemd-run --unit=prometheus-maj-systeme --description="Prometheus Station - mise a jour du systeme" \
-          --setenv=DEBIAN_FRONTEND=noninteractive bash -c \
+          --setenv=DEBIAN_FRONTEND=noninteractive --setenv=APT_LISTCHANGES_FRONTEND=none bash -c \
           'O="-o DPkg::Lock::Timeout=600 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"
-           apt-get $O update -qq && apt-get $O -y full-upgrade && apt-get $O -y autoremove
-           echo $? > /srv/prometheus/.maj-systeme ; /usr/local/bin/prometheus-etat'
+           L=/var/www/prometheus/ajouter/maj-systeme.txt
+           R=0
+           { echo "== $(date "+%d/%m/%Y %H:%M:%S") — mise à jour du système"
+             echo "== Recherche des mises à jour" && apt-get $O update &&
+             echo "== Installation" && apt-get $O -y full-upgrade &&
+             echo "== Nettoyage" && apt-get $O -y autoremove; } > "$L" 2>&1 || R=$?
+           echo "### FIN $R" >> "$L"
+           echo $R > /srv/prometheus/.maj-systeme ; /usr/local/bin/prometheus-etat'
       fi
       sleep 3 ;;
+    radio-sauvegarder|radio-regler|radio-reseau|radio-chercher|radio-installer)
+      # Page Radio (plan radio R3 a R5) : prometheus-radio-outil, a part, un seul a la fois ;
+      # son detail s'ecrit dans ajouter/radio-outil.txt (le contenu de l'ordre = ses reglages, verifies par l'outil)
+      echo "Radio : ${ORDRE#radio-} demande depuis la page"
+      if systemctl is-active --quiet prometheus-radio-outil; then
+        echo "Refuse : une operation radio est deja en cours"
+      else
+        systemctl reset-failed prometheus-radio-outil 2>/dev/null
+        systemd-run --unit=prometheus-radio-outil --description="Prometheus Station - outil radio" \
+          /usr/local/bin/prometheus-radio-outil "${ORDRE#radio-}" "$CONTENU"
+      fi
+      sleep 2 ;;
     redemarrer)
       echo "Redemarrage demande depuis la page"
       /usr/local/bin/prometheus-etat

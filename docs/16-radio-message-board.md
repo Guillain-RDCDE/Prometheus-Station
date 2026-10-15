@@ -36,16 +36,16 @@ The **?** next to the title explains it in two sentences, as everywhere in the S
 <img src="images/radio-techo-board-message.jpg" width="300" alt="The message on a T-Echo">
 </p>
 
-- Under the text field, tick **📡 Also send by radio**. The phone remembers the choice. The box only appears when the radio is turned on, and allowed for this phone.
-- The counter on the right shows the room left. A radio message holds about **228 bytes**, and the writer's name is sent in front of the text (*Marc : Is anyone near the mill?*), otherwise every message would seem to come from the station. An accented letter takes 2 bytes, so it counts double.
-- Under the message: **📡 waiting** while it is queued, then **📡** once it has left. The station sends at most **one message every 15 seconds**, to respect the airtime limits of the 868 MHz band.
+- Under the text field, tick **Also send by radio**. The phone remembers the choice. The box only appears when the radio is turned on, and allowed for this phone.
+- The counter on the right shows the room left. A radio message holds **228 bytes** on Meshtastic (**about 140** on MeshCore, see [chapter 17](17-radio-page.md)), and the writer's name is sent in front of the text (*Marc : Is anyone near the mill?*), otherwise every message would seem to come from the station. An accented letter takes 2 bytes, so it counts double.
+- Next to the name: **RADIO · WAITING** while it is queued, then **RADIO** once it has left. The station sends at most **one message every 15 seconds**, to respect the airtime limits of the 868 MHz band.
 - If the radio is unplugged or silent, a line says so; the message leaves as soon as the radio is back.
 
 On the T-Echo, the message arrives from *Prometheus Station*, with the writer's name in front (right-hand photo).
 
 ## Receiving on the board
 
-A message sent by a T-Echo, or by a phone connected to one, appears on the board **under the radio's name**, with a **coloured outline** and a 📡 next to the time. The board refreshes itself every 15 seconds. To know who wrote, people type their name in the message.
+A message sent by a T-Echo, or by a phone connected to one, appears on the board **under the radio's name**, marked **RADIO** next to the time. The board refreshes itself every 15 seconds. To know who wrote, people type their name in the message.
 
 From the phone app ([chapter 15](15-meshtastic-radios.md)), send on the **main channel** (*LongFast*). A message sent directly to the station's radio arrives on the board too.
 
@@ -64,7 +64,7 @@ In the screenshot, the messages marked *Not delivered* were sent while the stati
 
 <img src="images/radio-eink-message.png" width="300" alt="E-ink screen: new message">
 
-With *Show received radio messages on the station's screen* set to a duration, a message arriving by radio replaces the QR code: a black band **NOUVEAU MESSAGE** (*new message*) with the time, **de** (*from*) the radio's name, then the text as large as it fits. After the chosen duration, the screen goes back to normal by itself. Only messages **received by radio** are shown, not those written on the board.
+With *Show received radio messages on the station's screen* set to a duration, a message arriving by radio replaces the QR code: a black band **NOUVEAU MESSAGE** (*new message*) with the time, **de** (*from*) the radio's name, then the text as large as it fits (20, 18 or 16 points). A message too long for the screen **scrolls**: one line every 3 seconds, a 5-second pause at the bottom, then back to the top, without the black-and-white flash of a full refresh. After the chosen duration, the screen goes back to normal by itself. Only messages **received by radio** are shown, not those written on the board.
 
 ## Deleting messages
 
@@ -80,9 +80,9 @@ The low-power mode (*Settings › Energy*) normally switches the USB ports off. 
 
 | Part | Role |
 |---|---|
-| `prometheus-radio` (Python, Meshtastic library in `/opt/prometheus-radio`) | keeps the line to the T-Beam open; sends the queued messages; files the received ones; reports the radio's state. Does nothing while the radio is turned off |
+| `prometheus-radio` (Python, Meshtastic and MeshCore libraries in `/opt/prometheus-radio`) | keeps the line to the T-Beam open (USB on Meshtastic, Bluetooth on MeshCore); sends the queued messages; files the received ones; reports the radio's state. Does nothing while the radio is turned off |
 | `prometheus-admin` | the board itself; puts radio messages in the queue, checks the limits, files what came in |
-| `/srv/prometheus/radio/` | `a-envoyer/` (queue), `partis/` (sent), `recus/` (received), `etat.json` (`eteinte` off · `absente` not plugged in · `muette` not responding · `ok`) |
+| `/srv/prometheus/radio/` | `a-envoyer/` (queue), `partis/` (sent), `recus/` (received), `etat.json` (`eteinte` off · `absente` not plugged in · `muette` not responding · `ok`; plus the network and the byte limit); for the Radio page: `details.json`, `journal.json` ([chapter 17](17-radio-page.md)) |
 
 The two programs only exchange files: if the radio program stops, the board keeps working. Without news from the radio for 10 minutes, `prometheus-radio` reopens the line, which proves the radio still answers; otherwise it reports it as *Not responding*.
 
@@ -104,4 +104,4 @@ The two programs only exchange files: if the radio program stops, the board keep
 - **Range.** All tests so far were indoors, the T-Beam on a desk. A walk with a T-Echo, then the antenna on the mast, will tell how far it reaches.
 - Several T-Echo writing at the same time; another Meshtastic user nearby on the same channel.
 
-Next: what comes after is in the [Reference](REFERENCE.md#status-october-2026).
+Next: [17. The Radio page →](17-radio-page.md)

@@ -14,47 +14,39 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
 </script>
 <style>
   main { padding-bottom: 150px; }
-  .sous-titre { color: var(--gris); margin: -12px 0 22px; }
 
-  /* Fil des messages : le plus recent en bas, comme une messagerie */
-  .fil { display: flex; flex-direction: column; gap: 26px; }
+  /* Fil des messages : le plus recent en bas. Pas de bulles : un nom, une heure, le texte. */
+  .fil { display: flex; flex-direction: column; }
   /* Un intertitre par jour : la date complete n'est ecrite qu'une fois */
-  .jour { display: flex; align-items: center; gap: 12px; color: var(--pale); font-size: .8rem; font-weight: 600; margin: 8px 0 -6px; }
-  .jour::before, .jour::after { content: ''; flex: 1; height: 1px; background: var(--trait); }
-  .msg { display: flex; gap: 12px; align-items: flex-start; animation: arrivee .25s ease; }
-  @keyframes arrivee { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  .avatar { width: 38px; height: 38px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1rem; }
-  .corps { flex: 1; min-width: 0; }
-  .entete-msg { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+  .jour { color: var(--gris); font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; padding: 26px 0 8px; border-bottom: 1px solid var(--encre); }
+  .jour:first-child { padding-top: 6px; }
+  .msg { padding: 14px 2px; border-bottom: 1px solid var(--trait); }
+  .entete-msg { display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px; }
   .entete-msg b { font-weight: 650; }
-  .entete-msg time { color: var(--pale); font-size: .82rem; }
-  .bulle { display: inline-block; max-width: 100%; background: var(--carte); border: 1px solid var(--trait); border-radius: 4px 18px 18px 18px; padding: 10px 14px; white-space: pre-wrap; word-wrap: break-word; font-size: 1.02rem; line-height: 1.45; }
-  .msg.moi .bulle { background: var(--accent-pale); border-color: transparent; }
-  .date { display: block; margin: 5px 0 0 6px; font-size: .74rem; color: var(--pale); }
-  /* Message arrive par radio : un liseré de couleur autour de la bulle */
-  .msg.radio .bulle { border: 1.5px solid var(--accent); }
+  .date { color: var(--pale); font-size: .8rem; font-variant-numeric: tabular-nums; }
+  /* Passe par la radio : un mot discret a cote de l'heure */
+  .signe-radio { font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gris); border: 1px solid var(--trait); border-radius: 4px; padding: 1px 5px; }
+  .texte-msg { white-space: pre-wrap; overflow-wrap: break-word; line-height: 1.5; }
   .effacer { margin-left: auto; font: inherit; font-size: .8rem; color: var(--pale); background: none; border: 0; cursor: pointer; padding: 0 2px; }
-  .effacer:hover { color: var(--accent); }
+  .effacer:hover { color: #c92a2a; }
 
-  .vide-fil { text-align: center; color: var(--gris); padding: 48px 16px; }
-  .vide-fil svg { display: block; margin: 0 auto 12px; color: var(--pale); }
+  .vide-fil { color: var(--gris); padding: 40px 2px; border-top: 1px solid var(--trait); }
 
   /* Barre d'ecriture fixee en bas */
-  .barre { position: fixed; left: 0; right: 0; bottom: 0; background: var(--fond); border-top: 1px solid var(--trait); padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); }
-  .barre .interieur { max-width: 680px; margin: 0 auto; }
-  .qui { font-size: .85rem; color: var(--gris); margin: 0 4px 8px; display: flex; gap: 6px; align-items: center; }
-  .qui button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; }
-  .qui input { font: inherit; font-size: .9rem; color: var(--encre); background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 5px 10px; width: 180px; outline: none; }
+  .barre { position: fixed; left: 0; right: 0; bottom: 0; background: var(--fond); border-top: 1px solid var(--trait); padding: 10px 20px calc(12px + env(safe-area-inset-bottom)); }
+  .barre .interieur { max-width: 600px; margin: 0 auto; }
+  .qui { font-size: .85rem; color: var(--gris); margin: 0 2px 8px; display: flex; gap: 8px; align-items: center; }
+  .qui button { font: inherit; color: var(--encre); background: none; border: 0; border-bottom: 1px solid var(--trait); padding: 0; cursor: pointer; }
+  .qui input { font: inherit; font-size: .9rem; color: var(--encre); background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 5px 10px; width: 180px; outline: none; }
   .saisie { display: flex; gap: 8px; align-items: flex-end; }
-  .saisie textarea { flex: 1; resize: none; font: inherit; font-size: 1.02rem; color: var(--encre); background: var(--carte); border: 1px solid var(--trait); border-radius: 22px; padding: 11px 16px; max-height: 140px; outline: none; line-height: 1.35; }
-  .saisie textarea:focus { border-color: var(--accent); }
-  .envoyer { width: 46px; height: 46px; flex: none; border-radius: 50%; border: 0; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform .15s ease, opacity .15s ease; }
-  .envoyer:disabled { opacity: .35; cursor: default; }
-  .envoyer:not(:disabled):active { transform: scale(.92); }
-  .erreur { color: #d62828; font-size: .85rem; margin: 6px 4px 0; min-height: 0; }
+  .saisie textarea { flex: 1; resize: none; font: inherit; font-size: 1.02rem; color: var(--encre); background: var(--carte); border: 1px solid var(--trait); border-radius: var(--rayon); padding: 11px 14px; max-height: 140px; outline: none; line-height: 1.35; }
+  .saisie textarea:focus { border-color: var(--encre); }
+  .envoyer { width: 46px; height: 46px; flex: none; border-radius: var(--rayon); border: 0; background: var(--encre); color: var(--fond); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity .15s ease; }
+  .envoyer:disabled { opacity: .25; cursor: default; }
+  .erreur { color: #c92a2a; font-size: .85rem; margin: 6px 2px 0; min-height: 0; }
 
-  /* Radio : case « envoyer aussi par radio », compteur, et petit 📡 sur les messages concernes */
-  .radio-choix { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--gris); margin: 8px 4px 0; cursor: pointer; }
+  /* Radio : case « envoyer aussi par radio » et compteur */
+  .radio-choix { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--gris); margin: 8px 2px 0; cursor: pointer; }
   .radio-choix[hidden] { display: none; }
   .radio-choix input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
   .radio-compte { margin-left: auto; font-variant-numeric: tabular-nums; }
@@ -69,10 +61,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <h1 data-en="Messages">Messages</h1>
   <p class="sous-titre" data-en="Visible to everyone connected to the station.">Visibles par tous ceux qui sont connectés à la station.</p>
   <div class="fil" id="fil"></div>
-  <div class="vide-fil" id="vide" hidden>
-    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-    <span data-en="No messages yet. Write the first one below.">Aucun message pour l’instant. Écrivez le premier ci-dessous.</span>
-  </div>
+  <p class="vide-fil" id="vide" hidden data-en="No messages yet. Write the first one below.">Aucun message pour l’instant. Écrivez le premier ci-dessous.</p>
 </main>
 
 <div class="barre">
@@ -90,7 +79,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     </form>
     <label class="radio-choix" id="radio-choix" hidden>
       <input type="checkbox" id="par-radio">
-      <span data-en="📡 Also send by radio">📡 Envoyer aussi par radio</span>
+      <span data-en="Also send by radio">Envoyer aussi par radio</span>
       <span class="radio-compte" id="radio-compte"></span>
     </label>
     <p class="radio-note" id="radio-note"></p>
@@ -108,14 +97,6 @@ if (new URLSearchParams(location.search).get('depuis') === 'parametres') {
 }
 var ecart = 0, nom = '', dernierId = null, radio = { active: false, peut: false };
 var MAX_RADIO = 228;   // octets au plus dans un message radio (le prenom part devant le texte)
-var COULEURS = ['#1d6fd6', '#1f8a4c', '#d62828', '#d9750a', '#6a4fd6', '#0e7490', '#be185d', '#4d7c0f'];
-
-function couleur(n) {
-  var h = 0;
-  for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
-  return COULEURS[h % COULEURS.length];
-}
-
 
 // La date complete, une fois par jour en intertitre (utile des mois plus tard) ; l'heure sous chaque message
 function leJour(t) {
@@ -153,13 +134,17 @@ function charger() {
         fil.appendChild(j); jourPrecedent = jour;
       }
       var qui = m.nom || T('Anonyme', 'Anonymous');
-      var msg = document.createElement('div'); msg.className = 'msg' + (nom && m.nom === nom ? ' moi' : '') + (m.radio === 'recu' ? ' radio' : '');
-      var av = document.createElement('div'); av.className = 'avatar'; av.style.background = couleur(qui);
-      av.textContent = qui.charAt(0).toUpperCase();
-      var corps = document.createElement('div'); corps.className = 'corps';
+      var msg = document.createElement('div'); msg.className = 'msg';
       var tete = document.createElement('div'); tete.className = 'entete-msg';
       var b = document.createElement('b'); b.textContent = qui;
-      tete.appendChild(b);
+      // L'heure seule (la date est dans l'intertitre), et un mot discret si le message est passe par la radio
+      var date = document.createElement('time'); date.className = 'date'; date.textContent = lHeure(m.heure);
+      tete.appendChild(b); tete.appendChild(date);
+      if (m.radio) {
+        var r = document.createElement('span'); r.className = 'signe-radio';
+        r.textContent = m.radio === 'attente' ? T('radio · en attente', 'radio · waiting') : 'radio';
+        tete.appendChild(r);
+      }
       if (d.admin) {
         var x = document.createElement('button'); x.className = 'effacer'; x.textContent = T('Effacer', 'Delete');
         x.onclick = function () {
@@ -167,12 +152,8 @@ function charger() {
         };
         tete.appendChild(x);
       }
-      var bulle = document.createElement('div'); bulle.className = 'bulle'; bulle.textContent = m.texte;
-      // Sous la bulle : l'heure seule, et un petit 📡 si le message est passe par la radio
-      var date = document.createElement('time'); date.className = 'date';
-      date.textContent = lHeure(m.heure) + (m.radio === 'attente' ? T(' · 📡 en attente', ' · 📡 waiting') : m.radio ? ' · 📡' : '');
-      corps.appendChild(tete); corps.appendChild(bulle); corps.appendChild(date);
-      msg.appendChild(av); msg.appendChild(corps);
+      var texte = document.createElement('div'); texte.className = 'texte-msg'; texte.textContent = m.texte;
+      msg.appendChild(tete); msg.appendChild(texte);
       fil.appendChild(msg);
     });
     $('vide').hidden = messages.length > 0;
@@ -188,7 +169,7 @@ function octets(t) { return new TextEncoder().encode(t).length; }
 function resteRadio() {
   var n = ($('nom').hidden ? nom : $('nom').value.trim());
   var envoi = (n ? n + ' : ' : '') + $('texte').value.trim().split(/\s+/).join(' ');
-  return MAX_RADIO - octets(envoi);
+  return (radio.max || MAX_RADIO) - octets(envoi);   // la limite depend du reseau (Meshtastic, MeshCore)
 }
 function afficherRadio() {
   $('radio-choix').hidden = !radio.peut;

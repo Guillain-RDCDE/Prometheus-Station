@@ -17,7 +17,8 @@
     'Message vide.': 'Empty message.', 'Réglage invalide.': 'Invalid setting.', 'Texte trop long.': 'Text too long.',
     'Cette fonction est désactivée.': 'This feature is turned off.', 'Indiquez un nom.': 'Please enter a name.', 'Effacement refusé.': 'Deletion refused.', 'Huit sujets au plus.': 'Eight topics at most.', 'Attendez quelques secondes avant le message suivant.': 'Wait a few seconds before the next message.',
     'Réservé à l’administrateur.': 'For the administrator only.', 'Trop long pour la radio.': 'Too long for the radio.', 'Lettres minuscules, chiffres et tirets seulement.': 'Lowercase letters, digits and hyphens only.',
-    'Un seul message radio à la fois : réessayez dans un moment.': 'One radio message at a time: try again in a moment.'
+    'Un seul message radio à la fois : réessayez dans un moment.': 'One radio message at a time: try again in a moment.',
+    'Six chiffres.': 'Six digits.'
   };
   window.TE = function (msg) { return (L === 'en' && ERREURS[msg]) || msg; };
 

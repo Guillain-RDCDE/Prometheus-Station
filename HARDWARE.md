@@ -68,6 +68,8 @@ Setting them up: [chapter 15](docs/15-meshtastic-radios.md). Use **data** USB ca
 
 LoRa radios carry short text messages over **kilometres** (1 to 15 km depending on terrain and height) using very little power, with no network at all. **Meshtastic** is free software that turns them into a mesh: messages hop from radio to radio. The station shows the radio messages on its message board, so people without a radio can read and answer them from their phone ([chapter 16](docs/16-radio-message-board.md)).
 
+The same T-Beam also runs **MeshCore**, the other big free LoRa mesh network: the station switches it from one network to the other in one tap, with nothing to buy ([chapter 17](docs/17-radio-page.md)). On MeshCore the T-Beam talks to the Pi over Bluetooth, which the Pi 4 has built in.
+
 ### Why a mast
 
 Height is range: at ground level, buildings and trees block the signal; at a few metres, radios see much further.

@@ -27,7 +27,7 @@ cp "$ICI/web/bibliotheque/index.html" "$ICI/web/bibliotheque/lire.html" "$WEB/bi
 cp "$ICI/web/ajouter/index.html" "$WEB/ajouter/"
 rm -f "$WEB/ajouter/maj.html"   # remplacee par /parametres/
 mkdir -p "$WEB/parametres"
-cp "$ICI/web/parametres/index.html" "$ICI/web/parametres/affiche.html" "$WEB/parametres/"
+cp "$ICI/web/parametres/index.html" "$ICI/web/parametres/affiche.html" "$ICI/web/parametres/radio.html" "$WEB/parametres/"
 mkdir -p "$WEB/messages"
 cp "$ICI/web/messages/index.html" "$WEB/messages/"
 mkdir -p "$WEB/encyclopedies"

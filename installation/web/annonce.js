@@ -15,9 +15,9 @@
       st.id = 'prometheus-annonce-style';
       st.textContent =
         '#prometheus-annonce{position:sticky;top:0;z-index:2147483646;display:flex;align-items:center;gap:10px;' +
-        'padding:10px 14px;font:600 15px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;' +
-        'box-shadow:0 2px 10px rgba(0,0,0,.18);cursor:pointer;-webkit-tap-highlight-color:transparent}' +
-        '#prometheus-annonce .pa-icone{flex:none;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);' +
+        'padding:10px 16px;font:600 15px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;' +
+        'cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+        '#prometheus-annonce .pa-icone{flex:none;width:24px;height:30px;border-radius:50%;' +
         'display:flex;align-items:center;justify-content:center}' +
         '#prometheus-annonce .pa-icone svg{width:17px;height:17px}' +
         '#prometheus-annonce .pa-fenetre{flex:1;min-width:0;overflow:hidden;' +

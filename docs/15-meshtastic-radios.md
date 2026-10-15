@@ -47,7 +47,7 @@ You should see, at the end:
 == Radio installee (desactivee tant qu'elle n'est pas activee dans Parametres > Radio)
 ```
 
-It installs the Meshtastic library and its command-line tool in `/opt/prometheus-radio`, and the service `prometheus-radio`, which does nothing until you turn the radio on in the Settings ([next chapter](16-radio-message-board.md)).
+It installs the Meshtastic and MeshCore libraries, their command-line tools and `esptool` in `/opt/prometheus-radio`, the service `prometheus-radio`, which does nothing until you turn the radio on in the Settings ([next chapter](16-radio-message-board.md)), and the radio tool behind the Radio page ([chapter 17](17-radio-page.md)). With internet, it also fetches the latest stable software of both networks, kept on the station for later; just before the last line you should see `== Terminé` then `### FIN 0`.
 
 In this guide, the tool is called like this:
 
@@ -198,6 +198,8 @@ The free **Meshtastic** app (iPhone, Android) connects to **one** radio by Bluet
 *The app follows the phone's language: these screenshots are partly in French.*
 
 ## Updating Meshtastic
+
+> **The simple way, since October 2026:** the **Radio page** fetches the latest versions and updates the T-Beam, or a T-Echo plugged into the station, in one tap, keeping their settings ([chapter 17](17-radio-page.md#radio-software)). Below is the same thing by hand, to understand it or to repair.
 
 All radios should run **the same version**: between versions, the screens and some behaviour change. Take the **latest stable version** from the [Meshtastic releases](https://github.com/meshtastic/firmware/releases) (the ones not marked *Pre-release*). Here, all three radios run **2.7.26**. Updating keeps the settings (names, region, time zone).
 

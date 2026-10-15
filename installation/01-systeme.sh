@@ -15,9 +15,11 @@ echo "== Interfaces SPI et I2C (ecran e-ink, capteur de batterie)"
 raspi-config nonint do_spi 0
 raspi-config nonint do_i2c 0
 
-echo "== Bluetooth coupe (economie d'energie)"
-grep -q '^dtoverlay=disable-bt' /boot/firmware/config.txt || echo 'dtoverlay=disable-bt' >> /boot/firmware/config.txt
-systemctl disable --now hciuart.service 2>/dev/null || true
+echo "== Bluetooth eteint au demarrage (economie d'energie)"
+# La puce reste disponible : la radio MeshCore se pilote par Bluetooth. Le service radio l'allume
+# seulement quand la station est sur le reseau MeshCore (plan radio R4).
+sed -i '/^dtoverlay=disable-bt$/d' /boot/firmware/config.txt
+systemctl disable --now hciuart.service bluetooth.service 2>/dev/null || true
 
 echo "== Journal du systeme limite a 50 Mo (menage la carte SD, mais survit a un redemarrage)"
 mkdir -p /etc/systemd/journald.conf.d /var/log/journal

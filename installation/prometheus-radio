@@ -1,28 +1,46 @@
 #!/opt/prometheus-radio/bin/python3
-# Prometheus Station - la radio Meshtastic (carte branchee en USB) reliee au tableau des messages.
+# Prometheus Station - la radio de la station (T-Beam) reliee au tableau des messages et a la page Radio.
+# Deux reseaux possibles (plan radio) : Meshtastic (carte en USB) ou MeshCore (meme carte, par Bluetooth).
+# Le reseau en service est ecrit par prometheus-radio-outil dans reseau.json ; changer de reseau = cet outil.
 # Ne fait rien tant que la radio est desactivee dans Parametres > Radio.
 # Echange avec prometheus-admin par des fichiers, dans /srv/prometheus/radio :
-#   a-envoyer/  messages ecrits sur le tableau, a emettre   {id, texte}   (depose par prometheus-admin)
-#   partis/     messages emis                               {id}          (lu puis efface par prometheus-admin)
-#   recus/      messages arrives par radio                  {heure, nom, texte}  (idem)
-#   etat.json   {etat: eteinte|absente|muette|ok, nom, depuis}  (lu par prometheus-admin pour les pages)
+#   a-envoyer/  messages a emettre   {id, texte, canal, a}  (a vide : tout le canal ; sinon message direct)
+#   partis/     messages emis        {id}                   (lu puis efface par prometheus-admin)
+#   recus/      messages arrives par radio, pour le tableau {heure, nom, texte}  (idem)
+#   etat.json   {etat: eteinte|absente|muette|ok, nom, depuis, reseau, max (octets par message)}
+#   details.json  la radio vue de pres, pour la page Radio (reecrit toutes les 30 s) :
+#                 {reseau, heure, depuis, moi: {...}, canaux: [{index, nom, role}], noeuds: [{...}]}
+#   journal.json  les derniers messages radio, tous canaux et messages directs, recus et emis (300 au plus)
 # Avant d'utiliser l'outil « meshtastic » a la main : sudo systemctl stop prometheus-radio (un seul programme a la fois).
-import glob, json, os, secrets, time
+import asyncio, glob, json, os, secrets, threading, time
 
 DOSSIER = '/srv/prometheus/radio'
 A_ENVOYER = os.path.join(DOSSIER, 'a-envoyer')
 PARTIS = os.path.join(DOSSIER, 'partis')
 RECUS = os.path.join(DOSSIER, 'recus')
 ETAT = os.path.join(DOSSIER, 'etat.json')
+DETAILS = os.path.join(DOSSIER, 'details.json')
+JOURNAL = os.path.join(DOSSIER, 'journal.json')
+RESEAU = os.path.join(DOSSIER, 'reseau.json')                 # ecrit par prometheus-radio-outil
+EFFACER_JOURNAL = os.path.join(DOSSIER, 'effacer-journal')   # depose par prometheus-admin (Effacer les ecrits)
 REGLAGES = '/srv/prometheus/communaute/reglages.json'
 ECART = 15            # secondes au moins entre deux emissions (temps d'emission limite en Europe)
 SILENCE = 600         # sans nouvelles de la radio depuis 10 min : on verifie qu'elle repond encore
 MAX_TEXTE = 500
+MAX_JOURNAL = 300
+PHOTO = 30            # secondes entre deux mises a jour de details.json
+MAX_MESHTASTIC = 228  # octets par message
+MAX_MESHCORE = 160    # octets par message (MAX_TEXT_LEN) ; sur un canal, « Nom: » part devant
+ANNONCE_MESHCORE = 6 * 3600   # MeshCore : la station s'annonce (advert) au plus toutes les 6 h, et a chaque connexion
 
-radio = None          # la connexion en cours
+radio = None          # la connexion Meshtastic en cours
+connectee_depuis = 0
 dernier_signe = 0     # derniere fois que la radio a donne signe de vie
 derniere_emission = 0
+derniere_photo = 0
 deja_vus = []         # numeros des derniers paquets recus (une radio peut nous renvoyer le meme deux fois)
+journal = []          # voir JOURNAL ; garde aussi en memoire
+VERROU_JOURNAL = threading.Lock()
 
 
 def active():
@@ -30,6 +48,13 @@ def active():
         return json.load(open(REGLAGES)).get('radio', {}).get('active') is True
     except (OSError, ValueError):
         return False
+
+
+def reseau():
+    try:
+        return json.load(open(RESEAU))
+    except (OSError, ValueError):
+        return {'reseau': 'meshtastic'}
 
 
 def ecrire(chemin, donnees):
@@ -41,14 +66,90 @@ def ecrire(chemin, donnees):
 
 
 ETAT_ACTUEL = None
-def noter_etat(etat, nom=''):
+def noter_etat(etat, nom='', res='meshtastic', maxi=MAX_MESHTASTIC):
     global ETAT_ACTUEL
-    if ETAT_ACTUEL != (etat, nom):
-        ETAT_ACTUEL = (etat, nom)
-        ecrire(ETAT, {'etat': etat, 'nom': nom, 'depuis': time.time()})
-        print('Radio :', etat, nom, flush=True)
+    if ETAT_ACTUEL != (etat, nom, res, maxi):
+        ETAT_ACTUEL = (etat, nom, res, maxi)
+        ecrire(ETAT, {'etat': etat, 'nom': nom, 'depuis': time.time(), 'reseau': res, 'max': maxi})
+        print('Radio :', res, etat, nom, flush=True)
 
 
+def noter_journal(entree):
+    # Appele depuis le fil de la radio (reception) et depuis la boucle principale (emission)
+    with VERROU_JOURNAL:
+        journal.append(entree)
+        del journal[:-MAX_JOURNAL]
+        try:
+            ecrire(JOURNAL, journal)
+        except OSError as e:
+            print('Journal radio impossible a ecrire :', e, flush=True)
+
+
+def statut(ident, valeur, raison=''):
+    """Message direct envoye : remis (accuse de reception) ou echec."""
+    with VERROU_JOURNAL:
+        for e in journal:
+            if e.get('id') == ident and e.get('sens') == 'emis' and e.get('statut') == 'attente':
+                e['statut'], e['raison'] = valeur, raison
+        try:
+            ecrire(JOURNAL, journal)
+        except OSError:
+            pass
+
+
+def deposer_pour_tableau(nom, texte):
+    ecrire(os.path.join(RECUS, '%d-%s.json' % (time.time() * 1000, secrets.token_hex(3))),
+           {'heure': time.time(), 'nom': nom, 'texte': texte})
+
+
+def effacer_journal_si_demande():
+    # « Effacer les ecrits » des Parametres : le journal des messages radio part aussi
+    if os.path.exists(EFFACER_JOURNAL):
+        with VERROU_JOURNAL:
+            del journal[:]
+            ecrire(JOURNAL, journal)
+        os.remove(EFFACER_JOURNAL)
+
+
+def prochain_message():
+    """Le plus ancien message en attente (fichier, contenu), en respectant l'ecart entre deux emissions."""
+    if time.time() - derniere_emission < ECART:
+        return None
+    fichiers = sorted(glob.glob(os.path.join(A_ENVOYER, '*.json')))
+    if not fichiers:
+        return None
+    f = fichiers[0]
+    try:
+        m = json.load(open(f))
+    except (OSError, ValueError):   # efface entre-temps depuis le tableau, ou illisible
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+        return None
+    if not os.path.exists(f):       # efface depuis le tableau a l'instant : on ne l'envoie pas
+        return None
+    m['texte'] = str(m.get('texte', ''))[:MAX_TEXTE]
+    m['canal'] = m.get('canal') if isinstance(m.get('canal'), int) and 0 <= m.get('canal') < 8 else 0
+    m['a'] = str(m.get('a') or '')
+    return f, m
+
+
+def message_parti(f, m):
+    global derniere_emission
+    derniere_emission = time.time()
+    ecrire(os.path.join(PARTIS, os.path.basename(f)), {'id': m.get('id')})
+    try:
+        os.remove(f)
+    except OSError:
+        pass
+
+
+def nettoyer(s, n):
+    return ' '.join(str(s).split())[:n]
+
+
+# =====================================================================  Meshtastic (USB)
 def trouver_port():
     """La carte radio : la puce USB-serie de la T-Beam (1a86 = CH9102, CP210x) en priorite, sinon le premier port."""
     ports = sorted(glob.glob('/dev/serial/by-id/*'))
@@ -68,8 +169,22 @@ def fermer():
     radio = None
 
 
+def accuse(ident, paquet):
+    """Reponse a un message direct : accuse de reception (remis) ou abandon (non remis)."""
+    try:
+        raison = paquet['decoded']['routing'].get('errorReason', 'NONE')
+    except (KeyError, TypeError, AttributeError):
+        raison = 'NONE'
+    statut(ident, 'remis' if raison == 'NONE' else 'echec', '' if raison == 'NONE' else raison)
+
+
+def nom_de(ident):
+    n = (radio.nodes or {}).get(ident or '', {}) if radio else {}
+    return nettoyer((n.get('user') or {}).get('longName') or ident or '?', 40)
+
+
 def recu(packet, interface):
-    """Un message texte arrive par radio : on le depose pour le tableau."""
+    """Un message texte arrive par radio : on le note au journal et on le depose pour le tableau."""
     global dernier_signe
     if interface is not radio:
         return
@@ -79,15 +194,73 @@ def recu(packet, interface):
             return
         deja_vus.append(packet.get('id'))
         del deja_vus[:-200]
-        texte = ' '.join(str(packet['decoded'].get('text', '')).split())[:MAX_TEXTE]
+        texte = nettoyer(packet['decoded'].get('text', ''), MAX_TEXTE)
         if not texte:
             return
-        n = (radio.nodes or {}).get(packet.get('fromId') or '', {})
-        nom = (n.get('user') or {}).get('longName') or packet.get('fromId') or '?'
-        ecrire(os.path.join(RECUS, '%d-%s.json' % (time.time() * 1000, secrets.token_hex(3))),
-               {'heure': time.time(), 'nom': ' '.join(str(nom).split())[:40], 'texte': texte})
+        nom = nom_de(packet.get('fromId'))
+        direct = packet.get('toId') not in (None, '^all')
+        sauts = packet.get('hopStart', 0) - packet.get('hopLimit', 0) if 'hopStart' in packet else None
+        noter_journal({'heure': time.time(), 'sens': 'recu', 'de': packet.get('fromId') or '', 'nom': nom,
+                       'a': packet.get('toId') or '^all', 'direct': direct, 'canal': packet.get('channel', 0),
+                       'texte': texte, 'snr': packet.get('rxSnr'), 'rssi': packet.get('rxRssi'), 'sauts': sauts})
+        deposer_pour_tableau(nom, texte)
     except Exception as e:
         print('Message recu illisible :', e, flush=True)
+
+
+def nom_preset(lora):
+    """LONG_FAST -> LongFast : le nom que les applis donnent au canal principal sans nom."""
+    try:
+        from meshtastic.protobuf import config_pb2
+        return ''.join(m.capitalize() for m in config_pb2.Config.LoRaConfig.ModemPreset.Name(lora.modem_preset).split('_'))
+    except Exception:
+        return ''
+
+
+def _nom_enum(message, champ):
+    try:
+        return message.DESCRIPTOR.fields_by_name[champ].enum_type.values_by_number[getattr(message, champ)].name
+    except Exception:
+        return ''
+
+
+def photographier():
+    """Ecrit details.json : la radio de la station, ses canaux et les radios qu'elle a entendues."""
+    global derniere_photo
+    derniere_photo = time.time()
+    try:
+        moi_num = radio.myInfo.my_node_num
+        lora = radio.localNode.localConfig.lora
+        canaux = []
+        for c in radio.localNode.channels or []:
+            if c.role:   # 0 = canal inutilise
+                canaux.append({'index': c.index, 'role': 'principal' if c.role == 1 else 'secondaire',
+                               'nom': c.settings.name or (nom_preset(lora) if c.role == 1 else 'Canal %d' % c.index)})
+        noeuds, moi = [], {}
+        for ident, n in list((radio.nodes or {}).items()):   # copie : la radio la modifie en meme temps
+            u, m, p = n.get('user') or {}, n.get('deviceMetrics') or {}, n.get('position') or {}
+            fiche = {'id': u.get('id') or ident, 'nom': nettoyer(u.get('longName') or ident, 40),
+                     'court': u.get('shortName') or '', 'materiel': u.get('hwModel') or '', 'vu': n.get('lastHeard'),
+                     'snr': n.get('snr'), 'sauts': n.get('hopsAway'), 'batterie': m.get('batteryLevel'),
+                     'tension': m.get('voltage'), 'lat': p.get('latitude'), 'lon': p.get('longitude')}
+            if n.get('num') == moi_num:
+                moi = dict(fiche, occupation=m.get('channelUtilization'), emission=m.get('airUtilTx'))
+            else:
+                noeuds.append(fiche)
+        noeuds.sort(key=lambda x: -(x['vu'] or 0))
+        version = ''
+        try:
+            version = radio.metadata.firmware_version
+        except Exception:
+            pass
+        ecrire(DETAILS, {'reseau': 'meshtastic', 'heure': time.time(), 'depuis': connectee_depuis,
+                         'moi': dict(moi, version=version, region=_nom_enum(lora, 'region'), preset=nom_preset(lora),
+                                     role=_nom_enum(radio.localNode.localConfig.device, 'role'),
+                                     preset_code=_nom_enum(lora, 'modem_preset'),
+                                     position_fixe=radio.localNode.localConfig.position.fixed_position),
+                         'canaux': canaux, 'noeuds': noeuds[:200]})
+    except Exception as e:
+        print('Details de la radio illisibles :', e, flush=True)
 
 
 def signe(packet, interface):
@@ -104,7 +277,7 @@ def perdue(interface, **_):
 
 def connecter():
     """Ouvre la liaison ; renvoie True si la radio a repondu."""
-    global radio, dernier_signe
+    global radio, dernier_signe, connectee_depuis
     import meshtastic.serial_interface
     port = trouver_port()
     if not port:
@@ -112,8 +285,9 @@ def connecter():
         return False
     try:
         radio = meshtastic.serial_interface.SerialInterface(devPath=port, timeout=30)
-        dernier_signe = time.time()
+        dernier_signe = connectee_depuis = time.time()
         noter_etat('ok', radio.getLongName() or '')
+        photographier()
         return True
     except Exception as e:
         print('La radio ne repond pas :', e, flush=True)
@@ -123,41 +297,35 @@ def connecter():
 
 
 def emettre():
-    """Envoie le plus ancien message en attente, en respectant l'ecart entre deux emissions."""
-    global derniere_emission
-    if time.time() - derniere_emission < ECART:
+    """Envoie le plus ancien message en attente."""
+    suivant = prochain_message()
+    if not suivant:
         return
-    fichiers = sorted(glob.glob(os.path.join(A_ENVOYER, '*.json')))
-    if not fichiers:
-        return
-    f = fichiers[0]
-    try:
-        m = json.load(open(f))
-    except (OSError, ValueError):   # efface entre-temps depuis le tableau, ou illisible
-        try:
-            os.remove(f)
-        except OSError:
-            pass
-        return
-    if not os.path.exists(f):       # efface depuis le tableau a l'instant : on ne l'envoie pas
-        return
-    radio.sendText(str(m.get('texte', ''))[:MAX_TEXTE])   # une erreur ici = liaison perdue, le message reste en attente
-    derniere_emission = time.time()
-    ecrire(os.path.join(PARTIS, os.path.basename(f)), {'id': m.get('id')})
-    try:
-        os.remove(f)
-    except OSError:
-        pass
+    f, m = suivant
+    entree = {'heure': time.time(), 'sens': 'emis', 'de': '', 'nom': radio.getLongName() or '', 'a': m['a'] or '^all',
+              'direct': bool(m['a']), 'canal': m['canal'], 'texte': m['texte'], 'id': m.get('id')}
+    if m['a']:
+        # Message direct : la radio d'en face accuse reception (ou la notre finit par abandonner)
+        entree['statut'] = 'attente'
+        entree['nom_a'] = nom_de(m['a'])
+        from meshtastic.protobuf import portnums_pb2
+        radio.sendData(m['texte'].encode(), m['a'], portNum=portnums_pb2.PortNum.TEXT_MESSAGE_APP, wantAck=True,
+                       onResponse=lambda p, ident=m.get('id'): accuse(ident, p), onResponseAckPermitted=True,
+                       channelIndex=m['canal'])
+    else:
+        radio.sendText(m['texte'], channelIndex=m['canal'])   # une erreur ici = liaison perdue, le message reste en attente
+    noter_journal(entree)
+    message_parti(f, m)
 
 
-def main():
+def boucle_meshtastic():
+    """Tourne tant que le reseau reste Meshtastic."""
     from pubsub import pub
     pub.subscribe(recu, 'meshtastic.receive.text')
     pub.subscribe(signe, 'meshtastic.receive')
     pub.subscribe(perdue, 'meshtastic.connection.lost')
-    for d in (A_ENVOYER, PARTIS, RECUS):
-        os.makedirs(d, exist_ok=True)
-    while True:
+    while reseau().get('reseau', 'meshtastic') == 'meshtastic':
+        effacer_journal_si_demande()
         if not active():
             fermer()
             noter_etat('eteinte')
@@ -170,6 +338,8 @@ def main():
         if time.time() - dernier_signe > SILENCE:
             fermer()
             continue
+        if time.time() - derniere_photo > PHOTO:
+            photographier()
         try:
             emettre()
         except Exception as e:
@@ -179,6 +349,219 @@ def main():
             time.sleep(10)
             continue
         time.sleep(2)
+    fermer()
+
+
+# =====================================================================  MeshCore (Bluetooth)
+class StationMeshCore:
+    """La T-Beam sous MeshCore, pilotee par Bluetooth (adresse dans reseau.json, appairee par prometheus-radio-outil)."""
+
+    def __init__(self, adresse):
+        self.adresse = adresse
+        self.mc = None
+        self.depuis = 0
+        self.annonce = 0
+        self.acks = {}        # code d'accuse attendu -> (id du message, heure limite)
+        self.nom = ''
+
+    def maxi(self):
+        # Sur un canal, MeshCore met « Nom: » devant le texte, dans la meme limite
+        return MAX_MESHCORE - len(self.nom.encode()) - 2
+
+    async def fermer(self):
+        if self.mc:
+            try:
+                await self.mc.disconnect()
+            except Exception:
+                pass
+        self.mc = None
+
+    async def connecter(self):
+        from meshcore import MeshCore, EventType
+        try:
+            self.mc = await asyncio.wait_for(MeshCore.create_ble(self.adresse), 45)
+        except Exception as e:
+            print('MeshCore : connexion impossible :', e, flush=True)
+            self.mc = None
+        if not self.mc:
+            noter_etat('muette', res='meshcore', maxi=MAX_MESHCORE)
+            return False
+        mc = self.mc
+        self.depuis = time.time()
+        self.nom = (mc.self_info or {}).get('name', '')
+        # La radio n'a pas d'horloge fiable : elle prend celle de la station
+        try:
+            await mc.commands.set_time(int(time.time()))
+        except Exception:
+            pass
+        mc.subscribe(EventType.CONTACT_MSG_RECV, self.recu)
+        mc.subscribe(EventType.CHANNEL_MSG_RECV, self.recu)
+        mc.subscribe(EventType.ACK, self.ack)
+        await mc.ensure_contacts()
+        await mc.start_auto_message_fetching()
+        noter_etat('ok', self.nom, 'meshcore', self.maxi())
+        if time.time() - self.annonce > 3600:
+            await mc.commands.send_advert(flood=True)
+            self.annonce = time.time()
+        await self.photographier()
+        return True
+
+    def nom_contact(self, prefixe):
+        c = self.mc.get_contact_by_key_prefix(prefixe) if self.mc and prefixe else None
+        return nettoyer(c['adv_name'], 40) if c else (prefixe or '?')[:12]
+
+    async def recu(self, ev):
+        p = ev.payload or {}
+        texte = str(p.get('text', ''))
+        if p.get('type') == 'CHAN':
+            # « Nom: texte » : MeshCore met le nom de l'expediteur devant le texte d'un message de canal
+            nom, _, reste = texte.partition(': ')
+            if not reste:
+                nom, reste = '?', texte
+            de, direct = '', False
+        else:
+            de = p.get('pubkey_prefix', '')
+            nom, reste, direct = self.nom_contact(de), texte, True
+            c = self.mc.get_contact_by_key_prefix(de) if self.mc else None
+            de = c['public_key'] if c else de
+        reste = nettoyer(reste, MAX_TEXTE)
+        if not reste:
+            return
+        nom = nettoyer(nom, 40)
+        sauts = p.get('path_len')
+        noter_journal({'heure': time.time(), 'sens': 'recu', 'de': de, 'nom': nom, 'a': 'moi' if direct else '^all',
+                       'direct': direct, 'canal': p.get('channel_idx', 0), 'texte': reste, 'snr': p.get('SNR'),
+                       'rssi': None, 'sauts': None if sauts in (None, 255, -1) else sauts})
+        deposer_pour_tableau(nom, reste)
+
+    async def ack(self, ev):
+        code = (ev.payload or {}).get('code', '')
+        if code in self.acks:
+            statut(self.acks.pop(code)[0], 'remis')
+
+    async def emettre(self):
+        from meshcore import EventType
+        # Accuses jamais venus : non remis
+        for code, (ident, limite) in list(self.acks.items()):
+            if time.time() > limite:
+                del self.acks[code]
+                statut(ident, 'echec', 'sans réponse')
+        suivant = prochain_message()
+        if not suivant:
+            return
+        f, m = suivant
+        entree = {'heure': time.time(), 'sens': 'emis', 'de': '', 'nom': self.nom, 'a': m['a'] or '^all',
+                  'direct': bool(m['a']), 'canal': m['canal'], 'texte': m['texte'], 'id': m.get('id')}
+        if m['a']:
+            contact = self.mc.get_contact_by_key_prefix(m['a'][:12])
+            if not contact:
+                print('MeshCore : contact inconnu', m['a'][:12], flush=True)
+                entree.update(statut='echec', raison='contact inconnu', nom_a=m['a'][:12])
+                noter_journal(entree)
+                message_parti(f, m)
+                return
+            r = await self.mc.commands.send_msg(contact, m['texte'])
+            entree.update(statut='attente', nom_a=nettoyer(contact['adv_name'], 40))
+            if r.type == EventType.MSG_SENT:
+                attente = max(30, r.payload.get('suggested_timeout', 0) / 1000 * 1.5)
+                self.acks[r.payload['expected_ack'].hex()] = (m.get('id'), time.time() + attente)
+            else:
+                entree.update(statut='echec', raison='refusé par la radio')
+        else:
+            r = await self.mc.commands.send_chan_msg(m['canal'], m['texte'])
+            if r.type == EventType.ERROR:
+                raise RuntimeError('canal refusé')
+        noter_journal(entree)
+        message_parti(f, m)
+
+    async def photographier(self):
+        global derniere_photo
+        from meshcore import EventType
+        derniere_photo = time.time()
+        mc = self.mc
+        try:
+            moi = mc.self_info or {}
+            self.nom = moi.get('name', self.nom)
+            bat = await mc.commands.get_bat()
+            mv = bat.payload.get('level') if bat.type == EventType.BATTERY else None
+            info = await mc.commands.send_device_query()
+            version = info.payload.get('ver', '') if info.type == EventType.DEVICE_INFO else ''
+            canaux = []
+            for i in range(8):
+                r = await mc.commands.get_channel(i)
+                if r.type == EventType.CHANNEL_INFO and r.payload.get('channel_name'):
+                    canaux.append({'index': i, 'role': 'principal' if i == 0 else 'secondaire', 'nom': r.payload['channel_name']})
+            await mc.ensure_contacts()
+            TYPES = {1: 'compagnon', 2: 'répéteur', 3: 'salon', 4: 'capteur'}
+            noeuds = []
+            for c in list(mc.contacts.values()):
+                lat, lon = c.get('adv_lat') or None, c.get('adv_lon') or None
+                noeuds.append({'id': c['public_key'], 'nom': nettoyer(c.get('adv_name') or c['public_key'][:12], 40),
+                               'court': '', 'materiel': TYPES.get(c.get('type'), ''), 'vu': c.get('lastmod') or c.get('last_advert'),
+                               'snr': None, 'sauts': None if c.get('out_path_len', -1) < 0 else c['out_path_len'],
+                               'batterie': None, 'tension': None, 'lat': lat, 'lon': lon})
+            noeuds.sort(key=lambda x: -(x['vu'] or 0))
+            ecrire(DETAILS, {'reseau': 'meshcore', 'heure': time.time(), 'depuis': self.depuis,
+                             'moi': {'id': moi.get('public_key', ''), 'nom': self.nom, 'materiel': 'T-Beam', 'version': version,
+                                     # tension en mV ; pourcentage approche (3,3 V vide, 4,2 V plein)
+                                     'batterie': None if mv is None else max(0, min(100, round((mv - 3300) / 9))),
+                                     'tension': None if mv is None else mv / 1000,
+                                     'region': '%s MHz' % moi.get('radio_freq'), 'preset': '%s kHz · SF%s · CR%s' % (
+                                         moi.get('radio_bw'), moi.get('radio_sf'), moi.get('radio_cr')),
+                                     'lat': moi.get('adv_lat') or None, 'lon': moi.get('adv_lon') or None,
+                                     'occupation': None, 'emission': None},
+                             'canaux': canaux, 'noeuds': noeuds[:200]})
+            noter_etat('ok', self.nom, 'meshcore', self.maxi())
+        except Exception as e:
+            print('MeshCore : details illisibles :', e, flush=True)
+
+    async def boucle(self):
+        while reseau().get('reseau') == 'meshcore':
+            effacer_journal_si_demande()
+            if not active():
+                await self.fermer()
+                noter_etat('eteinte', res='meshcore', maxi=MAX_MESHCORE)
+                await asyncio.sleep(10)
+                continue
+            if (self.mc is None or not self.mc.is_connected) and not await self.connecter():
+                await self.fermer()
+                await asyncio.sleep(30)
+                continue
+            try:
+                if time.time() - derniere_photo > PHOTO:
+                    await self.photographier()
+                if time.time() - self.annonce > ANNONCE_MESHCORE:
+                    await self.mc.commands.send_advert(flood=True)
+                    self.annonce = time.time()
+                await self.emettre()
+            except Exception as e:
+                print('MeshCore : liaison perdue :', e, flush=True)
+                await self.fermer()
+                noter_etat('muette', res='meshcore', maxi=MAX_MESHCORE)
+                await asyncio.sleep(10)
+                continue
+            await asyncio.sleep(2)
+        await self.fermer()
+
+
+# =====================================================================
+def main():
+    for d in (A_ENVOYER, PARTIS, RECUS):
+        os.makedirs(d, exist_ok=True)
+    try:
+        journal.extend(json.load(open(JOURNAL))[-MAX_JOURNAL:])
+    except (OSError, ValueError):
+        pass
+    while True:
+        r = reseau()
+        if r.get('reseau') == 'meshcore':
+            if r.get('ble'):
+                asyncio.run(StationMeshCore(r['ble']).boucle())
+            else:   # ne devrait pas arriver : l'outil note l'adresse en meme temps que le reseau
+                noter_etat('muette', res='meshcore', maxi=MAX_MESHCORE)
+                time.sleep(30)
+        else:
+            boucle_meshtastic()
 
 
 if __name__ == '__main__':

@@ -65,9 +65,24 @@ for nom in noms:
 # Le systeme lui-meme (paquets Debian : nginx, Kiwix, Tailscale, noyau...)
 def lancer(*a):
     return subprocess.run(a, capture_output=True, text=True).stdout
+paquets = [l.split('/')[0] for l in lancer('apt', 'list', '--upgradable').splitlines() if '/' in l]
+JOURNAL_MAJ = '/var/www/prometheus/ajouter/maj-systeme.txt'
+
+
+def maj_en_cours():
+    """Detail de la derniere mise a jour (prometheus-commande) : « ### FIN » en derniere ligne = terminee,
+    meme si ce programme est appele par la mise a jour elle-meme, juste avant qu'elle s'arrete."""
+    try:
+        finie = open(JOURNAL_MAJ, encoding='utf-8', errors='replace').read().rstrip().splitlines()[-1].startswith('### FIN')
+    except (OSError, IndexError):
+        finie = True
+    return not finie and lancer('systemctl', 'is-active', 'prometheus-maj-systeme').strip() in ('active', 'activating')
+
+
 systeme = {
-    'a_jour': len([l for l in lancer('apt', 'list', '--upgradable').splitlines() if '/' in l]),
-    'en_cours': lancer('systemctl', 'is-active', 'prometheus-maj-systeme').strip() in ('active', 'activating'),
+    'a_jour': len(paquets),
+    'paquets': paquets[:50],
+    'journal': os.path.exists(JOURNAL_MAJ),
     'redemarrage': os.path.exists('/run/reboot-required') or os.path.exists('/var/run/reboot-required'),
 }
 try:
@@ -111,7 +126,10 @@ except (OSError, IndexError, ValueError):
 
 etat = {'restauration': restauration, 'sauvegarde': sauvegarde, 'fichiers': fichiers, 'total_go': round(shutil.disk_usage(DIR).total / 1e9), 'ssid': ssid, 'adresse': adresse, 'theme': theme, 'systeme': systeme, 'verifie': time.strftime('%d/%m/%Y a %H:%M'), 'horodatage': time.time(), 'internet': internet, 'telechargement': actif,
         'libre_go': round(libre / 1e9), 'contenus': contenus}
-tmp = SORTIE + '.tmp'
+# Au dernier moment : deux calculs de l'etat peuvent se chevaucher (l'un lance au debut de la mise a jour,
+# l'autre a sa fin) ; le plus lent ne doit pas ecrire « en cours » alors qu'elle vient de finir
+systeme['en_cours'] = maj_en_cours()
+tmp = SORTIE + '.%d.tmp' % os.getpid()
 with open(tmp, 'w', encoding='utf-8') as f:
     json.dump(etat, f, ensure_ascii=False, indent=1)
 os.chmod(tmp, 0o644)

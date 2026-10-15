@@ -1,0 +1,908 @@
+#!/opt/prometheus-radio/bin/python3
+# Prometheus Station - outil radio (plan radio R3, R4, R5). Tourne en root, lance par prometheus-commande
+# (ordres radio-*) dans le service a part prometheus-radio-outil : un seul a la fois.
+# Tout ce qu'il fait s'ecrit dans /var/www/prometheus/ajouter/radio-outil.txt (la page Radio le fait defiler),
+# derniere ligne « ### FIN <code> » (0 = reussi).
+#
+#   prometheus-radio-outil sauvegarder               sauvegarde les reglages de la radio de la station
+#   prometheus-radio-outil regler '<json>'           {nom, court, role, preset, position: {lat, lon} | null}
+#   prometheus-radio-outil reseau meshcore|meshtastic   change de reseau : sauvegarde, efface, installe, restaure
+#   prometheus-radio-outil chercher                  telecharge les dernieres versions stables (internet)
+#   prometheus-radio-outil installer '<json>'        {radio: 'station' | nom d'un port USB} : mise a jour, reglages gardes
+#
+# Ce qu'il garde, dans /srv/prometheus/radio :
+#   reseau.json      {reseau: meshtastic|meshcore, puce: SX1276|SX1262, mac, ble}  (lu par prometheus-radio)
+#   logiciels/<reseau>/<version>/   les fichiers a installer, telecharges par « chercher »
+#   sauvegardes/     reglages de chaque reseau (meshtastic-dernier.yaml, meshcore-dernier.json) + copies datees
+#   outil.json       resume pour la page (versions disponibles, sauvegardes, radios branchees)
+import asyncio, glob, hashlib, io, json, os, re, shutil, subprocess, sys, time, urllib.request, zipfile
+
+RADIO = '/srv/prometheus/radio'
+LOGICIELS = os.path.join(RADIO, 'logiciels')
+SAUVEGARDES = os.path.join(RADIO, 'sauvegardes')
+RESEAU = os.path.join(RADIO, 'reseau.json')
+RESUME = os.path.join(RADIO, 'outil.json')
+JOURNAL = '/var/www/prometheus/ajouter/radio-outil.txt'
+BIN = '/opt/prometheus-radio/bin'
+MESHTASTIC = os.path.join(BIN, 'meshtastic')
+ESPTOOL = os.path.join(BIN, 'esptool')
+PIN_BLE = '123456'          # code Bluetooth fixe des T-Beam sous MeshCore (BLE_PIN_CODE de leur logiciel)
+# Reglage radio MeshCore conseille en Europe (« EU/UK Narrow ») : frequence (MHz), largeur (kHz), SF, CR
+MESHCORE_EU = {'freq': 869.618, 'bw': 62.5, 'sf': 8, 'cr': 8}
+ROLES = ('CLIENT', 'CLIENT_MUTE', 'ROUTER', 'ROUTER_LATE')
+PRESETS = ('LONG_FAST', 'LONG_SLOW', 'LONG_MODERATE', 'MEDIUM_FAST', 'MEDIUM_SLOW', 'SHORT_FAST', 'SHORT_SLOW')
+GARDER_VERSIONS = 2         # versions gardees par reseau
+
+
+# ---------------------------------------------------------------- journal de l'operation
+# Le journal est lisible depuis la page : jamais de cle ni de mot de passe dedans (meshtastic --configure les affiche)
+SECRET = re.compile(r'((?:private|public|admin)_?[kK]ey|password|psk)( to |: |=)\S+')
+MAC = re.compile(r'MAC:\s+([0-9a-f]{2}(?::[0-9a-f]{2}){5})')
+
+
+class Journal:
+    def __init__(self):
+        self.f = open(JOURNAL + '.tmp', 'w', encoding='utf-8')
+        os.chmod(JOURNAL + '.tmp', 0o644)
+        os.replace(JOURNAL + '.tmp', JOURNAL)
+
+    def __call__(self, *morceaux):
+        ligne = SECRET.sub(r'\1\2[masqué]', ' '.join(str(m) for m in morceaux))
+        print(ligne, flush=True)
+        self.f.write(ligne + '\n')
+        self.f.flush()
+
+
+dire = None
+
+
+class Echec(Exception):
+    pass
+
+
+def lancer(cmd, montrer=True, garder=False, delai=600):
+    """Lance une commande ; montre sa sortie ligne par ligne dans le journal. Renvoie (code, sortie)."""
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace')
+    sortie, progression = [], 0
+    fin = time.time() + delai
+    for ligne in p.stdout:
+        ligne = ligne.rstrip()
+        sortie.append(ligne)
+        # esptool ecrit une ligne de progression par bloc : on n'en montre qu'une sur dix
+        if 'Writing at 0x' in ligne or 'Reading from 0x' in ligne:
+            progression += 1
+            if progression % 10:
+                continue
+        if montrer and ligne:
+            dire('   ' + ligne[:200])
+        if time.time() > fin:
+            p.kill()
+            break
+    p.wait()
+    return p.returncode, '\n'.join(sortie)
+
+
+def ecrire_json(chemin, donnees, public=True):
+    tmp = chemin + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(donnees, f, ensure_ascii=False, indent=1)
+    os.chmod(tmp, 0o644 if public else 0o600)
+    os.replace(tmp, chemin)
+
+
+def lire_json(chemin, defaut):
+    try:
+        return json.load(open(chemin))
+    except (OSError, ValueError):
+        return defaut
+
+
+def reseau_actuel():
+    return lire_json(RESEAU, {}).get('reseau', 'meshtastic')
+
+
+def noter_reseau(**valeurs):
+    r = lire_json(RESEAU, {})
+    r.update(valeurs)
+    ecrire_json(RESEAU, r)
+    os.chown(RESEAU, *proprietaire())
+
+
+def proprietaire():
+    import pwd
+    p = pwd.getpwnam('prometheus')
+    return p.pw_uid, p.pw_gid
+
+
+# ---------------------------------------------------------------- la radio de la station
+def port_station():
+    """La T-Beam : sa puce USB-serie (1a86 = CH9102, CP210x)."""
+    for p in sorted(glob.glob('/dev/serial/by-id/*')):
+        if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs')):
+            return p
+    raise Echec('La radio de la station n’est pas branchée.')
+
+
+def arreter_service():
+    dire('== Arrêt du service radio (un seul programme à la fois peut parler à la radio)')
+    subprocess.run(['systemctl', 'stop', 'prometheus-radio'])
+
+
+def relancer_service():
+    dire('== Relance du service radio')
+    subprocess.run(['systemctl', 'start', 'prometheus-radio'])
+
+
+def mt(*args, montrer=True, delai=120):
+    """L'outil Meshtastic sur la radio de la station."""
+    return lancer([MESHTASTIC, '--port', port_station(), *args], montrer=montrer, delai=delai)
+
+
+def attendre_meshtastic(essais=12):
+    """Attend que la radio reponde sous Meshtastic (apres un redemarrage). Renvoie son nom long."""
+    for _ in range(essais):
+        code, sortie = mt('--info', montrer=False, delai=60)
+        m = re.search(r'Owner: (.+?) \(', sortie)
+        if code == 0 and m:
+            return m.group(1)
+        time.sleep(5)
+    raise Echec('La radio ne répond pas sous Meshtastic.')
+
+
+def horodatage():
+    return time.strftime('%Y-%m-%d-%H%M%S')
+
+
+def ranger_sauvegarde(nom, contenu):
+    """Ecrit nom-dernier.ext et une copie datee ; garde les 10 dernieres copies datees."""
+    os.makedirs(SAUVEGARDES, mode=0o700, exist_ok=True)
+    base, ext = nom.split('.')
+    for chemin in (os.path.join(SAUVEGARDES, '%s-dernier.%s' % (base, ext)),
+                   os.path.join(SAUVEGARDES, '%s-%s.%s' % (base, horodatage(), ext))):
+        with open(chemin + '.tmp', 'w') as f:
+            f.write(contenu)
+        os.chmod(chemin + '.tmp', 0o600)
+        os.replace(chemin + '.tmp', chemin)
+    datees = sorted(glob.glob(os.path.join(SAUVEGARDES, '%s-2*.%s' % (base, ext))))
+    for vieux in datees[:-10]:
+        os.remove(vieux)
+
+
+def sauvegarder_meshtastic():
+    dire('== Sauvegarde des réglages Meshtastic (nom, canaux, identité, réglages)')
+    code, sortie = mt('--export-config', montrer=False)
+    debut = sortie.find('# start of Meshtastic configure yaml')
+    if code != 0 or debut < 0 or 'owner:' not in sortie:
+        raise Echec('Impossible de lire les réglages de la radio.')
+    ranger_sauvegarde('meshtastic.yaml', sortie[debut:] + '\n')
+    dire('   gardés dans', os.path.join(SAUVEGARDES, 'meshtastic-dernier.yaml'))
+
+
+def restaurer_meshtastic():
+    fichier = os.path.join(SAUVEGARDES, 'meshtastic-dernier.yaml')
+    if not os.path.exists(fichier):
+        dire('   (aucune sauvegarde Meshtastic : la radio garde les réglages d’usine, région à régler)')
+        mt('--set', 'lora.region', 'EU_868')
+        return
+    dire('== Remise des réglages Meshtastic sauvegardés')
+    code, _ = mt('--configure', fichier, delai=300)
+    if code != 0:
+        raise Echec('La remise des réglages Meshtastic a échoué.')
+    # L'identite (cle privee) remise en bloc avec le reste n'est pas reprise par la radio, qui s'en fabrique une
+    # nouvelle (vu le 14/10/2026) : on la remet seule, puis on verifie que la radio a bien retrouve la sienne.
+    sauvee = open(fichier).read()
+    privee = re.search(r'^\s*privateKey:\s*(\S+)', sauvee, re.M)
+    publique = re.search(r'^\s*publicKey:\s*(\S+)', sauvee, re.M)
+    if privee and publique:
+        dire('== Remise de l’identité de la radio')
+        attendre_meshtastic()
+        mt('--set', 'security.private_key', privee.group(1))
+        time.sleep(10)
+        attendre_meshtastic()
+        _, sortie = mt('--export-config', montrer=False)
+        lue = re.search(r'^\s*publicKey:\s*(\S+)', sortie, re.M)
+        if not lue or lue.group(1) != publique.group(1):
+            raise Echec('La radio n’a pas repris son identité.')
+        dire('   identité vérifiée : c’est bien la même radio pour les autres')
+
+
+def detecter_puce():
+    """SX1276 ou SX1262 : lu dans le journal de demarrage de Meshtastic (RF95 = SX1276)."""
+    connue = lire_json(RESEAU, {}).get('puce')
+    if connue:
+        return connue
+    import serial
+    dire('== Lecture de la puce radio (redémarrage de la radio)')
+    s = serial.Serial(port_station(), 115200, timeout=0.5)
+    s.dtr = False
+    s.rts = True
+    time.sleep(0.2)
+    s.rts = False
+    fin, tampon = time.time() + 25, b''
+    while time.time() < fin and b'init success' not in tampon:
+        tampon += s.read(4096)
+    s.close()
+    t = tampon.decode('utf-8', 'replace')
+    puce = 'SX1276' if 'RF95' in t or 'SX1276' in t else 'SX1262' if 'SX1262' in t or 'SX126x' in t else None
+    if not puce:
+        raise Echec('Puce radio inconnue : changement de réseau impossible.')
+    dire('   puce', puce)
+    noter_reseau(puce=puce)
+    return puce
+
+
+# ---------------------------------------------------------------- les logiciels gardes sur la station
+def versions(reseau):
+    """Versions disponibles sur la station, la plus recente d'abord."""
+    d = os.path.join(LOGICIELS, reseau)
+    v = [x for x in os.listdir(d) if os.path.isdir(os.path.join(d, x))] if os.path.isdir(d) else []
+    return sorted(v, key=lambda x: [int(n) if n.isdigit() else 0 for n in re.findall(r'\d+', x)], reverse=True)
+
+
+def fichier_logiciel(reseau, quoi, puce=None):
+    """Le fichier a installer. quoi : 'station-complet' (efface tout), 'station-maj' (garde les reglages), 't-echo'."""
+    for v in versions(reseau):
+        d = os.path.join(LOGICIELS, reseau, v)
+        noms = os.listdir(d)
+        if reseau == 'meshtastic':
+            motif = {'station-complet': r'^firmware-tbeam-\d.*\.factory\.bin$', 'station-maj': r'^firmware-tbeam-\d.*(?<!factory)\.bin$',
+                     't-echo': r'^firmware-t-echo-[0-9].*\.uf2$'}[quoi]
+        else:
+            motif = {'station-complet': r'^Tbeam_%s_companion_radio_ble-.*-merged\.bin$' % puce,
+                     'station-maj': r'^Tbeam_%s_companion_radio_ble-.*(?<!merged)\.bin$' % puce,
+                     't-echo': r'^LilyGo_T-Echo_companion_radio_ble-.*\.uf2$'}[quoi]
+        for n in noms:
+            if re.match(motif, n):
+                return os.path.join(d, n), v
+    raise Echec('Aucun logiciel %s (%s) sur la station : cherchez d’abord les logiciels avec internet.' % (reseau, quoi))
+
+
+def esptool(*args):
+    code, sortie = lancer([ESPTOOL, '--port', port_station(), '--baud', '460800', *args], delai=600)
+    if code != 0:
+        raise Echec('L’écriture dans la radio a échoué.')
+    return sortie
+
+
+def installer_station(reseau, complet):
+    """Ecrit le logiciel dans la T-Beam. complet : efface tout (changement de reseau) ; sinon mise a jour."""
+    puce = lire_json(RESEAU, {}).get('puce') if reseau == 'meshcore' else None
+    fichier, version = fichier_logiciel(reseau, 'station-complet' if complet else 'station-maj', puce)
+    dire('== %s %s %s' % ('Installation de' if complet else 'Mise à jour vers', reseau.capitalize(), version), '(' + os.path.basename(fichier) + ')')
+    if complet:
+        dire('   effacement complet de la radio…')
+        sortie = esptool('erase-flash')
+        mac = MAC.search(sortie)
+        if mac:
+            noter_reseau(mac=mac.group(1))
+    esptool('write-flash', '0x0' if complet else '0x10000', fichier)
+    dire('   écrit ; la radio redémarre')
+    time.sleep(8)
+
+
+# ---------------------------------------------------------------- MeshCore par Bluetooth
+def adresse_ble():
+    """Adresse Bluetooth de la T-Beam : adresse de la puce + 2 (regle des ESP32)."""
+    mac = lire_json(RESEAU, {}).get('mac')
+    if not mac:
+        sortie = esptool('read-mac')
+        trouve = MAC.search(sortie)
+        if not trouve:
+            raise Echec('Adresse de la radio illisible.')
+        mac = trouve.group(1)
+        noter_reseau(mac=mac)
+    n = (int(mac.replace(':', ''), 16) + 2) & 0xFFFFFFFFFFFF
+    return ':'.join('%02X' % ((n >> s) & 0xFF) for s in range(40, -1, -8))
+
+
+def bloquer_bluetooth(bloque):
+    """Blocage logiciel de la puce Bluetooth (rfkill) : bloquee sur Meshtastic (economie), debloquee sur MeshCore."""
+    for f in glob.glob('/sys/class/rfkill/rfkill*'):
+        try:
+            if open(os.path.join(f, 'type')).read().strip() == 'bluetooth':
+                with open(os.path.join(f, 'soft'), 'w') as s:
+                    s.write('1' if bloque else '0')
+        except OSError:
+            pass
+
+
+def bluetooth(allume):
+    if allume:
+        bloquer_bluetooth(False)
+        subprocess.run(['systemctl', 'start', 'bluetooth'])
+        time.sleep(3)
+    else:
+        subprocess.run(['systemctl', 'stop', 'bluetooth'])
+        bloquer_bluetooth(True)
+
+
+CODE_BLE = os.path.join(RADIO, 'code-ble')     # depose par la page Radio (prometheus-admin) : le code lu sur l'ecran
+
+
+def attendre_code(minutes=10):
+    """Premier passage a MeshCore : la radio (avec ecran) tire un code Bluetooth au hasard et l'affiche.
+    On attend que l'administrateur le tape dans la page Radio."""
+    if os.path.exists(CODE_BLE):
+        os.remove(CODE_BLE)
+    dire('== CODE À TAPER : regardez l’écran de la radio de la station et tapez dans la page Radio le code à 6 chiffres qui s’y affiche')
+    dire('   (une seule fois : ensuite la station s’en souvient ; attente', minutes, 'minutes au plus)')
+    fin = time.time() + minutes * 60
+    while time.time() < fin:
+        if os.path.exists(CODE_BLE):
+            code = open(CODE_BLE).read().strip()
+            os.remove(CODE_BLE)
+            if re.fullmatch(r'\d{6}', code):
+                dire('   code reçu')
+                return code
+        time.sleep(1)
+    raise Echec('Aucun code tapé : appairage abandonné.')
+
+
+# La memoire de reglages de MeshCore (partition « spiffs ») : copiee en quittant MeshCore, remise en y revenant.
+# Elle contient tout (identite, contacts, canaux, nom, radio, code Bluetooth fixe) : MeshCore revient a l'identique.
+MEMOIRE_MESHCORE = os.path.join(SAUVEGARDES, 'meshcore-memoire.bin')
+
+
+def partition_reglages():
+    """(adresse, taille) de la partition de donnees du logiciel actuellement installe, lue dans sa table."""
+    tmp = '/run/prometheus-table.bin'
+    esptool('read-flash', '0x8000', '0xc00', tmp)
+    table = open(tmp, 'rb').read()
+    os.remove(tmp)
+    for i in range(0, len(table), 32):
+        e = table[i:i + 32]
+        if e[:2] != b'\xaa\x50':
+            break
+        if e[2] == 1 and e[3] in (0x82, 0x83):      # donnees : spiffs ou littlefs
+            return int.from_bytes(e[4:8], 'little'), int.from_bytes(e[8:12], 'little')
+    raise Echec('Table des partitions illisible.')
+
+
+def copier_memoire_meshcore():
+    dire('== Copie de la mémoire de réglages MeshCore de la radio')
+    adresse, taille = partition_reglages()
+    tmp = MEMOIRE_MESHCORE + '.tmp'
+    esptool('read-flash', hex(adresse), hex(taille), tmp)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, MEMOIRE_MESHCORE)
+    with open(MEMOIRE_MESHCORE + '.json', 'w') as f:
+        json.dump({'adresse': adresse, 'taille': taille, 'heure': time.time()}, f)
+    dire('   gardée (%d Ko)' % (taille // 1024))
+
+
+def remettre_memoire_meshcore():
+    """Apres l'installation de MeshCore : remet sa memoire si on en a une de la meme taille. Renvoie True si remise."""
+    if not os.path.exists(MEMOIRE_MESHCORE):
+        return False
+    adresse, taille = partition_reglages()
+    infos = lire_json(MEMOIRE_MESHCORE + '.json', {})
+    if infos.get('adresse') != adresse or infos.get('taille') != taille or os.path.getsize(MEMOIRE_MESHCORE) != taille:
+        dire('   (mémoire MeshCore gardée d’une autre forme : on ne la remet pas)')
+        return False
+    dire('== Remise de la mémoire de réglages MeshCore (identité, contacts, canaux)')
+    esptool('write-flash', hex(adresse), MEMOIRE_MESHCORE)
+    return True
+
+
+async def appairer(adresse, pin=PIN_BLE):
+    """Appaire la station et la T-Beam. Un petit agent repond le code au systeme Bluetooth."""
+    from dbus_fast import BusType, Variant
+    from dbus_fast.aio import MessageBus
+    from dbus_fast.service import ServiceInterface, method
+
+    class Agent(ServiceInterface):
+        def __init__(self):
+            super().__init__('org.bluez.Agent1')
+
+        @method()
+        def Release(self):
+            pass
+
+        @method()
+        def RequestPinCode(self, device: 'o') -> 's':
+            return pin
+
+        @method()
+        def RequestPasskey(self, device: 'o') -> 'u':
+            return int(pin)
+
+        @method()
+        def DisplayPasskey(self, device: 'o', passkey: 'u', entered: 'q'):
+            pass
+
+        @method()
+        def DisplayPinCode(self, device: 'o', pincode: 's'):
+            pass
+
+        @method()
+        def RequestConfirmation(self, device: 'o', passkey: 'u'):
+            pass
+
+        @method()
+        def RequestAuthorization(self, device: 'o'):
+            pass
+
+        @method()
+        def AuthorizeService(self, device: 'o', uuid: 's'):
+            pass
+
+        @method()
+        def Cancel(self):
+            pass
+
+    bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+    bus.export('/prometheus/agent', Agent())
+
+    async def interface(chemin, nom):
+        intro = await bus.introspect('org.bluez', chemin)
+        return bus.get_proxy_object('org.bluez', chemin, intro).get_interface(nom)
+
+    gestion = await interface('/org/bluez', 'org.bluez.AgentManager1')
+    await gestion.call_register_agent('/prometheus/agent', 'KeyboardDisplay')
+    await gestion.call_request_default_agent('/prometheus/agent')
+    props = await interface('/org/bluez/hci0', 'org.freedesktop.DBus.Properties')
+    await props.call_set('org.bluez.Adapter1', 'Powered', Variant('b', True))
+    adaptateur = await interface('/org/bluez/hci0', 'org.bluez.Adapter1')
+    chemin = '/org/bluez/hci0/dev_' + adresse.replace(':', '_')
+    # Une ancienne association (avant l'effacement de la radio) empecherait la nouvelle
+    try:
+        await adaptateur.call_remove_device(chemin)
+        dire('   ancienne association oubliée')
+    except Exception:
+        pass
+    dire('   recherche de la radio', adresse, '…')
+    await adaptateur.call_start_discovery()
+    objets = await interface('/', 'org.freedesktop.DBus.ObjectManager')
+    trouve = False
+    for _ in range(40):
+        if chemin in await objets.call_get_managed_objects():
+            trouve = True
+            break
+        await asyncio.sleep(1)
+    try:
+        await adaptateur.call_stop_discovery()
+    except Exception:
+        pass
+    if not trouve:
+        raise Echec('La radio n’apparaît pas en Bluetooth.')
+    appareil = await interface(chemin, 'org.bluez.Device1')
+    dire('   appairage…')
+    for essai in range(3):
+        try:
+            await appareil.call_pair()
+            break
+        except Exception as e:
+            if 'AlreadyExists' in str(e):
+                break
+            dire('   essai', essai + 1, ':', e)
+            await asyncio.sleep(3)
+    else:
+        raise Echec('Appairage Bluetooth refusé.')
+    p = await interface(chemin, 'org.freedesktop.DBus.Properties')
+    await p.call_set('org.bluez.Device1', 'Trusted', Variant('b', True))
+    try:
+        await appareil.call_disconnect()
+    except Exception:
+        pass
+    await gestion.call_unregister_agent('/prometheus/agent')
+    bus.disconnect()
+    dire('   appairée')
+
+
+async def meshcore_connecter(adresse, essais=6):
+    from meshcore import MeshCore
+    # Le service radio vient d'etre arrete : le systeme Bluetooth peut garder sa connexion ouverte, ce qui
+    # empeche la notre (vu le 15/10/2026). On la coupe d'abord.
+    subprocess.run(['bluetoothctl', 'disconnect', adresse], capture_output=True, timeout=20)
+    await asyncio.sleep(2)
+    for i in range(essais):
+        try:
+            mc = await asyncio.wait_for(MeshCore.create_ble(adresse), 40)
+            if mc:
+                return mc
+        except Exception as e:
+            dire('   connexion Bluetooth, essai', i + 1, ':', e)
+        await asyncio.sleep(5)
+    raise Echec('La radio ne répond pas sous MeshCore (Bluetooth).')
+
+
+async def meshcore_lire(mc):
+    """Tout ce qu'il faut pour remettre la radio comme elle etait (identite comprise)."""
+    from meshcore import EventType
+    moi = mc.self_info or {}
+    cle = await mc.commands.export_private_key()
+    canaux = []
+    for i in range(8):
+        r = await mc.commands.get_channel(i)
+        if r.type == EventType.CHANNEL_INFO and r.payload.get('channel_name'):
+            canaux.append({'index': i, 'nom': r.payload['channel_name'], 'secret': r.payload['channel_secret'].hex()})
+    contacts = await mc.commands.get_contacts()
+    return {'nom': moi.get('name', ''), 'freq': moi.get('radio_freq'), 'bw': moi.get('radio_bw'), 'sf': moi.get('radio_sf'),
+            'cr': moi.get('radio_cr'), 'tx': moi.get('tx_power'), 'lat': moi.get('adv_lat'), 'lon': moi.get('adv_lon'),
+            'cle': cle.payload.get('private_key').hex() if cle.type == EventType.PRIVATE_KEY else '',
+            'canaux': canaux,
+            'contacts': list(contacts.payload.values()) if contacts.type == EventType.CONTACTS else []}
+
+
+async def meshcore_ecrire(mc, s):
+    """Remet des reglages MeshCore (sauvegarde, ou valeurs de depart)."""
+    if s.get('cle'):
+        dire('   identité de la station')
+        await mc.commands.import_private_key(bytes.fromhex(s['cle']))
+    dire('   nom :', s['nom'])
+    await mc.commands.set_name(s['nom'])
+    dire('   radio : %s MHz, %s kHz, SF%s, CR%s' % (s['freq'], s['bw'], s['sf'], s['cr']))
+    await mc.commands.set_radio(s['freq'], s['bw'], s['sf'], s['cr'])
+    if s.get('tx'):
+        await mc.commands.set_tx_power(s['tx'])
+    if s.get('lat') or s.get('lon'):
+        await mc.commands.set_coords(s.get('lat') or 0, s.get('lon') or 0)
+    for c in s.get('canaux', []):
+        await mc.commands.set_channel(c['index'], c['nom'], bytes.fromhex(c['secret']))
+    for c in s.get('contacts', []):
+        try:
+            await mc.commands.add_contact(c)
+        except Exception:
+            pass
+    if s.get('contacts'):
+        dire('   contacts remis :', len(s['contacts']))
+
+
+async def meshcore_regler_depart(adresse, nom, memoire_remise):
+    """Apres l'installation. Memoire remise : tout est deja la, on verifie seulement. Sinon : reglages sauvegardes
+    par la bibliotheque (s'il y en a) ou reglages de depart, et code Bluetooth fixe pour les fois suivantes."""
+    mc = await meshcore_connecter(adresse)
+    try:
+        fichier = os.path.join(SAUVEGARDES, 'meshcore-dernier.json')
+        if memoire_remise:
+            dire('   la radio est revenue telle qu’elle était :', (mc.self_info or {}).get('name', '?'))
+        else:
+            if os.path.exists(fichier):
+                dire('== Remise des réglages MeshCore sauvegardés')
+                s = json.load(open(fichier))
+            else:
+                dire('== Premiers réglages MeshCore (réglage européen conseillé)')
+                s = dict(MESHCORE_EU, nom=nom)
+            await meshcore_ecrire(mc, s)
+            dire('   code Bluetooth fixé (la station n’aura plus besoin de lire l’écran)')
+            await mc.commands.set_devicepin(int(PIN_BLE))
+        dire('   la station s’annonce sur le réseau')
+        await mc.commands.send_advert(flood=True)
+        # La cle d'identite et le code ne prennent effet qu'au redemarrage
+        if not memoire_remise:
+            await mc.commands.reboot()
+    finally:
+        try:
+            await mc.disconnect()
+        except Exception:
+            pass
+
+
+async def meshcore_sauvegarder(adresse):
+    dire('== Sauvegarde des réglages MeshCore (nom, radio, canaux, contacts, identité)')
+    mc = await meshcore_connecter(adresse)
+    try:
+        s = await meshcore_lire(mc)
+    finally:
+        await mc.disconnect()
+    ranger_sauvegarde('meshcore.json', json.dumps(s, ensure_ascii=False, indent=1))
+    dire('   gardés dans', os.path.join(SAUVEGARDES, 'meshcore-dernier.json'), '(%d contacts)' % len(s['contacts']))
+    return s
+
+
+# ---------------------------------------------------------------- les actions
+def action_sauvegarder(_):
+    arreter_service()
+    try:
+        if reseau_actuel() == 'meshtastic':
+            sauvegarder_meshtastic()
+        else:
+            bluetooth(True)
+            asyncio.run(meshcore_sauvegarder(lire_json(RESEAU, {})['ble']))
+    finally:
+        relancer_service()
+
+
+def action_regler(texte):
+    try:
+        r = json.loads(texte)
+        assert isinstance(r, dict)
+    except (ValueError, AssertionError):
+        raise Echec('Réglage invalide.')
+    nom = ' '.join(str(r.get('nom', '')).split())[:36] if 'nom' in r else None
+    court = str(r.get('court', ''))[:4] if 'court' in r else None
+    if court is not None and len(court.encode()) > 4:
+        raise Echec('Nom court : 4 octets au plus.')
+    if 'role' in r and r['role'] not in ROLES:
+        raise Echec('Rôle inconnu.')
+    if 'preset' in r and r['preset'] not in PRESETS:
+        raise Echec('Préréglage inconnu.')
+    pos = r.get('position', 'absent')
+    if pos not in ('absent', None):
+        try:
+            lat, lon = float(pos['lat']), float(pos['lon'])
+            assert -90 <= lat <= 90 and -180 <= lon <= 180
+        except (KeyError, TypeError, ValueError, AssertionError):
+            raise Echec('Position invalide.')
+    arreter_service()
+    try:
+        if reseau_actuel() == 'meshtastic':
+            sauvegarder_meshtastic()
+            dire('== Réglages Meshtastic')
+            if nom:
+                mt('--set-owner', nom)
+            if court:
+                mt('--set-owner-short', court)
+            if 'role' in r:
+                mt('--set', 'device.role', r['role'])
+                attendre_meshtastic()
+            if 'preset' in r:
+                mt('--set', 'lora.modem_preset', r['preset'])
+                attendre_meshtastic()
+            if pos is None:
+                mt('--remove-position')
+            elif pos != 'absent':
+                mt('--setlat', str(lat), '--setlon', str(lon))
+            dire('   la radio s’appelle maintenant :', attendre_meshtastic())
+        else:
+            bluetooth(True)
+            adresse = lire_json(RESEAU, {})['ble']
+
+            async def regler():
+                await meshcore_sauvegarder(adresse)
+                mc = await meshcore_connecter(adresse)
+                try:
+                    dire('== Réglages MeshCore')
+                    if nom:
+                        await mc.commands.set_name(nom)
+                    if pos is None:
+                        await mc.commands.set_coords(0, 0)
+                    elif pos != 'absent':
+                        await mc.commands.set_coords(lat, lon)
+                    await mc.commands.send_advert(flood=True)
+                finally:
+                    await mc.disconnect()
+            asyncio.run(regler())
+        dire('   réglages appliqués')
+    finally:
+        relancer_service()
+
+
+def action_reseau(cible):
+    if cible not in ('meshtastic', 'meshcore'):
+        raise Echec('Réseau inconnu.')
+    depart = reseau_actuel()
+    if cible == depart:
+        raise Echec('La station est déjà sur ' + cible.capitalize() + '.')
+    dire('== Passage de', depart.capitalize(), 'à', cible.capitalize(), '— la radio sera hors réseau une à trois minutes')
+    arreter_service()
+    try:
+        if cible == 'meshcore':
+            puce = detecter_puce()
+            fichier_logiciel('meshcore', 'station-complet', puce)        # avant d'effacer : le fichier existe ?
+            sauvegarder_meshtastic()
+            nom = re.search(r'^owner: (.+)$', open(os.path.join(SAUVEGARDES, 'meshtastic-dernier.yaml')).read(), re.M)
+            nom = nom.group(1).strip().strip('"') if nom else 'Prometheus Station'
+            try:
+                installer_station('meshcore', complet=True)
+                remise = remettre_memoire_meshcore()
+                if remise:
+                    time.sleep(8)        # esptool vient de la redemarrer, sur la memoire remise
+                adresse = adresse_ble()
+                bluetooth(True)
+                # Memoire remise : le code fixe de la station ; sinon (toute premiere fois) le code lu sur l'ecran
+                asyncio.run(appairer(adresse, PIN_BLE if remise else attendre_code()))
+                noter_reseau(reseau='meshcore', ble=adresse)
+                asyncio.run(meshcore_regler_depart(adresse, nom, remise))
+            except Exception as e:
+                dire('!! Échec :', e)
+                dire('== Retour sur Meshtastic pour ne pas laisser la station sans radio')
+                bluetooth(False)
+                installer_station('meshtastic', complet=True)
+                attendre_meshtastic()
+                restaurer_meshtastic()
+                noter_reseau(reseau='meshtastic')
+                raise Echec('Le passage à MeshCore a échoué ; la radio est revenue sur Meshtastic.')
+        else:
+            fichier_logiciel('meshtastic', 'station-complet')
+            bluetooth(True)
+            adresse = lire_json(RESEAU, {}).get('ble') or adresse_ble()
+            try:
+                asyncio.run(meshcore_sauvegarder(adresse))
+            except Exception as e:
+                dire('!! Sauvegarde MeshCore impossible (', e, ') : on continue, les réglages MeshCore précédents restent gardés')
+            bluetooth(False)
+            copier_memoire_meshcore()
+            installer_station('meshtastic', complet=True)
+            attendre_meshtastic()
+            restaurer_meshtastic()
+            dire('   la radio s’appelle :', attendre_meshtastic())
+            noter_reseau(reseau='meshtastic')
+        dire('== La station est sur', cible.capitalize())
+    finally:
+        if reseau_actuel() == 'meshtastic':
+            bluetooth(False)
+        relancer_service()
+
+
+def telecharger(url, attendu=None):
+    req = urllib.request.Request(url, headers={'User-Agent': 'prometheus-station'})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        donnees = r.read()
+    if attendu and hashlib.sha256(donnees).hexdigest() != attendu:
+        raise Echec('Fichier abîmé pendant le téléchargement : ' + url.rsplit('/', 1)[-1])
+    return donnees
+
+
+def github(depot):
+    return json.loads(telecharger('https://api.github.com/repos/%s/releases?per_page=30' % depot))
+
+
+def empreinte(asset):
+    d = asset.get('digest') or ''
+    return d[7:] if d.startswith('sha256:') else None
+
+
+def action_chercher(_):
+    puce = lire_json(RESEAU, {}).get('puce')
+    dire('== Recherche des dernières versions stables (internet)')
+    # Meshtastic : la derniere version qui n'est pas une « alpha » (pre-release)
+    r = next(x for x in github('meshtastic/firmware') if not x['prerelease'] and not x['draft'])
+    v = r['tag_name'].lstrip('v')
+    d = os.path.join(LOGICIELS, 'meshtastic', v)
+    if os.path.isdir(d):
+        dire('   Meshtastic', v, ': déjà sur la station')
+    else:
+        dire('   Meshtastic', v, ': téléchargement…')
+        os.makedirs(d + '.tmp', exist_ok=True)
+        for prefixe, motifs in (('firmware-esp32-', (r'^firmware-tbeam-[0-9].*\.bin$',)),
+                                ('firmware-nrf52840-', (r'^firmware-t-echo-[0-9].*\.uf2$', r'^firmware-t-echo-inkhud-.*\.uf2$'))):
+            a = next(x for x in r['assets'] if x['name'].startswith(prefixe) and x['name'].endswith('.zip'))
+            dire('     ', a['name'], '(%d Mo)' % (a['size'] // 1000000))
+            z = zipfile.ZipFile(io.BytesIO(telecharger(a['browser_download_url'], empreinte(a))))
+            for n in z.namelist():
+                if any(re.match(m, os.path.basename(n)) for m in motifs):
+                    with open(os.path.join(d + '.tmp', os.path.basename(n)), 'wb') as f:
+                        f.write(z.read(n))
+                    dire('       gardé :', os.path.basename(n))
+        os.replace(d + '.tmp', d)
+    # MeshCore : la derniere version « companion »
+    r = next(x for x in github('meshcore-dev/MeshCore') if x['tag_name'].startswith('companion-v') and not x['prerelease'] and not x['draft'])
+    v = r['tag_name'][len('companion-v'):]
+    d = os.path.join(LOGICIELS, 'meshcore', v)
+    if os.path.isdir(d):
+        dire('   MeshCore', v, ': déjà sur la station')
+    else:
+        dire('   MeshCore', v, ': téléchargement…')
+        os.makedirs(d + '.tmp', exist_ok=True)
+        puces = [puce] if puce else ['SX1276', 'SX1262']
+        motifs = [r'^Tbeam_%s_companion_radio_ble-' % p for p in puces] + [r'^LilyGo_T-Echo_companion_radio_(ble|usb)-.*\.uf2$']
+        for a in r['assets']:
+            if any(re.match(m, a['name']) for m in motifs) and a['name'].endswith(('.bin', '.uf2')):
+                with open(os.path.join(d + '.tmp', a['name']), 'wb') as f:
+                    f.write(telecharger(a['browser_download_url'], empreinte(a)))
+                dire('       gardé :', a['name'])
+        os.replace(d + '.tmp', d)
+    # On garde les deux dernieres versions de chaque reseau
+    for reseau in ('meshtastic', 'meshcore'):
+        for vieux in versions(reseau)[GARDER_VERSIONS:]:
+            shutil.rmtree(os.path.join(LOGICIELS, reseau, vieux))
+            dire('   ancienne version retirée :', reseau, vieux)
+
+
+def radios_branchees():
+    """Les radios en USB autres que celle de la station (les T-Echo)."""
+    try:
+        station = port_station()
+    except Echec:
+        station = None
+    return [p for p in sorted(glob.glob('/dev/serial/by-id/*')) if p != station]
+
+
+def disque_uf2(attente=40):
+    for _ in range(attente):
+        for p in glob.glob('/dev/disk/by-label/*'):
+            if os.path.basename(p).upper().endswith('BOOT'):
+                return p
+        time.sleep(1)
+    return None
+
+
+def installer_t_echo(port):
+    """Met a jour un T-Echo branche en USB, sous Meshtastic, avec son fichier .uf2 (reglages gardes)."""
+    fichier, version = fichier_logiciel('meshtastic', 't-echo')
+    dire('== Mise à jour du T-Echo vers Meshtastic', version)
+    code, sortie = lancer([MESHTASTIC, '--port', port, '--info'], montrer=False, delai=60)
+    m = re.search(r'Owner: (.+?) \(', sortie)
+    if code != 0 or not m:
+        raise Echec('Ce T-Echo ne répond pas sous Meshtastic.')
+    dire('   radio :', m.group(1))
+    dire('   passage en mode mise à jour…')
+    lancer([MESHTASTIC, '--port', port, '--enter-dfu'], montrer=False, delai=60)
+    disque = disque_uf2()
+    if not disque:
+        raise Echec('Le T-Echo n’est pas passé en mode mise à jour.')
+    point = '/run/prometheus-uf2'
+    os.makedirs(point, exist_ok=True)
+    if subprocess.run(['mount', disque, point]).returncode != 0:
+        raise Echec('Impossible d’ouvrir le disque du T-Echo.')
+    try:
+        dire('   copie de', os.path.basename(fichier))
+        shutil.copyfile(fichier, os.path.join(point, os.path.basename(fichier)))
+        os.sync()
+    finally:
+        subprocess.run(['umount', point])
+    dire('   écrit ; le T-Echo redémarre')
+    time.sleep(15)
+    for p in glob.glob('/dev/serial/by-id/*'):
+        if p == port:
+            code, sortie = lancer([MESHTASTIC, '--port', port, '--info'], montrer=False, delai=60)
+            v = re.search(r'"firmwareVersion": "([^"]+)"', sortie)
+            dire('   version installée :', v.group(1) if v else '?')
+
+
+def action_installer(texte):
+    try:
+        r = json.loads(texte)
+        radio = str(r['radio'])
+    except (ValueError, KeyError, TypeError):
+        raise Echec('Réglage invalide.')
+    if radio == 'station':
+        arreter_service()
+        try:
+            reseau = reseau_actuel()
+            if reseau == 'meshtastic':
+                sauvegarder_meshtastic()
+            installer_station(reseau, complet=False)
+            if reseau == 'meshtastic':
+                dire('   la radio répond :', attendre_meshtastic())
+        finally:
+            relancer_service()
+        return
+    port = '/dev/serial/by-id/' + os.path.basename(radio)
+    if port not in radios_branchees():
+        raise Echec('Cette radio n’est plus branchée.')
+    installer_t_echo(port)
+
+
+def resumer():
+    """outil.json : ce que la page Radio montre (versions gardees, sauvegardes, radios branchees)."""
+    s = {}
+    for f in glob.glob(os.path.join(SAUVEGARDES, '*-dernier.*')):
+        s[os.path.basename(f).split('-')[0]] = os.path.getmtime(f)
+    ecrire_json(RESUME, {'versions': {r: versions(r) for r in ('meshtastic', 'meshcore')}, 'sauvegardes': s,
+                         'radios': [os.path.basename(p) for p in radios_branchees()],
+                         'reseau': reseau_actuel(), 'puce': lire_json(RESEAU, {}).get('puce'), 'heure': time.time()})
+
+
+ACTIONS = {'sauvegarder': action_sauvegarder, 'regler': action_regler, 'reseau': action_reseau,
+           'chercher': action_chercher, 'installer': action_installer, 'resumer': None}
+
+if __name__ == '__main__':
+    action = sys.argv[1] if len(sys.argv) > 1 else ''
+    if action not in ACTIONS:
+        sys.exit('Usage : prometheus-radio-outil ' + '|'.join(ACTIONS))
+    os.makedirs(LOGICIELS, exist_ok=True)
+    if action == 'resumer':
+        resumer()
+        sys.exit(0)
+    dire = Journal()
+    dire('== %s — %s' % (time.strftime('%d/%m/%Y %H:%M:%S'), {'sauvegarder': 'sauvegarde des réglages de la radio',
+         'regler': 'réglages de la radio', 'reseau': 'changement de réseau', 'chercher': 'recherche des logiciels des radios',
+         'installer': 'mise à jour d’une radio'}[action]))
+    code = 0
+    try:
+        ACTIONS[action](sys.argv[2] if len(sys.argv) > 2 else '')
+        dire('== Terminé')
+    except Echec as e:
+        dire('!!', e)
+        code = 1
+    except Exception as e:
+        dire('!! Erreur inattendue :', repr(e))
+        code = 2
+    try:
+        resumer()
+    except Exception as e:
+        dire('!! Résumé impossible :', e)
+    dire('### FIN', code)
+    sys.exit(code)

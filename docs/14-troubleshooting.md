@@ -70,7 +70,9 @@ Each service has its own log. The main ones:
 | `prometheus-ecran` | the e-ink screen |
 | `prometheus-tension` | clean shutdown on weak power |
 | `prometheus-extinction` | automatic shutdown without visitors |
-| `prometheus-radio` | the Meshtastic radio *(phase 2)*: see [chapter 16](16-radio-message-board.md#troubleshooting) |
+| `prometheus-radio` | the radio, Meshtastic or MeshCore *(phase 2)*: see [chapter 16](16-radio-message-board.md#troubleshooting) |
+| `prometheus-radio-outil` | the radio tool behind the Radio page (settings, network switch, software): see [chapter 17](17-radio-page.md#troubleshooting) |
+| `prometheus-maj-systeme` | a system update started from *Settings › Software*; its details are also shown on that page |
 | `prometheus-nom` | applies a new station address (`<name>.local`) |
 | `nginx` | the web pages |
 

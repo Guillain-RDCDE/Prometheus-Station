@@ -10,7 +10,8 @@ ICI=$(cd "$(dirname "$0")" && pwd)
 echo "== Bibliotheques Meshtastic et MeshCore, outil d'ecriture des radios (environnement a part, /opt/prometheus-radio)"
 apt-get install -y -qq python3-venv bluez >/dev/null
 [ -x /opt/prometheus-radio/bin/python3 ] || python3 -m venv /opt/prometheus-radio
-/opt/prometheus-radio/bin/pip install -q --upgrade meshtastic meshcore esptool
+# adafruit-nrfutil : installer un T-Echo par son port serie quand son disque de mise a jour n'apparait pas
+/opt/prometheus-radio/bin/pip install -q --upgrade meshtastic meshcore esptool adafruit-nrfutil
 
 echo "== Programmes et dossiers d'echange"
 install -m 755 "$ICI/prometheus-radio" /usr/local/bin/prometheus-radio
@@ -40,8 +41,34 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
+# Chaque jour, quand il y a internet : telecharger les nouvelles versions des logiciels des radios.
+# L'installation dans une radio reste un bouton de la page Radio (une radio se coupe pendant sa mise a jour).
+cat > /etc/systemd/system/prometheus-radio-chercher.service <<'EOF'
+[Unit]
+Description=Prometheus Station - recherche des nouveaux logiciels des radios
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/prometheus-radio-outil chercher-auto
+EOF
+cat > /etc/systemd/system/prometheus-radio-chercher.timer <<'EOF'
+[Unit]
+Description=Prometheus Station - recherche quotidienne des logiciels des radios
+
+[Timer]
+OnBootSec=20min
+OnUnitActiveSec=1d
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
 systemctl daemon-reload
 systemctl enable prometheus-radio.service
+systemctl enable --now prometheus-radio-chercher.timer
 systemctl restart prometheus-radio.service
 
 echo "== Logiciels des radios gardes sur la station (Meshtastic et MeshCore, derniere version stable)"

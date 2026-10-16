@@ -8,7 +8,10 @@
 #   prometheus-radio-outil regler '<json>'           {nom, court, role, preset, position: {lat, lon} | null}
 #   prometheus-radio-outil reseau meshcore|meshtastic   change de reseau : sauvegarde, efface, installe, restaure
 #   prometheus-radio-outil chercher                  telecharge les dernieres versions stables (internet)
+#   prometheus-radio-outil chercher-auto             la meme, chaque jour (minuterie), son propre journal, rien sans internet
 #   prometheus-radio-outil installer '<json>'        {radio: 'station' | nom d'un port USB} : mise a jour, reglages gardes
+#   prometheus-radio-outil t-echo '<json>'           {radio: port, cible: meshtastic | meshcore-ble | meshcore-usb | maj}
+#   prometheus-radio-outil detecter                  reconnait les T-Echo branches (logiciel, version, nom)
 #
 # Ce qu'il garde, dans /srv/prometheus/radio :
 #   reseau.json      {reseau: meshtastic|meshcore, puce: SX1276|SX1262, mac, ble}  (lu par prometheus-radio)
@@ -23,6 +26,7 @@ SAUVEGARDES = os.path.join(RADIO, 'sauvegardes')
 RESEAU = os.path.join(RADIO, 'reseau.json')
 RESUME = os.path.join(RADIO, 'outil.json')
 JOURNAL = '/var/www/prometheus/ajouter/radio-outil.txt'
+JOURNAL_AUTO = '/var/www/prometheus/ajouter/radio-chercher.txt'
 BIN = '/opt/prometheus-radio/bin'
 MESHTASTIC = os.path.join(BIN, 'meshtastic')
 ESPTOOL = os.path.join(BIN, 'esptool')
@@ -41,10 +45,11 @@ MAC = re.compile(r'MAC:\s+([0-9a-f]{2}(?::[0-9a-f]{2}){5})')
 
 
 class Journal:
-    def __init__(self):
-        self.f = open(JOURNAL + '.tmp', 'w', encoding='utf-8')
-        os.chmod(JOURNAL + '.tmp', 0o644)
-        os.replace(JOURNAL + '.tmp', JOURNAL)
+    def __init__(self, chemin=None):
+        chemin = chemin or JOURNAL
+        self.f = open(chemin + '.tmp', 'w', encoding='utf-8')
+        os.chmod(chemin + '.tmp', 0o644)
+        os.replace(chemin + '.tmp', chemin)
 
     def __call__(self, *morceaux):
         ligne = SECRET.sub(r'\1\2[masqué]', ' '.join(str(m) for m in morceaux))
@@ -63,6 +68,10 @@ class Echec(Exception):
 def lancer(cmd, montrer=True, garder=False, delai=600):
     """Lance une commande ; montre sa sortie ligne par ligne dans le journal. Renvoie (code, sortie)."""
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace')
+    # Une commande muette (radio qui ne repond pas) n'ecrit rien : le delai doit tomber quand meme (16/10/2026)
+    import threading
+    minuteur = threading.Timer(delai, p.kill)
+    minuteur.start()
     sortie, progression = [], 0
     fin = time.time() + delai
     for ligne in p.stdout:
@@ -79,6 +88,7 @@ def lancer(cmd, montrer=True, garder=False, delai=600):
             p.kill()
             break
     p.wait()
+    minuteur.cancel()
     return p.returncode, '\n'.join(sortie)
 
 
@@ -133,15 +143,19 @@ def relancer_service():
     subprocess.run(['systemctl', 'start', 'prometheus-radio'])
 
 
-def mt(*args, montrer=True, delai=120):
-    """L'outil Meshtastic sur la radio de la station."""
-    return lancer([MESHTASTIC, '--port', port_station(), *args], montrer=montrer, delai=delai)
+def mt(*args, montrer=True, delai=120, port=None):
+    """L'outil Meshtastic, sur la radio de la station ou sur le port donne (un T-Echo)."""
+    return lancer([MESHTASTIC, '--port', port or port_station(), *args], montrer=montrer, delai=delai)
 
 
-def attendre_meshtastic(essais=12):
+def attendre_meshtastic(essais=12, port=None, delai=60):
     """Attend que la radio reponde sous Meshtastic (apres un redemarrage). Renvoie son nom long."""
     for _ in range(essais):
-        code, sortie = mt('--info', montrer=False, delai=60)
+        p = port() if callable(port) else port   # un T-Echo peut changer de port en redemarrant
+        if not p and port is not None:
+            time.sleep(5)
+            continue
+        code, sortie = mt('--info', montrer=False, delai=delai, port=p)
         m = re.search(r'Owner: (.+?) \(', sortie)
         if code == 0 and m:
             return m.group(1)
@@ -168,24 +182,28 @@ def ranger_sauvegarde(nom, contenu):
         os.remove(vieux)
 
 
-def sauvegarder_meshtastic():
+def sauvegarder_meshtastic(port=None, nom='meshtastic'):
+    """Sauvegarde les reglages Meshtastic d'une radio. nom : 'meshtastic' (la station) ou 't-echo-<serie>-meshtastic'."""
     dire('== Sauvegarde des réglages Meshtastic (nom, canaux, identité, réglages)')
-    code, sortie = mt('--export-config', montrer=False)
+    code, sortie = mt('--export-config', montrer=False, port=port)
     debut = sortie.find('# start of Meshtastic configure yaml')
     if code != 0 or debut < 0 or 'owner:' not in sortie:
         raise Echec('Impossible de lire les réglages de la radio.')
-    ranger_sauvegarde('meshtastic.yaml', sortie[debut:] + '\n')
-    dire('   gardés dans', os.path.join(SAUVEGARDES, 'meshtastic-dernier.yaml'))
+    ranger_sauvegarde(nom + '.yaml', sortie[debut:] + '\n')
+    dire('   gardés dans', os.path.join(SAUVEGARDES, nom + '-dernier.yaml'))
+    return sortie[debut:]
 
 
-def restaurer_meshtastic():
-    fichier = os.path.join(SAUVEGARDES, 'meshtastic-dernier.yaml')
+def restaurer_meshtastic(port=None, nom='meshtastic'):
+    """Remet les reglages Meshtastic sauvegardes (identite comprise, verifiee). port peut etre une fonction."""
+    p = (lambda: port() if callable(port) else port) if port is not None else (lambda: None)
+    fichier = os.path.join(SAUVEGARDES, nom + '-dernier.yaml')
     if not os.path.exists(fichier):
-        dire('   (aucune sauvegarde Meshtastic : la radio garde les réglages d’usine, région à régler)')
-        mt('--set', 'lora.region', 'EU_868')
+        dire('   (aucune sauvegarde Meshtastic pour cette radio : réglages d’usine, région Europe 868 MHz)')
+        mt('--set', 'lora.region', 'EU_868', port=p())
         return
     dire('== Remise des réglages Meshtastic sauvegardés')
-    code, _ = mt('--configure', fichier, delai=300)
+    code, _ = mt('--configure', fichier, delai=300, port=p())
     if code != 0:
         raise Echec('La remise des réglages Meshtastic a échoué.')
     # L'identite (cle privee) remise en bloc avec le reste n'est pas reprise par la radio, qui s'en fabrique une
@@ -195,11 +213,11 @@ def restaurer_meshtastic():
     publique = re.search(r'^\s*publicKey:\s*(\S+)', sauvee, re.M)
     if privee and publique:
         dire('== Remise de l’identité de la radio')
-        attendre_meshtastic()
-        mt('--set', 'security.private_key', privee.group(1))
-        time.sleep(10)
-        attendre_meshtastic()
-        _, sortie = mt('--export-config', montrer=False)
+        attendre_meshtastic(port=port)
+        mt('--set', 'security.private_key', privee.group(1), port=p())
+        time.sleep(15)
+        attendre_meshtastic(port=port)
+        _, sortie = mt('--export-config', montrer=False, port=p())
         lue = re.search(r'^\s*publicKey:\s*(\S+)', sortie, re.M)
         if not lue or lue.group(1) != publique.group(1):
             raise Echec('La radio n’a pas repris son identité.')
@@ -239,18 +257,30 @@ def versions(reseau):
     return sorted(v, key=lambda x: [int(n) if n.isdigit() else 0 for n in re.findall(r'\d+', x)], reverse=True)
 
 
+# Ce que la station garde de chaque reseau (motifs des noms de fichiers) ; « chercher » complete ce qui manque.
+#   T-Echo : .uf2 (copie sur son disque de mise a jour) et .zip (installation par le port serie, quand le disque
+#   n'apparait pas). MeshCore a deux versions pour le T-Echo : « ble » (avec l'appli du telephone) et « usb » (pilote
+#   par la station).
+MOTIFS = {
+    'meshtastic': {'station-complet': r'^firmware-tbeam-\d.*\.factory\.bin$',
+                   'station-maj': r'^firmware-tbeam-\d.*(?<!factory)\.bin$',
+                   't-echo': r'^firmware-t-echo-\d.*(?<!-ota)\.uf2$',
+                   't-echo-zip': r'^firmware-t-echo-\d.*-ota\.zip$'},
+    'meshcore': {'station-complet': r'^Tbeam_{puce}_companion_radio_ble-.*-merged\.bin$',
+                 'station-maj': r'^Tbeam_{puce}_companion_radio_ble-.*(?<!merged)\.bin$',
+                 't-echo-ble': r'^LilyGo_T-Echo_companion_radio_ble-.*\.uf2$',
+                 't-echo-ble-zip': r'^LilyGo_T-Echo_companion_radio_ble-.*\.zip$',
+                 't-echo-usb': r'^LilyGo_T-Echo_companion_radio_usb-.*\.uf2$',
+                 't-echo-usb-zip': r'^LilyGo_T-Echo_companion_radio_usb-.*\.zip$'},
+}
+
+
 def fichier_logiciel(reseau, quoi, puce=None):
-    """Le fichier a installer. quoi : 'station-complet' (efface tout), 'station-maj' (garde les reglages), 't-echo'."""
+    """Le fichier a installer (le plus recent), et sa version. quoi : une cle de MOTIFS[reseau]."""
     for v in versions(reseau):
         d = os.path.join(LOGICIELS, reseau, v)
         noms = os.listdir(d)
-        if reseau == 'meshtastic':
-            motif = {'station-complet': r'^firmware-tbeam-\d.*\.factory\.bin$', 'station-maj': r'^firmware-tbeam-\d.*(?<!factory)\.bin$',
-                     't-echo': r'^firmware-t-echo-[0-9].*\.uf2$'}[quoi]
-        else:
-            motif = {'station-complet': r'^Tbeam_%s_companion_radio_ble-.*-merged\.bin$' % puce,
-                     'station-maj': r'^Tbeam_%s_companion_radio_ble-.*(?<!merged)\.bin$' % puce,
-                     't-echo': r'^LilyGo_T-Echo_companion_radio_ble-.*\.uf2$'}[quoi]
+        motif = MOTIFS[reseau][quoi].replace('{puce}', puce or 'SX1276')
         for n in noms:
             if re.match(motif, n):
                 return os.path.join(d, n), v
@@ -743,51 +773,86 @@ def empreinte(asset):
     return d[7:] if d.startswith('sha256:') else None
 
 
+def manquants(reseau, d, puces):
+    """Les motifs de MOTIFS[reseau] dont aucun fichier n'est encore dans le dossier d."""
+    noms = os.listdir(d) if os.path.isdir(d) else []
+    res = []
+    for cle, motif in MOTIFS[reseau].items():
+        for p in (puces if '{puce}' in motif else [None]):
+            m = motif.replace('{puce}', p or '')
+            if not any(re.match(m, n) for n in noms):
+                res.append(m)
+    return res
+
+
 def action_chercher(_):
     puce = lire_json(RESEAU, {}).get('puce')
+    puces = [puce] if puce else ['SX1276', 'SX1262']
     dire('== Recherche des dernières versions stables (internet)')
+    nouveautes = []
     # Meshtastic : la derniere version qui n'est pas une « alpha » (pre-release)
     r = next(x for x in github('meshtastic/firmware') if not x['prerelease'] and not x['draft'])
     v = r['tag_name'].lstrip('v')
     d = os.path.join(LOGICIELS, 'meshtastic', v)
-    if os.path.isdir(d):
-        dire('   Meshtastic', v, ': déjà sur la station')
+    manque = manquants('meshtastic', d, puces)
+    if not manque:
+        dire('   Meshtastic', v, ': déjà sur la station, complet')
     else:
-        dire('   Meshtastic', v, ': téléchargement…')
-        os.makedirs(d + '.tmp', exist_ok=True)
-        for prefixe, motifs in (('firmware-esp32-', (r'^firmware-tbeam-[0-9].*\.bin$',)),
-                                ('firmware-nrf52840-', (r'^firmware-t-echo-[0-9].*\.uf2$', r'^firmware-t-echo-inkhud-.*\.uf2$'))):
+        nouveau = not os.path.isdir(d)
+        dire('   Meshtastic', v, ': téléchargement…' if nouveau else ': fichiers à compléter…')
+        os.makedirs(d, exist_ok=True)
+        for prefixe in ('firmware-esp32-', 'firmware-nrf52840-'):
             a = next(x for x in r['assets'] if x['name'].startswith(prefixe) and x['name'].endswith('.zip'))
+            # on ne telecharge le gros paquet que s'il contient un fichier qui manque
+            if prefixe == 'firmware-esp32-' and not any('tbeam' in m for m in manque):
+                continue
+            if prefixe == 'firmware-nrf52840-' and not any('t-echo' in m for m in manque):
+                continue
             dire('     ', a['name'], '(%d Mo)' % (a['size'] // 1000000))
             z = zipfile.ZipFile(io.BytesIO(telecharger(a['browser_download_url'], empreinte(a))))
             for n in z.namelist():
-                if any(re.match(m, os.path.basename(n)) for m in motifs):
-                    with open(os.path.join(d + '.tmp', os.path.basename(n)), 'wb') as f:
+                b = os.path.basename(n)
+                if any(re.match(m, b) for m in manque) or re.match(r'^firmware-t-echo-inkhud-.*\.uf2$', b):
+                    with open(os.path.join(d, b), 'wb') as f:
                         f.write(z.read(n))
-                    dire('       gardé :', os.path.basename(n))
-        os.replace(d + '.tmp', d)
+                    dire('       gardé :', b)
+        if nouveau:
+            nouveautes.append('Meshtastic ' + v)
     # MeshCore : la derniere version « companion »
     r = next(x for x in github('meshcore-dev/MeshCore') if x['tag_name'].startswith('companion-v') and not x['prerelease'] and not x['draft'])
     v = r['tag_name'][len('companion-v'):]
     d = os.path.join(LOGICIELS, 'meshcore', v)
-    if os.path.isdir(d):
-        dire('   MeshCore', v, ': déjà sur la station')
+    manque = manquants('meshcore', d, puces)
+    if not manque:
+        dire('   MeshCore', v, ': déjà sur la station, complet')
     else:
-        dire('   MeshCore', v, ': téléchargement…')
-        os.makedirs(d + '.tmp', exist_ok=True)
-        puces = [puce] if puce else ['SX1276', 'SX1262']
-        motifs = [r'^Tbeam_%s_companion_radio_ble-' % p for p in puces] + [r'^LilyGo_T-Echo_companion_radio_(ble|usb)-.*\.uf2$']
+        nouveau = not os.path.isdir(d)
+        dire('   MeshCore', v, ': téléchargement…' if nouveau else ': fichiers à compléter…')
+        os.makedirs(d, exist_ok=True)
         for a in r['assets']:
-            if any(re.match(m, a['name']) for m in motifs) and a['name'].endswith(('.bin', '.uf2')):
-                with open(os.path.join(d + '.tmp', a['name']), 'wb') as f:
+            if any(re.match(m, a['name']) for m in manque):
+                with open(os.path.join(d, a['name']), 'wb') as f:
                     f.write(telecharger(a['browser_download_url'], empreinte(a)))
                 dire('       gardé :', a['name'])
-        os.replace(d + '.tmp', d)
+        if nouveau:
+            nouveautes.append('MeshCore ' + v)
+    dire('   nouvelles versions :', ', '.join(nouveautes) if nouveautes else 'aucune')
     # On garde les deux dernieres versions de chaque reseau
     for reseau in ('meshtastic', 'meshcore'):
         for vieux in versions(reseau)[GARDER_VERSIONS:]:
             shutil.rmtree(os.path.join(LOGICIELS, reseau, vieux))
             dire('   ancienne version retirée :', reseau, vieux)
+
+
+# ---------------------------------------------------------------- les T-Echo branches en USB
+# Un T-Echo se reconnait a son numero de serie (le meme sous Meshtastic, MeshCore ou en mode mise a jour) ;
+# le nom de son port, lui, change selon le logiciel :
+#   ...TTGO_eink_<serie>    Meshtastic
+#   ...NRF52_DK_<serie>     MeshCore (version « usb » ou « ble »)
+#   ...T-Echo_v1_<serie>    son programme de demarrage (mode mise a jour), avec ou sans disque TECHOBOOT
+DISQUE_MAJ = '/dev/disk/by-label/TECHOBOOT'     # JAMAIS un autre disque (15/10/2026 : « bootfs » est celui du Pi)
+DETAILS_RADIOS = os.path.join(RADIO, 'radios.json')   # ce que la station sait des T-Echo vus (par numero de serie)
+NOMS_VERSION = {'meshtastic': 'Meshtastic', 'meshcore-ble': 'MeshCore (téléphone)', 'meshcore-usb': 'MeshCore (station)'}
 
 
 def radios_branchees():
@@ -799,84 +864,312 @@ def radios_branchees():
     return [p for p in sorted(glob.glob('/dev/serial/by-id/*')) if p != station]
 
 
-def disque_uf2(attente=40):
-    for _ in range(attente):
-        for p in glob.glob('/dev/disk/by-label/*'):
-            if os.path.basename(p).upper().endswith('BOOT'):
-                return p
-        time.sleep(1)
+def serie_de(port):
+    m = re.search(r'_([0-9A-Fa-f]{12,})-if\d+$', port)
+    return m.group(1).upper() if m else None
+
+
+def port_de(serie):
+    for p in radios_branchees():
+        if serie_de(p) == serie:
+            return p
     return None
 
 
-def installer_t_echo(port):
-    """Met a jour un T-Echo branche en USB, sous Meshtastic, avec son fichier .uf2 (reglages gardes)."""
-    fichier, version = fichier_logiciel('meshtastic', 't-echo')
-    dire('== Mise à jour du T-Echo vers Meshtastic', version)
-    code, sortie = lancer([MESHTASTIC, '--port', port, '--info'], montrer=False, delai=60)
-    m = re.search(r'Owner: (.+?) \(', sortie)
-    if code != 0 or not m:
-        raise Echec('Ce T-Echo ne répond pas sous Meshtastic.')
-    dire('   radio :', m.group(1))
-    dire('   passage en mode mise à jour…')
-    lancer([MESHTASTIC, '--port', port, '--enter-dfu'], montrer=False, delai=60)
-    disque = disque_uf2()
-    if not disque:
-        raise Echec('Le T-Echo n’est pas passé en mode mise à jour.')
-    point = '/run/prometheus-uf2'
-    os.makedirs(point, exist_ok=True)
-    if subprocess.run(['mount', disque, point]).returncode != 0:
-        raise Echec('Impossible d’ouvrir le disque du T-Echo.')
+def genre_du_port(port):
+    if 'TTGO_eink' in port:
+        return 'meshtastic'
+    if 'NRF52_DK' in port:
+        return 'meshcore'
+    if 'T-Echo_v1' in port:
+        return 'demarrage'
+    return 'inconnu'
+
+
+async def meshcore_serie(port, attente=12):
+    from meshcore import MeshCore
     try:
-        dire('   copie de', os.path.basename(fichier))
-        shutil.copyfile(fichier, os.path.join(point, os.path.basename(fichier)))
-        os.sync()
-    finally:
-        subprocess.run(['umount', point])
+        return await asyncio.wait_for(MeshCore.create_serial(port, 115200, default_timeout=8), attente)
+    except Exception:
+        return None
+
+
+def reconnaitre(port):
+    """Ce qu'il y a dans le T-Echo : {serie, port, logiciel, nom, version}."""
+    r = {'serie': serie_de(port), 'port': os.path.basename(port), 'logiciel': genre_du_port(port), 'nom': '', 'version': ''}
+    if r['logiciel'] == 'meshtastic':
+        code, sortie = mt('--info', montrer=False, delai=60, port=port)
+        m = re.search(r'Owner: (.+?) \(', sortie)
+        v = re.search(r'"firmwareVersion": "([^"]+)"', sortie)
+        r.update(nom=m.group(1) if m else '', version=v.group(1) if v else '')
+        if not m:
+            r['logiciel'] = 'meshtastic-muet'
+    elif r['logiciel'] == 'meshcore':
+        async def lire():
+            mc = await meshcore_serie(port)
+            if not mc:
+                return None
+            try:
+                from meshcore import EventType
+                info = await mc.commands.send_device_query()
+                return (mc.self_info or {}).get('name', ''), info.payload.get('ver', '') if info.type == EventType.DEVICE_INFO else ''
+            finally:
+                await mc.disconnect()
+        lu = asyncio.run(lire())
+        if lu:
+            r.update(logiciel='meshcore-usb', nom=lu[0], version=lu[1].lstrip('v').split('-')[0])
+        else:
+            # La version « ble » ne repond pas par le cable : on ne peut pas la lire d'ici
+            r['logiciel'] = 'meshcore-ble'
+    return r
+
+
+def noter_radio(r):
+    tout = lire_json(DETAILS_RADIOS, {})
+    tout[r['serie']] = dict(tout.get(r['serie'], {}), **{k: v for k, v in r.items() if v}, heure=time.time())
+    ecrire_json(DETAILS_RADIOS, tout)
+
+
+def action_detecter(_):
+    branchees = radios_branchees()
+    if not branchees:
+        dire('   aucune radio branchée en USB à part celle de la station')
+    for p in branchees:
+        r = reconnaitre(p)
+        noter_radio(r)
+        dire('   %s : %s %s %s' % (r['port'], NOMS_VERSION.get(r['logiciel'], r['logiciel']), r['version'], r['nom']))
+
+
+def attendre(test, secondes, pas=1):
+    fin = time.time() + secondes
+    while time.time() < fin:
+        r = test()
+        if r:
+            return r
+        time.sleep(pas)
+    return None
+
+
+def vers_demarrage(serie, logiciel):
+    """Met le T-Echo dans son programme de demarrage (mode mise a jour). Sous Meshtastic : par une commande ;
+    sous MeshCore : seulement a la main (double appui sur reset), la station attend."""
+    def en_demarrage():
+        p = port_de(serie)
+        return (p and genre_du_port(p) == 'demarrage') or os.path.exists(DISQUE_MAJ)
+    if en_demarrage():
+        return
+    if logiciel == 'meshtastic':
+        dire('   passage en mode mise à jour…')
+        mt('--enter-dfu', montrer=False, delai=60, port=port_de(serie))
+        if attendre(en_demarrage, 40):
+            return
+    dire('== APPUYEZ DEUX FOIS RAPIDEMENT SUR LE BOUTON RESET DU T-ECHO (en haut à gauche) : son écran se fige')
+    dire('   (la station attend 5 minutes au plus)')
+    if not attendre(en_demarrage, 300):
+        raise Echec('Le T-Echo n’est pas passé en mode mise à jour.')
+    dire('   T-Echo en mode mise à jour')
+
+
+def ecrire_t_echo(serie, uf2, paquet):
+    """Installe un logiciel dans un T-Echo en mode mise a jour : copie du .uf2 sur son disque TECHOBOOT, ou, si le
+    disque n'apparait pas, installation par le port serie avec le paquet .zip (adafruit-nrfutil)."""
+    if attendre(lambda: os.path.exists(DISQUE_MAJ), 15):
+        point = '/run/prometheus-uf2'
+        os.makedirs(point, exist_ok=True)
+        if subprocess.run(['mount', DISQUE_MAJ, point]).returncode != 0:
+            raise Echec('Impossible d’ouvrir le disque du T-Echo.')
+        try:
+            dire('   copie de', os.path.basename(uf2), 'sur le disque du T-Echo')
+            shutil.copyfile(uf2, os.path.join(point, os.path.basename(uf2)))
+            os.sync()
+        finally:
+            subprocess.run(['umount', point], capture_output=True)
+    else:
+        p = port_de(serie)
+        if not p or genre_du_port(p) != 'demarrage':
+            raise Echec('Le T-Echo n’est pas en mode mise à jour.')
+        dire('   pas de disque : installation par le port série (', os.path.basename(paquet), ')')
+        code, _ = lancer([os.path.join(BIN, 'adafruit-nrfutil'), 'dfu', 'serial', '--package', paquet, '-p', p,
+                          '-b', '115200', '--singlebank'], delai=300)
+        if code != 0:
+            raise Echec('L’installation par le port série a échoué.')
     dire('   écrit ; le T-Echo redémarre')
-    time.sleep(15)
-    for p in glob.glob('/dev/serial/by-id/*'):
-        if p == port:
-            code, sortie = lancer([MESHTASTIC, '--port', port, '--info'], montrer=False, delai=60)
-            v = re.search(r'"firmwareVersion": "([^"]+)"', sortie)
-            dire('   version installée :', v.group(1) if v else '?')
+    # il revient avec un nouveau port (Meshtastic ou MeshCore)
+    if not attendre(lambda: (port_de(serie) and genre_du_port(port_de(serie)) not in ('demarrage', 'inconnu')), 90, 2):
+        raise Echec('Le T-Echo ne revient pas après l’installation.')
+    time.sleep(10)
+
+
+def fichiers_t_echo(cible):
+    if cible == 'meshtastic':
+        return fichier_logiciel('meshtastic', 't-echo'), fichier_logiciel('meshtastic', 't-echo-zip')[0]
+    v = 'ble' if cible == 'meshcore-ble' else 'usb'
+    return fichier_logiciel('meshcore', 't-echo-' + v), fichier_logiciel('meshcore', 't-echo-%s-zip' % v)[0]
+
+
+async def meshcore_serie_regler(port, sauvegarde, nom):
+    """Version « usb » : remet l'identite et les reglages MeshCore sauvegardes (ou ceux de depart), puis
+    renvoie ce qu'il faut garder (identite comprise)."""
+    mc = await meshcore_serie(port, 20)
+    if not mc:
+        raise Echec('Le T-Echo ne répond pas sous MeshCore.')
+    try:
+        if os.path.exists(sauvegarde):
+            dire('== Remise des réglages MeshCore de ce T-Echo (identité, contacts, canaux)')
+            s = json.load(open(sauvegarde))
+        else:
+            dire('== Premiers réglages MeshCore (réglage européen conseillé)')
+            s = dict(MESHCORE_EU, nom=nom)
+        await meshcore_ecrire(mc, s)
+        await mc.commands.reboot()
+    finally:
+        await mc.disconnect()
+    time.sleep(12)
+    mc = await meshcore_serie(port_de(serie_de(port)) or port, 20)
+    if not mc:
+        raise Echec('Le T-Echo ne répond plus sous MeshCore après ses réglages.')
+    try:
+        lu = await meshcore_lire(mc)
+        dire('   le T-Echo s’appelle :', lu['nom'], '— %s MHz, %s kHz, SF%s, CR%s' % (lu['freq'], lu['bw'], lu['sf'], lu['cr']))
+        await mc.commands.send_advert(flood=True)
+        return lu
+    finally:
+        await mc.disconnect()
+
+
+def action_t_echo(texte):
+    """{radio: nom du port, cible: meshtastic | meshcore-ble | meshcore-usb | maj}"""
+    try:
+        r = json.loads(texte)
+        port = '/dev/serial/by-id/' + os.path.basename(str(r['radio']))
+        cible = str(r['cible'])
+        assert cible in ('meshtastic', 'meshcore-ble', 'meshcore-usb', 'maj')
+    except (ValueError, KeyError, TypeError, AssertionError):
+        raise Echec('Réglage invalide.')
+    if port not in radios_branchees():
+        raise Echec('Cette radio n’est plus branchée.')
+    serie = serie_de(port)
+    if not serie:
+        raise Echec('Radio inconnue (pas de numéro de série).')
+    avant = lire_json(DETAILS_RADIOS, {}).get(serie, {})
+    actuel = reconnaitre(port)
+    depart = actuel['logiciel']
+    if depart == 'demarrage':
+        # Deja en mode mise a jour (reset appuye avant de lancer) : on part de ce qu'il avait juste avant
+        depart = avant.get('logiciel', 'demarrage')
+        actuel.update(nom=avant.get('nom', ''))
+        dire('   T-Echo déjà en mode mise à jour (avant : %s)' % NOMS_VERSION.get(depart, 'inconnu'))
+    else:
+        noter_radio(actuel)
+    if depart in ('meshtastic-muet', 'inconnu'):
+        raise Echec('Ce T-Echo ne répond pas : débranchez-le, rebranchez-le et réessayez.')
+    if cible == 'maj':
+        cible = depart if depart != 'demarrage' else 'meshtastic'
+    dire('== T-Echo %s : %s → %s' % (serie[-6:], NOMS_VERSION.get(depart, 'mode mise à jour'), NOMS_VERSION[cible]))
+    ici = lambda: port_de(serie)
+    sauve_mt = 't-echo-%s-meshtastic' % serie
+    sauve_mc = os.path.join(SAUVEGARDES, 't-echo-%s-meshcore-dernier.json' % serie)
+    nom = actuel['nom'] or 'T-Echo ' + serie[-4:]
+
+    # 1. Garder ce qui peut l'etre du logiciel actuel (impossible s'il est deja en mode mise a jour :
+    #    on garde alors la derniere sauvegarde)
+    if actuel['logiciel'] == 'demarrage':
+        dire('   (déjà en mode mise à jour : la dernière sauvegarde de ce T-Echo sera utilisée)')
+    elif depart == 'meshtastic':
+        sauvegarder_meshtastic(port, sauve_mt)
+    elif depart == 'meshcore-usb':
+        async def garder():
+            mc = await meshcore_serie(port, 20)
+            if not mc:
+                return None
+            try:
+                return await meshcore_lire(mc)
+            finally:
+                await mc.disconnect()
+        s = asyncio.run(garder())
+        if s:
+            ranger_sauvegarde('t-echo-%s-meshcore.json' % serie, json.dumps(s, ensure_ascii=False, indent=1))
+            dire('   réglages MeshCore gardés (identité comprise)')
+    elif depart == 'meshcore-ble':
+        dire('   (version « téléphone » : la station ne peut pas la lire par le câble ; son identité MeshCore,',
+             'si elle a été gardée lors de son installation, sera remise)')
+
+    # 2. Installer. Vers MeshCore depuis autre chose, on passe toujours par la version « usb » : c'est elle qui
+    #    permet a la station de poser l'identite et les reglages ; la version « ble » les reprend telle quelle.
+    etapes = []
+    if cible == 'meshtastic':
+        etapes = ['meshtastic']
+    elif cible == 'meshcore-usb' or depart not in ('meshcore-usb', 'meshcore-ble'):
+        etapes = ['meshcore-usb'] + (['meshcore-ble'] if cible == 'meshcore-ble' else [])
+    else:
+        etapes = [cible]          # usb <-> ble, ou mise a jour de la meme version : la memoire MeshCore reste
+    logiciel = depart
+    for etape in etapes:
+        (uf2, version), paquet = fichiers_t_echo(etape)
+        dire('== Installation de %s %s' % (NOMS_VERSION[etape], version))
+        vers_demarrage(serie, logiciel)
+        ecrire_t_echo(serie, uf2, paquet)
+        logiciel = etape
+        if etape == 'meshcore-usb' and (len(etapes) > 1 or depart not in ('meshcore-usb', 'meshcore-ble')):
+            s = asyncio.run(meshcore_serie_regler(ici(), sauve_mc, nom))
+            ranger_sauvegarde('t-echo-%s-meshcore.json' % serie, json.dumps(s, ensure_ascii=False, indent=1))
+            dire('   réglages MeshCore gardés (identité comprise)')
+
+    # 3. Retour sous Meshtastic depuis MeshCore : effacer ce qui reste de MeshCore, puis remettre ses reglages
+    if cible == 'meshtastic' and depart != 'meshtastic':
+        dire('== Remise à zéro de Meshtastic (efface ce qui reste de MeshCore)')
+        mt('--factory-reset-device', montrer=False, delai=60, port=ici())
+        time.sleep(20)
+        try:
+            attendre_meshtastic(essais=4, port=ici, delai=25)   # souvent muet ensuite : on demande vite un reset
+        except Echec:
+            dire('== APPUYEZ UNE FOIS SUR LE BOUTON RESET DU T-ECHO (il ne répond plus après la remise à zéro)')
+            if not attendre(lambda: ici() and mt('--info', montrer=False, delai=40, port=ici())[0] == 0, 300, 5):
+                raise Echec('Le T-Echo ne répond pas sous Meshtastic.')
+        restaurer_meshtastic(port=ici, nom=sauve_mt)
+    if cible == 'meshtastic':
+        dire('   le T-Echo répond :', attendre_meshtastic(port=ici))
+    fin = reconnaitre(ici())
+    noter_radio(fin)
+    dire('== Le T-Echo est sous', NOMS_VERSION.get(fin['logiciel'], fin['logiciel']), fin['version'], fin['nom'])
 
 
 def action_installer(texte):
+    """Mise a jour de la radio de la station ({radio: 'station'}) ou d'un T-Echo branche ({radio: port})."""
     try:
         r = json.loads(texte)
         radio = str(r['radio'])
     except (ValueError, KeyError, TypeError):
         raise Echec('Réglage invalide.')
-    if radio == 'station':
-        arreter_service()
-        try:
-            reseau = reseau_actuel()
-            if reseau == 'meshtastic':
-                sauvegarder_meshtastic()
-            installer_station(reseau, complet=False)
-            if reseau == 'meshtastic':
-                dire('   la radio répond :', attendre_meshtastic())
-        finally:
-            relancer_service()
-        return
-    port = '/dev/serial/by-id/' + os.path.basename(radio)
-    if port not in radios_branchees():
-        raise Echec('Cette radio n’est plus branchée.')
-    installer_t_echo(port)
+    if radio != 'station':
+        return action_t_echo(json.dumps({'radio': radio, 'cible': 'maj'}))
+    arreter_service()
+    try:
+        reseau = reseau_actuel()
+        if reseau == 'meshtastic':
+            sauvegarder_meshtastic()
+        installer_station(reseau, complet=False)
+        if reseau == 'meshtastic':
+            dire('   la radio répond :', attendre_meshtastic())
+    finally:
+        relancer_service()
 
 
 def resumer():
-    """outil.json : ce que la page Radio montre (versions gardees, sauvegardes, radios branchees)."""
+    """outil.json : ce que la page Radio montre (versions gardees, sauvegardes, T-Echo connus)."""
     s = {}
-    for f in glob.glob(os.path.join(SAUVEGARDES, '*-dernier.*')):
-        s[os.path.basename(f).split('-')[0]] = os.path.getmtime(f)
+    for reseau, ext in (('meshtastic', 'yaml'), ('meshcore', 'json')):
+        f = os.path.join(SAUVEGARDES, '%s-dernier.%s' % (reseau, ext))
+        if os.path.exists(f):
+            s[reseau] = os.path.getmtime(f)
     ecrire_json(RESUME, {'versions': {r: versions(r) for r in ('meshtastic', 'meshcore')}, 'sauvegardes': s,
-                         'radios': [os.path.basename(p) for p in radios_branchees()],
+                         't_echo': lire_json(DETAILS_RADIOS, {}),
                          'reseau': reseau_actuel(), 'puce': lire_json(RESEAU, {}).get('puce'), 'heure': time.time()})
 
 
 ACTIONS = {'sauvegarder': action_sauvegarder, 'regler': action_regler, 'reseau': action_reseau,
-           'chercher': action_chercher, 'installer': action_installer, 'resumer': None}
+           'chercher': action_chercher, 'chercher-auto': action_chercher, 'installer': action_installer,
+           't-echo': action_t_echo, 'detecter': action_detecter, 'resumer': None}
 
 if __name__ == '__main__':
     action = sys.argv[1] if len(sys.argv) > 1 else ''
@@ -886,12 +1179,22 @@ if __name__ == '__main__':
     if action == 'resumer':
         resumer()
         sys.exit(0)
-    dire = Journal()
+    # La recherche quotidienne (minuterie prometheus-radio-chercher) a son propre journal : elle n'efface pas
+    # le detail de la derniere operation faite depuis la page
+    dire = Journal(JOURNAL_AUTO if action == 'chercher-auto' else None)
     dire('== %s — %s' % (time.strftime('%d/%m/%Y %H:%M:%S'), {'sauvegarder': 'sauvegarde des réglages de la radio',
          'regler': 'réglages de la radio', 'reseau': 'changement de réseau', 'chercher': 'recherche des logiciels des radios',
-         'installer': 'mise à jour d’une radio'}[action]))
+         'chercher-auto': 'recherche quotidienne des logiciels des radios', 'installer': 'mise à jour d’une radio',
+         't-echo': 'T-Echo : installation', 'detecter': 'reconnaissance des radios branchées'}[action]))
     code = 0
     try:
+        if action == 'chercher-auto':
+            try:
+                urllib.request.urlopen('https://api.github.com', timeout=15)
+            except Exception:
+                dire('   pas d’internet : rien à faire')
+                dire('### FIN 0')
+                sys.exit(0)
         ACTIONS[action](sys.argv[2] if len(sys.argv) > 2 else '')
         dire('== Terminé')
     except Echec as e:

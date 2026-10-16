@@ -65,9 +65,15 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .aide-bouton[aria-expanded="true"] { background: var(--encre); border-color: var(--encre); color: var(--fond); }
   .aide { margin: 0 2px 14px; color: var(--gris); font-size: .92rem; }
   .aide[hidden] { display: none; }
-  .radio-usb { display: flex; align-items: center; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--trait); }
-  .radio-usb span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-  .radio-usb .bouton { width: auto; margin: 0; padding: 9px 16px; font-size: .9rem; }
+  .radio-usb { padding: 12px 2px; border-bottom: 1px solid var(--trait); }
+  .radio-usb > span { display: block; overflow-wrap: anywhere; }
+  .radio-usb .sous { color: var(--gris); font-size: .88rem; }
+  .actions-radio { display: flex; gap: 8px; margin-top: 8px; }
+  .actions-radio .champ { flex: 1; margin: 0; padding-top: 9px; padding-bottom: 9px; font-size: .95rem; -webkit-appearance: none; appearance: none; background: var(--carte) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%2398a2b0' stroke-width='1.6'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 14px center; padding-right: 36px; }
+  .actions-radio .bouton { width: auto; margin: 0; padding: 9px 16px; font-size: .9rem; }
+  /* Consigne a suivre sur la radio (appuyer sur reset) pendant une operation */
+  .consigne { margin: 16px 0 0; padding: 14px 2px; border-top: 1px solid var(--encre); border-bottom: 1px solid var(--trait); font-weight: 650; }
+  .consigne[hidden] { display: none; }
   .bouton.confirmer { background: #c92a2a; border-color: #c92a2a; color: #fff; }
   .console { margin: 14px 0 0; padding: 12px 14px; max-height: 360px; overflow: auto; background: var(--carte); border: 1px solid var(--trait); border-radius: var(--rayon); font: .76rem/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--gris); white-space: pre-wrap; overflow-wrap: anywhere; }
   .console[hidden], .resultat-outil[hidden], .lien-detail[hidden], .bouton[hidden] { display: none; }
@@ -155,6 +161,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <button class="bouton secondaire" id="b-chercher" type="button" data-en="Fetch the latest versions (internet)">Chercher les dernières versions (internet)</button>
 
   <p class="resultat-outil" id="resultat-outil" hidden></p>
+  <p class="consigne" id="consigne" hidden></p>
   <!-- Premier passage a MeshCore : la radio affiche un code a 6 chiffres sur son ecran -->
   <form class="code-ble" id="form-code" hidden>
     <label for="code" data-en="Code shown on the screen of the station's radio">Code affiché sur l’écran de la radio de la station</label>
@@ -381,6 +388,16 @@ function montrerOutil(texte) {
   var attend = /CODE À TAPER/.test(texte) && !/code reçu|### FIN/.test(texte.slice(texte.lastIndexOf('CODE À TAPER')));
   if (attend && $('form-code').hidden) { $('form-code').hidden = false; $('code').focus(); }
   if (!attend) $('form-code').hidden = true;
+  // L'outil attend un geste sur la radio (« APPUYEZ … ») : la consigne, en clair, au-dessus du detail
+  var lignes = texte.split('\n'), derniere = '';
+  lignes.forEach(function (l) { if (/APPUYEZ/.test(l)) derniere = l; });
+  var faite = derniere && lignes.slice(lignes.indexOf(derniere) + 1).some(function (l) { return /mode mise à jour|répond|écrit|^== /.test(l); });
+  $('consigne').hidden = !derniere || faite || /### FIN/.test(texte);
+  if (!$('consigne').hidden) $('consigne').textContent = T(
+    /DEUX FOIS/.test(derniere) ? 'Appuyez deux fois rapidement sur le bouton reset du T-Echo (en haut à gauche) : son écran se fige.'
+                              : 'Appuyez une fois sur le bouton reset du T-Echo (en haut à gauche).',
+    /DEUX FOIS/.test(derniere) ? 'Press the T-Echo\'s reset button twice quickly (top left): its screen freezes.'
+                              : 'Press the T-Echo\'s reset button once (top left).');
 }
 $('form-code').onsubmit = function (ev) {
   ev.preventDefault();
@@ -391,7 +408,10 @@ $('form-code').onsubmit = function (ev) {
 };
 function boutonsOutil() {
   ['r-enregistrer', 'b-reseau', 'b-chercher', 'b-maj-station'].forEach(function (id) { $(id).disabled = occupe; });
-  document.querySelectorAll('.radio-usb .bouton').forEach(function (b) { b.disabled = occupe; });
+  document.querySelectorAll('.radio-usb .actions-radio').forEach(function (a) {
+    a.querySelector('select').disabled = occupe;
+    a.querySelector('.bouton').disabled = occupe || !a.querySelector('select').value;
+  });
 }
 // debutAvant : premiere ligne du detail precedent (son « FIN » ne compte pas pour la nouvelle operation)
 function suivreOutil(debutAvant) {
@@ -526,16 +546,44 @@ function afficherLogiciels() {
   var neuve = (v[r] || [])[0], b = $('b-maj-station');
   b.hidden = !(neuve && moi.version && plusRecente(neuve, moi.version));
   b.textContent = T('Mettre à jour la radio de la station (', 'Update the station radio (') + (neuve || '') + ')';
+  // Les T-Echo branches : ce qu'ils ont, et ce qu'on peut y mettre (Meshtastic, MeshCore telephone, MeshCore station)
   var zr = $('radios-usb'); zr.innerHTML = '';
-  (o.radios || []).forEach(function (nom) {
-    var l = el('div', 'radio-usb');
-    var lisible = /eink|t-?echo/i.test(nom) ? 'T-Echo ' + (nom.match(/_([0-9A-F]{8,})/) || ['', ''])[1].slice(-6) : nom.replace(/^usb-/, '').replace(/-if\d+$/, '');
-    l.appendChild(el('span', '', T('Branchée en USB : ', 'Plugged in by USB: ') + lisible));
-    var bt = el('button', 'bouton secondaire', T('Mettre à jour', 'Update'));
-    bt.type = 'button'; bt.disabled = occupe || !(v.meshtastic || []).length;
-    bt.onclick = function () { lancerOutil('installer', JSON.stringify({ radio: nom })); };
-    l.appendChild(bt); zr.appendChild(l);
+  var VERSIONS = { meshtastic: 'Meshtastic', 'meshcore-ble': T('MeshCore (téléphone)', 'MeshCore (phone)'),
+                   'meshcore-usb': T('MeshCore (station)', 'MeshCore (station)'), demarrage: T('mode mise à jour', 'update mode'),
+                   'meshtastic-muet': T('Meshtastic, ne répond pas', 'Meshtastic, not answering') };
+  var aReconnaitre = false;
+  (o.radios || []).forEach(function (r) {
+    var l = el('div', 'radio-usb'), t = el('span');
+    var titre = (r.nom || 'T-Echo') + ' · ' + (r.serie || '').slice(-6);
+    t.appendChild(el('b', '', titre));
+    var etat = r.logiciel ? (VERSIONS[r.logiciel] || r.logiciel) + (r.version ? ' ' + r.version : '') : T('à reconnaître…', 'being identified…');
+    if (!r.logiciel) aReconnaitre = true;
+    t.appendChild(el('div', 'sous', etat));
+    l.appendChild(t);
+    if (r.logiciel && r.logiciel !== 'meshtastic-muet') {
+      var choix = el('select', 'champ choix-radio');
+      [['', T('Choisir…', 'Choose…')], ['maj', T('Mettre à jour', 'Update')], ['meshtastic', T('Passer sur Meshtastic', 'Switch to Meshtastic')],
+       ['meshcore-ble', T('Passer sur MeshCore (téléphone)', 'Switch to MeshCore (phone)')],
+       ['meshcore-usb', T('Passer sur MeshCore (station)', 'Switch to MeshCore (station)')]].forEach(function (c) {
+        if (c[0] && c[0] === r.logiciel) return;   // pas « passer » sur ce qu'il a deja
+        var op = el('option', '', c[1]); op.value = c[0]; choix.appendChild(op);
+      });
+      choix.disabled = occupe;
+      var bt = el('button', 'bouton secondaire', T('Lancer', 'Start'));
+      bt.type = 'button'; bt.disabled = true;
+      choix.onchange = function () { bt.disabled = occupe || !choix.value; };
+      bt.onclick = function () { lancerOutil('t-echo', JSON.stringify({ radio: r.port, cible: choix.value })); };
+      var actions = el('div', 'actions-radio'); actions.appendChild(choix); actions.appendChild(bt);
+      l.appendChild(actions);
+    }
+    zr.appendChild(l);
   });
+  // Un T-Echo vient d'etre branche (ou a change de logiciel) : on le fait reconnaitre, une fois
+  if (aReconnaitre && !occupe && !afficherLogiciels.reconnaissance) {
+    afficherLogiciels.reconnaissance = true;
+    lancerOutil('detecter', '');
+  }
+  if (!aReconnaitre) afficherLogiciels.reconnaissance = false;
   boutonsOutil();
 }
 $('b-maj-station').onclick = function () { lancerOutil('installer', JSON.stringify({ radio: 'station' })); };

@@ -193,7 +193,25 @@ def etat_radio(admin):
             'delai': r['delai'], 'etat': e.get('etat', 'eteinte') if r['active'] else 'eteinte', 'nom': e.get('nom', ''),
             'attente': len(glob.glob(os.path.join(RADIO, 'a-envoyer', '*.json'))),
             # Octets au plus dans un message : depend du reseau (ecrit par prometheus-radio)
-            'reseau': e.get('reseau', 'meshtastic'), 'max': e.get('max') or MAX_RADIO}
+            'reseau': e.get('reseau', 'meshtastic'), 'max': e.get('max') or MAX_RADIO,
+            # Une version plus recente que celle de la radio de la station est gardee (Parametres, page Radio)
+            'maj': maj_radio(e.get('reseau', 'meshtastic'))}
+
+
+def version_num(v):
+    return [int(x) for x in re.findall(r'\d+', str(v).lstrip('v').split('-')[0])]
+
+
+def maj_radio(reseau):
+    """La plus recente version gardee pour le reseau de la station, si elle est plus recente que celle de sa radio."""
+    try:
+        gardees = json.load(open(os.path.join(RADIO, 'outil.json'))).get('versions', {}).get(reseau, [])
+        installee = json.load(open(os.path.join(RADIO, 'details.json'))).get('moi', {}).get('version', '')
+    except (OSError, ValueError):
+        return ''
+    if gardees and installee and version_num(gardees[0])[:3] > version_num(installee)[:3]:
+        return gardees[0]
+    return ''
 
 
 def lire_fichier(chemin, defaut=''):
@@ -380,10 +398,22 @@ class Admin(BaseHTTPRequestHandler):
                     return defaut
             reseau = lu('reseau.json', {})
             outil = lu('outil.json', {})
-            # Radios branchees en USB autres que celle de la station (les T-Echo a mettre a jour) : vues en direct
+            # Radios branchees en USB autres que celle de la station (les T-Echo), vues en direct, avec ce que
+            # l'outil radio en sait (logiciel, version, nom ; par numero de serie, qui ne change pas)
             ports = sorted(glob.glob('/dev/serial/by-id/*'))
             station = next((p for p in ports if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs'))), None)
-            outil['radios'] = [os.path.basename(p) for p in ports if p != station]
+            connus = outil.pop('t_echo', {})
+            outil['radios'] = []
+            for p in ports:
+                if p == station:
+                    continue
+                m = re.search(r'_([0-9A-Fa-f]{12,})-if\d+$', p)
+                serie = m.group(1).upper() if m else ''
+                fiche = dict(connus.get(serie, {}))
+                # Le logiciel note ne vaut que si le port est toujours le meme (sinon il a change de logiciel)
+                if fiche.get('port') != os.path.basename(p):
+                    fiche = {'nom': fiche.get('nom', '')}
+                outil['radios'].append(dict(fiche, port=os.path.basename(p), serie=serie))
             return self.repondre(200, {'etat': etat_radio(True), 'maintenant': time.time(),
                                        'details': lu('details.json', {}), 'journal': lu('journal.json', []),
                                        # outil radio : versions gardees, sauvegardes, radios branchees (outil.json)

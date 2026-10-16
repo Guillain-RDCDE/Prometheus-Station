@@ -984,7 +984,10 @@ function etatRadio() {
     var txt = !d.active ? T('Désactivée', 'Off') : d.etat === 'ok' ? (d.nom || T('Branchée', 'Plugged in'))
       : d.etat === 'absente' ? T('Pas branchée', 'Not plugged in') : d.etat === 'muette' ? T('Ne répond pas', 'Not responding') : T('Démarrage…', 'Starting…');
     var alerte = d.active && (d.etat === 'absente' || d.etat === 'muette');
-    $('val-radio').textContent = txt; $('val-radio').className = 'valeur' + (alerte ? ' alerte' : '');
+    // Une version plus recente du logiciel de la radio est gardee sur la station : on le dit (page Radio pour l'installer)
+    var maj = d.maj && !alerte;
+    $('val-radio').textContent = maj ? T('Mise à jour disponible', 'Update available') : txt;
+    $('val-radio').className = 'valeur' + (alerte || maj ? ' alerte' : '');
     $('radio-etat').textContent = d.active ? txt : '—'; $('radio-etat').className = 'valeur' + (alerte ? ' alerte' : d.etat === 'ok' ? ' bien' : '');
     $('radio-attente').textContent = d.attente;
   }).catch(function () {});

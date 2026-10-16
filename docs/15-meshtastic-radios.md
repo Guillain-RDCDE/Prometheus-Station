@@ -199,7 +199,7 @@ The free **Meshtastic** app (iPhone, Android) connects to **one** radio by Bluet
 
 ## Updating Meshtastic
 
-> **The simple way, since October 2026:** the **Radio page** fetches the latest versions and updates the T-Beam, or a T-Echo plugged into the station, in one tap, keeping their settings ([chapter 17](17-radio-page.md#radio-software)). Below is the same thing by hand, to understand it or to repair.
+> **The simple way, since October 2026:** the **Radio page** fetches the latest versions (by itself every day when there is internet) and updates the T-Beam, or a T-Echo plugged into the station, in one tap, keeping their settings. It also switches a T-Echo between Meshtastic and MeshCore ([chapter 17](17-radio-page.md#the-t-echo-meshtastic-meshcore-for-a-phone-or-meshcore-for-the-station)). Below is the same thing by hand, to understand it or to repair.
 
 All radios should run **the same version**: between versions, the screens and some behaviour change. Take the **latest stable version** from the [Meshtastic releases](https://github.com/meshtastic/firmware/releases) (the ones not marked *Pre-release*). Here, all three radios run **2.7.26**. Updating keeps the settings (names, region, time zone).
 

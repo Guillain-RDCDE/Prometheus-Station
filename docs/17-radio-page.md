@@ -88,11 +88,30 @@ The station's Bluetooth is **off and blocked** while the radio is on Meshtastic 
 |---|---|
 | **Meshtastic / MeshCore kept on the station** | the versions stored on the station, to switch networks and update the radios **without internet** (the last two of each are kept) |
 | **Station radio** | the network and version in the T-Beam |
-| **Plugged in by USB** | any other radio plugged into the station (a T-Echo), with **Update** |
+| **T-Echo plugged in by USB** | each T-Echo plugged into the station: its name, what it runs and which version, and what can be done with it (below) |
 
 - **Fetch the latest versions (internet)**: downloads the latest stable Meshtastic (not the *alpha* versions) and the latest MeshCore *companion*, only the files the station's radios need, and checks each file's SHA-256 fingerprint against the one published.
+- **Every day, by itself**: when the station has internet, it fetches new versions on its own (a timer, `prometheus-radio-chercher`, about 20 minutes after start-up, then daily). It **never installs them in a radio by itself**: a radio is off the air while it is updated, so you choose the moment. When a newer version than the station radio's is kept, *Settings › Radio* says **Update available**.
 - **Update the station radio** appears when a newer version than the radio's is kept: it writes only the program part of the T-Beam, so **its settings and identity stay** (saved first anyway).
-- **Update** next to a T-Echo plugged in by USB (Meshtastic): the station puts it in update mode, copies the file onto it and lets it restart. **Its settings and identity stay** (tested: identical before and after).
+
+### The T-Echo: Meshtastic, MeshCore for a phone, or MeshCore for the station
+
+Plug a T-Echo into the station: the page recognises it by itself (*being identified…*, then its name, software and version). Then choose, and **Start**:
+
+| Choice | What it gives |
+|---|---|
+| **Update** | the latest kept version of what it already runs; settings and identity kept |
+| **Switch to Meshtastic** | the handheld Meshtastic radio of chapter 15 |
+| **Switch to MeshCore (phone)** | a MeshCore radio used with the MeshCore phone app, over Bluetooth: the usual handheld |
+| **Switch to MeshCore (station)** | a MeshCore radio driven through the USB cable, by the station (or a computer): for when there is no phone, but a keyboard and a screen on the station |
+
+What the station keeps for each T-Echo, by its serial number: its **Meshtastic settings** (identity included, put back and checked when it returns to Meshtastic) and its **MeshCore identity and settings**. To go to MeshCore, it always passes through the *station* version first: that is the one it can set through the cable (the European setting 869.618 MHz / 62.5 kHz / SF8 / CR8, the radio's name, its saved MeshCore identity); the *phone* version then keeps them as they are.
+
+**When your hand is needed.** MeshCore offers no command to put a T-Echo back in update mode, so **leaving MeshCore** (to Meshtastic, or between its two versions, or to update it) asks you, in a line above the window: **press the T-Echo's reset button twice quickly** (top left). Its two front lights turn red and its screen freezes: that is update mode. You can also do it before tapping *Start*. After a return to Meshtastic, the T-Echo sometimes stays silent: the page then asks for **one press** on reset. From Meshtastic, nothing is needed.
+
+If the T-Echo's update drive does not appear, the station installs through its serial port instead (`adafruit-nrfutil`, with the `.zip` package it keeps for that).
+
+Tested on a T-Echo, one way after the other: Meshtastic → MeshCore (station) with the European setting, → MeshCore (phone) (the T-Echo then announces itself in Bluetooth under its name), → Meshtastic with its **identity checked**, then an update with its identity unchanged.
 
 ## The window at the bottom
 
@@ -103,7 +122,8 @@ Every operation of this page (settings, network switch, software) writes what it
 | Part | Role |
 |---|---|
 | `prometheus-radio` | the radio service: one part for Meshtastic (USB), one for MeshCore (Bluetooth), behind the same exchange files. It reads which network is in use in `reseau.json` |
-| `prometheus-radio-outil` | the radio tool, run as administrator: `sauvegarder` (save), `regler` (settings), `reseau` (switch), `chercher` (fetch), `installer` (update). One at a time, in its own service, so closing the page doesn't stop it |
+| `prometheus-radio-outil` | the radio tool, run as administrator: `sauvegarder` (save), `regler` (settings), `reseau` (switch), `chercher` (fetch), `installer` (update), `t-echo` (a plugged T-Echo: update or switch), `detecter` (recognise the plugged T-Echo). One at a time, in its own service, so closing the page doesn't stop it |
+| `prometheus-radio-chercher` (timer) | runs `prometheus-radio-outil chercher-auto` daily: fetch only, with its own details file `radio-chercher.txt`, nothing without internet |
 | `prometheus-commande` | the page drops an order (`radio-…`) in a folder; this service starts the tool. No page ever runs a program itself |
 | `prometheus-admin` | the Radio page's data (`GET /radio`), sending (`/radio/envoyer`), the screen code (`/radio/code`) |
 
@@ -111,7 +131,8 @@ Every operation of this page (settings, network switch, software) writes what it
 |---|---|
 | `/srv/prometheus/radio/reseau.json` | network in use, radio chip (SX1276 or SX1262), Bluetooth address |
 | `/srv/prometheus/radio/details.json`, `journal.json` | the radio up close (rewritten every 30 s) and the last 300 radio messages; *Erase what visitors wrote* empties the journal too |
-| `/srv/prometheus/radio/logiciels/` | the radio software kept on the station |
+| `/srv/prometheus/radio/logiciels/` | the radio software kept on the station: T-Beam (Meshtastic, MeshCore), T-Echo (Meshtastic, MeshCore *phone* and *station*), as `.uf2` and as `.zip` for the serial port |
+| `/srv/prometheus/radio/radios.json` | what the station knows of each T-Echo it has seen, by serial number |
 | `/srv/prometheus/radio/sauvegardes/` | the settings of each network and the MeshCore memory. They contain the radios' **private keys**: readable by the administrator account only |
 | `/var/www/prometheus/ajouter/radio-outil.txt` | the details of the last operation (behind the password) |
 
@@ -122,6 +143,8 @@ Installed by `10-radio.sh` ([chapter 15](15-meshtastic-radios.md)), which also f
 **Tested for real:** the page with two T-Echo heard; sending on a channel; a direct message delivered to a T-Echo on battery, and a T-Echo's direct message received with its acknowledgement; name, short name, role and range changed and put back; fetching both networks' software with their fingerprints; updating the T-Beam and a T-Echo with settings and identity unchanged; **two full round trips Meshtastic → MeshCore → Meshtastic**, the second without anyone, the MeshCore identity identical on return and the Meshtastic identity checked each time; the automatic return to Meshtastic when MeshCore failed.
 
 **On MeshCore, with a T-Echo put on MeshCore for the test, one metre away:** messages on *Public* both ways, each radio adding the other to its contacts from its announcement, and direct messages from the station **delivered**. A direct message only gets through once the other radio has heard the station's announcement (it needs the station's key); before that, it comes back *not delivered*.
+
+**T-Echo:** Meshtastic → MeshCore (station) → MeshCore (phone) → Meshtastic with its identity checked, and an update, on the same T-Echo; the T-Beam switched to MeshCore 1.18.0 and back, its MeshCore identity kept from 1.17.1.
 
 **Not tested:** setting a fixed position (it would have broadcast one); range outdoors.
 
@@ -134,7 +157,8 @@ Installed by `10-radio.sh` ([chapter 15](15-meshtastic-radios.md)), which also f
 | *The operation did not start* | another radio operation is running: wait for it, then try again |
 | A direct message is *not delivered* | is the other radio on and in range? A T-Echo plugged into a computer without an app may not answer (see *Messages*). On MeshCore, the other radio must first have heard the station's announcement: the station announces itself when it connects and every 6 hours |
 | On MeshCore, nothing is ever received | same radio settings on both sides (frequency, bandwidth, SF, CR)? Then it is range: the station's short antenna indoors did not reach a repeater 1.4 km away during the tests; put it by a window, outdoors or on the mast |
-| The T-Echo doesn't appear under *Plugged in by USB* | a charge-only cable: `dmesg` shows *device descriptor read/64, error -32* |
+| The T-Echo doesn't appear under *T-Echo plugged in by USB* | a charge-only cable: `dmesg` shows *device descriptor read/64, error -32*; or the cable moved when you pressed reset: unplug it and plug it again |
+| The page waits for *press reset twice* and nothing happens | press faster; its two front lights turn **red** in update mode. Unplug and plug the cable again if the station does not see it |
 | What the radio tool did | the window at the bottom of the page, or `sudo journalctl -u prometheus-radio-outil -n 50` |
 
 Next: what comes after is in the [Reference](REFERENCE.md#status-october-2026).

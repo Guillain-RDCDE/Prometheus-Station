@@ -128,6 +128,7 @@ The script and program names are in French; the guide gives each one's role.
 - **the crisis test**: on battery, phone in airplane mode, no internet — Wi-Fi, home page, encyclopedias, books, messages and settings all worked ([step 13](13-crisis-test.md));
 - **Meshtastic radio** (phase 2): a T-Beam on the station, two T-Echo handhelds, all on the same Meshtastic version; the message board on the air both ways, the e-ink screen showing radio messages, long ones scrolling ([chapters 15 and 16](15-meshtastic-radios.md)). Tested indoors only.
 - **The Radio page** (October 2026): every channel, direct messages delivered and acknowledged, radio settings, the radios' software fetched and installed with their settings kept, and **two full round trips Meshtastic → MeshCore → Meshtastic**, with each network's identity kept and checked ([chapter 17](17-radio-page.md)). On MeshCore, sending and receiving tested with a second radio one metre away; range to the neighbouring MeshCore repeaters not reached yet with the short antenna indoors.
+- **The radios' software managed from the station**: the latest versions of both networks fetched every day when there is internet; the T-Beam and the T-Echo installed, updated or switched between Meshtastic, MeshCore for a phone and MeshCore for the station, each radio's settings and identity kept and checked.
 - **System updates with their details on screen**, as they run.
 
 **Built, not yet tested in real conditions**

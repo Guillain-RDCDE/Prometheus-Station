@@ -10,9 +10,9 @@
 <script src="/langue.js"></script>
 <script src="mesh.js"></script>
 <style>
-  .cartes-liste { max-height: 420px; overflow: auto; border-top: 1px solid var(--trait); border-bottom: 1px solid var(--trait); padding: 4px 0; }
+  .cartes-liste { max-height: 420px; overflow: auto; border-top: 1px solid var(--trait); border-bottom: 1px solid var(--trait); padding: 4px 10px 4px 0; }
   .cartes-liste label { display: flex; align-items: center; gap: 8px; padding: 5px 2px; font-size: .92rem; cursor: pointer; }
-  .cartes-liste label span { color: var(--pale); font-size: .8rem; }
+  .cartes-liste label span { color: var(--pale); font-size: .75rem; white-space: nowrap; margin-left: auto; flex: none; }
 </style>
 </head>
 <body>
@@ -29,15 +29,16 @@
   <dl class="etat" id="logiciels"></dl>
   <button class="bouton secondaire" id="b-chercher" type="button" data-outil="1" data-en="Fetch the latest versions (internet)">Chercher les dernières versions (internet)</button>
 
-  <div class="complet-seul">
-    <h2 class="avec-aide"><span data-en="Boards followed">Cartes suivies</span><button class="aide-bouton" type="button" data-aide="aide-suivies">?</button></h2>
-    <p class="aide" id="aide-suivies" hidden data-en="Tick the boards you may meet (yours, your neighbours'): their software is downloaded at the next search. The list comes from Meshtastic and MeshCore themselves.">Cochez les cartes que vous pourriez rencontrer (les vôtres, celles des voisins) : leurs logiciels sont téléchargés à la prochaine recherche. La liste vient de Meshtastic et MeshCore eux-mêmes.</p>
+  <div>
+    <h2 class="avec-aide"><span data-en="My boards">Mes cartes</span><button class="aide-bouton" type="button" data-aide="aide-suivies">?</button></h2>
+    <p class="aide" id="aide-suivies" hidden data-en="Tick the boards you own or may meet: the station keeps their software, to install them without internet. Boards already plugged into the station are followed anyway.">Cochez les cartes que vous avez ou pourriez rencontrer : la station garde leurs logiciels, pour les installer sans internet. Les cartes déjà branchées sur la station sont suivies d’office.</p>
+    <p class="note" id="resume-cartes"></p>
     <input class="champ recherche-champ" id="cherche-carte" type="search" placeholder="Chercher une carte (Heltec, RAK, T-Deck…)" data-en-ph="Search a board (Heltec, RAK, T-Deck…)" autocomplete="off">
     <div class="deux">
       <div><b>Meshtastic</b><div class="cartes-liste" id="liste-mt"></div></div>
       <div><b>MeshCore</b><div class="cartes-liste" id="liste-mc"></div></div>
     </div>
-    <div class="bas-form"><p class="erreur" id="suivies-res"></p><button class="bouton" id="b-suivies" type="button" data-en="Save the boards followed">Enregistrer les cartes suivies</button></div>
+    <div class="bas-form"><p class="erreur" id="suivies-res"></p><button class="bouton" id="b-suivies" type="button" data-outil="1" data-en="Save and download (internet)">Enregistrer et télécharger (internet)</button></div>
   </div>
 </main>
 <script>
@@ -195,26 +196,47 @@ function afficher() {
   boutonsOutil();
 }
 
-// Cartes suivies (version complete)
-var suivies = { meshtastic: [], meshcore: [] };
+// Mes cartes : celles dont la station garde les logiciels. D'office : la radio de la station, les T-Echo et toute
+// carte deja branchee (l'outil radio les suit tout seul) ; en plus : celles cochees ici, ou listees dans cartes.txt.
+var suivies = { meshtastic: [], meshcore: [] }, coches = false;
+var OFFICE = { meshtastic: ['tbeam', 't-echo'], meshcore: ['Tbeam_SX1276', 'Tbeam_SX1262', 'LilyGo_T-Echo'] };
+function dOffice(reseau, valeur) { return OFFICE[reseau].indexOf(valeur) >= 0 || (((at.atelier || {}).vues || {})[reseau] || []).indexOf(valeur) >= 0; }
 function listeCartes() {
   var q = $('cherche-carte').value.trim().toLowerCase(), c = at.catalogue || {};
   var mt = $('liste-mt'), mc = $('liste-mc'); mt.innerHTML = ''; mc.innerHTML = '';
   function ligne(zone, reseau, valeur, nom, sous) {
     if (q && (nom + ' ' + valeur + ' ' + sous).toLowerCase().indexOf(q) < 0) return;
-    var l = el('label'), x = el('input', 'case'); x.type = 'checkbox'; x.checked = suivies[reseau].indexOf(valeur) >= 0;
-    x.onchange = function () { var a = suivies[reseau]; if (x.checked) { if (a.indexOf(valeur) < 0) a.push(valeur); } else a.splice(a.indexOf(valeur), 1); };
-    l.appendChild(x); l.appendChild(document.createTextNode(nom)); l.appendChild(el('span', '', sous)); zone.appendChild(l);
+    var office = dOffice(reseau, valeur);
+    var l = el('label'), x = el('input', 'case'); x.type = 'checkbox'; x.checked = office || suivies[reseau].indexOf(valeur) >= 0; x.disabled = office;
+    x.onchange = function () { coches = true; var a = suivies[reseau]; if (x.checked) { if (a.indexOf(valeur) < 0) a.push(valeur); } else a.splice(a.indexOf(valeur), 1); resume(); };
+    l.appendChild(x); l.appendChild(document.createTextNode(nom)); l.appendChild(el('span', '', office ? T('déjà suivie', 'already followed') : sous)); zone.appendChild(l);
   }
-  ((c.meshtastic || {}).cartes || []).forEach(function (x) { ligne(mt, 'meshtastic', x.cible, x.nom, x.famille); });
+  // Les cartes suivies d'abord, puis l'ordre alphabetique
+  var avant = function (reseau, v) { return dOffice(reseau, v) || suivies[reseau].indexOf(v) >= 0 ? 0 : 1; };
+  ((c.meshtastic || {}).cartes || []).slice().sort(function (a, b) { return avant('meshtastic', a.cible) - avant('meshtastic', b.cible) || a.nom.localeCompare(b.nom); })
+    .forEach(function (x) { ligne(mt, 'meshtastic', x.cible, x.nom, x.famille); });
   var m = (c.meshcore || {}).cartes || {};
-  Object.keys(m).sort().forEach(function (k) { ligne(mc, 'meshcore', k, k.replace(/_/g, ' '), m[k].famille); });
+  Object.keys(m).sort(function (a, b) { return avant('meshcore', a) - avant('meshcore', b) || a.localeCompare(b); })
+    .forEach(function (k) { ligne(mc, 'meshcore', k, k.replace(/_/g, ' '), m[k].famille); });
+  if (!(c.meshtastic || {}).cartes) mt.appendChild(el('p', 'rien', T('Pas encore de catalogue : « Chercher les dernières versions » avec internet.', 'No catalogue yet: « Fetch the latest versions » with internet.')));
+  resume();
+}
+function resume() {
+  var n = suivies.meshtastic.length + suivies.meshcore.length;
+  $('resume-cartes').textContent = at.toutes_cartes ? T('Paramètres › Radio : la station garde les logiciels de toutes les cartes.', 'Settings › Radio: the station keeps the software of every board.')
+    : T('Suivies d’office : la radio de la station, les T-Echo et les cartes déjà branchées. Cochées en plus : ', 'Followed anyway: the station radio, the T-Echo and boards already plugged in. Ticked as well: ') + n + '.';
 }
 $('cherche-carte').oninput = listeCartes;
+// Enregistrer, puis telecharger tout de suite (l'outil radio ; sans internet il le dit, rien ne change)
 $('b-suivies').onclick = function () {
   fetch('/admin-api/mesh/atelier/suivies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(suivies) })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-    .then(function (r) { dire('suivies-res', r.ok, r.ok ? T('Enregistré : les logiciels seront gardés à la prochaine recherche.', 'Saved: the software will be kept at the next search.') : TE(r.d.erreur)); });
+    .then(function (r) {
+      if (!r.ok) { dire('suivies-res', false, TE(r.d.erreur)); return; }
+      coches = false;
+      dire('suivies-res', true, T('Enregistré. Téléchargement de leurs logiciels…', 'Saved. Downloading their software…'));
+      lancerOutil('chercher', '');
+    });
 };
 $('b-identifier').onclick = function () { lancerOutil('identifier', ''); };
 $('b-chercher').onclick = function () { lancerOutil('chercher', ''); };
@@ -222,7 +244,8 @@ $('b-chercher').onclick = function () { lancerOutil('chercher', ''); };
 function charger() {
   return Promise.all([chargerStation(), api('/mesh/atelier')]).then(function (x) {
     at = x[1]; ecart = at.maintenant - Date.now() / 1000;
-    var s = at.suivies || {}; suivies = { meshtastic: (s.meshtastic || []).slice(), meshcore: (s.meshcore || []).slice() };
+    // Des cases cochees mais pas encore enregistrees ne sont pas ecrasees par le rafraichissement
+    var s = at.suivies || {}; if (!coches) suivies = { meshtastic: (s.meshtastic || []).slice(), meshcore: (s.meshcore || []).slice() };
     if (!document.activeElement || !document.activeElement.closest('.ligne-m form')) afficher();
     listeCartes();
   }).catch(function () {});

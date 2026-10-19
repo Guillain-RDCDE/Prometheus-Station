@@ -34,7 +34,7 @@ Every page has a **Light / Full** switch at the top. **Light** shows what you ne
 | **Settings** | name, position, the essential settings of each section | **every** setting of every section, with its technical name |
 | **Modules** *(Full)* | — | the Meshtastic modules: telemetry, store & forward, range test, neighbour info, canned messages, alerts, detection sensor, MQTT, serial, remote hardware, audio, ambient lighting, people counter, status message, traffic management, TAK |
 | **Statistics** | airtime against the **10 % European limit**, channel use, radios heard per hour, packets per hour, packets by kind, radios heard | noise floor, the radio's battery, its raw counters |
-| **Workshop** | every radio plugged into the station: recognised, then updated or installed | the boards followed (software kept without internet) |
+| **Workshop** | every radio plugged into the station: recognised, then updated or installed; **My boards**, the boards whose software the station keeps | the station's own radio and the T-Echo shown in the list |
 | **Remote** *(Full)* | — | configure another Meshtastic radio over the air; log in to a MeshCore repeater or room server and send it commands |
 | **Technical log** *(Full)* | — | every packet heard or sent, live, decoded; export as JSON |
 
@@ -92,7 +92,13 @@ Then choose: **network**, **update** (keeps everything) or **install from scratc
 
 ### Software kept on the station
 
-The station knows **the full list of boards** of both projects (the Meshtastic hardware list and the files of every MeshCore release: over 100 boards each). With internet, every day, it keeps the software of the **boards it follows**: its own radios, every board ever plugged in, and those you tick under **Boards followed** (Full). **Settings › Radio › Software of every board** keeps them all instead (about 1 GB per version), so that any radio a neighbour brings can be installed without internet. Every file is checked against its published SHA-256 fingerprint; the last two versions are kept.
+The station knows **the full list of boards** of both projects (the Meshtastic hardware list and the files of every MeshCore release: over 100 boards each). With internet, every day, it keeps the software of **your boards** only, so a station with two radios does not fill its card with a hundred others:
+
+- **followed anyway**: the station's own radio, the T-Echo, and every board ever plugged into the station;
+- **My boards**, in the Workshop: search a board (*Heltec*, *RAK*, *T-Deck*…), tick it, **Save and download (internet)**. The software arrives within minutes;
+- **at installation**, before running `10-radio.sh`: write your boards in [`installation/cartes.txt`](../installation/cartes.txt), one per line, with the name the Workshop shows (`heltec-v3`, `rak4631` for Meshtastic; `Heltec_v3`, `RAK_4631` for MeshCore). They are added to *My boards*.
+
+**Settings › Radio › Software of every board** keeps them all instead (about 830 MB per version, two versions kept), for a station meant to install whatever radio a neighbour brings. Every file is checked against its published SHA-256 fingerprint; the last two versions are kept.
 
 ## Remote (off by default)
 
@@ -123,7 +129,7 @@ The pages never talk to the radio themselves. They send **orders** to `prometheu
 | `/srv/prometheus/radio/resultats.json` | answers that came back by radio (traceroute, position, remote settings…) |
 | `/srv/prometheus/radio/mesh-sauvegardes/` | the settings saved before each change, keys included: readable by the station only |
 | `/srv/prometheus/radio/garde-fou.json` | present while the safety net is watching after a risky setting |
-| `/srv/prometheus/radio/catalogue.json`, `atelier.json`, `cartes-suivies.json` | the boards known, the radios recognised, the boards followed |
+| `/srv/prometheus/radio/catalogue.json`, `atelier.json`, `cartes-suivies.json` | the boards known, the radios recognised, *My boards* (also filled from `installation/cartes.txt`) |
 | `/srv/prometheus/radio/logiciels/meshtastic/<version>/archives/`, `…/meshcore/<version>/cartes/` | the Workshop's software, by chip family (Meshtastic) and by board (MeshCore) |
 
 The pages are in `/var/www/prometheus/parametres/mesh/`: `champs.js` holds the plain names and explanations of the settings, `formulaire.js` builds the forms from the radio's description.
@@ -142,7 +148,7 @@ The pages are in `/var/www/prometheus/parametres/mesh/`: `champs.js` holds the p
 - the Workshop: every plugged radio recognised, the catalogue built (129 Meshtastic and 105 MeshCore boards), and a T-Echo **updated through the general path** (update mode by command, its drive found, the firmware copied, the T-Echo back with **its identity unchanged**); the files and offsets prepared for ESP32 boards (full image, OTA part at 0x260000, file system at 0x300000, as in Meshtastic's own installer);
 - statistics and the technical log filling up; every page in English and French, light and full, at phone width.
 
-**Not tested for lack of hardware:** installing an ESP32 board other than the station's (the T-Beam is deliberately refused by the Workshop), an RP2040 board, a MeshCore repeater or room server set up through its serial console, logging in to a MeshCore repeater and the *Radios waiting* list (no other MeshCore radio in range with the antenna indoors). **Not tested on purpose:** keeping the software of every board (about 1 GB per version), MQTT.
+**Not tested for lack of hardware:** installing an ESP32 board other than the station's (the T-Beam is deliberately refused by the Workshop), an RP2040 board, a MeshCore repeater or room server set up through its serial console, logging in to a MeshCore repeater and the *Radios waiting* list (no other MeshCore radio in range with the antenna indoors). **Not tested on purpose:** keeping the software of every board (about 830 MB per version), MQTT. *My boards* and `cartes.txt` were tested (a list saved and the download run; the file read with comments, blank lines and a wrong name), without adding boards to the test station.
 
 A T-Echo plugged into the station by USB **with no program connected** does not acknowledge what it receives (seen in chapter 17): remote administration and requests to it then end in *no answer*. On its own battery, or with a program connected, it answers.
 
@@ -156,7 +162,7 @@ A T-Echo plugged into the station by USB **with no program connected** does not 
 | *No answer* to a request or a remote setting | is the radio on and in range? A T-Echo on USB with no program connected does not answer. Remote Meshtastic: is the station's key in its admin keys? Read the section again (less than 5 minutes before writing) |
 | The node list is empty after switching network | normal: *Settings › Announce now*, the radios in range answer |
 | A plugged board is not recognised | *Recognise the plugged-in radios*; a charge-only cable shows nothing; try another USB port |
-| *Software … absent from the station* in the Workshop | tick the board under *Boards followed* (Full), then *Fetch the latest versions* with internet |
+| *Software … absent from the station* in the Workshop | tick the board under *My boards*, then *Save and download* with internet |
 | The Workshop waits for *hold BOOT* or *press reset twice* | do it: the line above the window says which; the station retries for 3 to 5 minutes |
 | What the radio service did | `sudo journalctl -u prometheus-radio -n 50` (every Mesh order is logged) |
 

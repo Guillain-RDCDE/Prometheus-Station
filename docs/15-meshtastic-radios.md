@@ -34,6 +34,8 @@ The radio carries **very little**: about 200 characters per message, a few messa
 
 ## Install the software on the station
 
+**Optional, if you have other radios than a T-Beam and T-Echo:** list them in `installation/cartes.txt`, one board per line (`heltec-v3`, `rak4631`, `t-deck`… for Meshtastic; `Heltec_v3`, `RAK_4631`… for MeshCore). The station then keeps their software too, to install or update them later without internet. You can also tick them afterwards in the Mesh section's Workshop ([chapter 18](18-mesh-section.md#software-kept-on-the-station)).
+
 On the Pi, from the `installation` folder (internet needed, for the Meshtastic library):
 
 ```

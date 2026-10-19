@@ -1,0 +1,8 @@
+# Prometheus Station - vos cartes radio (facultatif)
+# La station garde les logiciels de ces cartes pour les installer sans internet (section Mesh > Atelier).
+# Une carte par ligne, avec son nom tel que l'Atelier l'affiche :
+#   Meshtastic : le nom court de la cible, par exemple  heltec-v3  rak4631  t-deck  station-g2
+#   MeshCore   : le nom de la carte, par exemple        Heltec_v3  RAK_4631  LilyGo_TDeck  Station_G2
+# Les lignes qui commencent par # sont ignorees. La radio de la station (T-Beam), les T-Echo et toute carte
+# branchee un jour sur la station sont suivies d'office : inutile de les ecrire.
+# Lu par 10-radio.sh ; plus tard, la meme liste se coche dans Mesh > Atelier > Mes cartes.

@@ -76,6 +76,29 @@ systemctl enable prometheus-radio.service
 systemctl enable --now prometheus-radio-chercher.timer
 systemctl restart prometheus-radio.service
 
+echo "== Vos cartes radio (cartes.txt) : leurs logiciels seront gardes pour l'atelier"
+# Une carte par ligne ; ajoutees a celles deja cochees dans Mesh > Atelier > Mes cartes (rien n'est retire)
+if grep -qvE '^[[:space:]]*(#|$)' "$ICI/cartes.txt" 2>/dev/null; then
+  /opt/prometheus-radio/bin/python3 - "$ICI/cartes.txt" <<'EOF'
+import json, re, sys
+noms = [l.split('#')[0].strip() for l in open(sys.argv[1], encoding='utf-8')]
+noms = [n for n in noms if re.fullmatch(r'[\w.+-]{1,60}', n)]
+f = '/srv/prometheus/radio/cartes-suivies.json'
+try:
+    s = json.load(open(f))
+except (OSError, ValueError):
+    s = {}
+# Le meme nom est essaye dans les deux catalogues : seul celui qui le connait telecharge quelque chose
+for k in ('meshtastic', 'meshcore'):
+    s[k] = sorted(set(s.get(k, [])) | set(noms))
+json.dump(s, open(f, 'w'))
+print('   cartes :', ', '.join(noms))
+EOF
+  chown prometheus:prometheus /srv/prometheus/radio/cartes-suivies.json
+else
+  echo "   aucune (la radio de la station et les cartes branchees sont suivies d'office)"
+fi
+
 echo "== Logiciels des radios gardes sur la station (Meshtastic et MeshCore, derniere version stable)"
 # Pour changer de reseau et mettre les radios a jour sans internet. Sans internet ici : a refaire depuis la page Radio.
 /usr/local/bin/prometheus-radio-outil chercher || echo "(pas d'internet : page Radio > Logiciels des radios > Chercher, plus tard)"

@@ -3,3 +3,4 @@
 .claude/*
 !.claude/settings.json
 !.claude/CLAUDE.md
+__pycache__/

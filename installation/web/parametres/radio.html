@@ -556,16 +556,21 @@ function afficherLogiciels() {
     var l = el('div', 'radio-usb'), t = el('span');
     var titre = (r.nom || 'T-Echo') + ' · ' + (r.serie || '').slice(-6);
     t.appendChild(el('b', '', titre));
-    var etat = r.logiciel ? (VERSIONS[r.logiciel] || r.logiciel) + (r.version ? ' ' + r.version : '') : T('à reconnaître…', 'being identified…');
+    var inkhud = r.logiciel === 'meshtastic' && r.interface === 'inkhud';
+    var etat = r.logiciel ? (inkhud ? 'Meshtastic (InkHUD)' : VERSIONS[r.logiciel] || r.logiciel) + (r.version ? ' ' + r.version : '')
+                          : T('à reconnaître…', 'being identified…');
     if (!r.logiciel) aReconnaitre = true;
     t.appendChild(el('div', 'sous', etat));
     l.appendChild(t);
     if (r.logiciel && r.logiciel !== 'meshtastic-muet') {
       var choix = el('select', 'champ choix-radio');
-      [['', T('Choisir…', 'Choose…')], ['maj', T('Mettre à jour', 'Update')], ['meshtastic', T('Passer sur Meshtastic', 'Switch to Meshtastic')],
+      [['', T('Choisir…', 'Choose…')], ['maj', T('Mettre à jour', 'Update')],
+       ['meshtastic', T('Passer sur Meshtastic (écran complet)', 'Switch to Meshtastic (full screen)')],
+       ['meshtastic-inkhud', T('Passer sur Meshtastic InkHUD (écran simplifié)', 'Switch to Meshtastic InkHUD (simple screen)')],
        ['meshcore-ble', T('Passer sur MeshCore (téléphone)', 'Switch to MeshCore (phone)')],
        ['meshcore-usb', T('Passer sur MeshCore (station)', 'Switch to MeshCore (station)')]].forEach(function (c) {
-        if (c[0] && c[0] === r.logiciel) return;   // pas « passer » sur ce qu'il a deja
+        var actuel = inkhud ? 'meshtastic-inkhud' : r.logiciel;
+        if (c[0] && c[0] === actuel) return;   // pas « passer » sur ce qu'il a deja
         var op = el('option', '', c[1]); op.value = c[0]; choix.appendChild(op);
       });
       choix.disabled = occupe;

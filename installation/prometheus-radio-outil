@@ -10,7 +10,8 @@
 #   prometheus-radio-outil chercher                  telecharge les dernieres versions stables (internet)
 #   prometheus-radio-outil chercher-auto             la meme, chaque jour (minuterie), son propre journal, rien sans internet
 #   prometheus-radio-outil installer '<json>'        {radio: 'station' | nom d'un port USB} : mise a jour, reglages gardes
-#   prometheus-radio-outil t-echo '<json>'           {radio: port, cible: meshtastic | meshcore-ble | meshcore-usb | maj}
+#   prometheus-radio-outil t-echo '<json>'           {radio: port, cible: meshtastic | meshtastic-inkhud | meshcore-ble
+#                                                     | meshcore-usb | maj}
 #   prometheus-radio-outil detecter                  reconnait les T-Echo branches (logiciel, version, nom)
 #
 # Ce qu'il garde, dans /srv/prometheus/radio :
@@ -265,7 +266,10 @@ MOTIFS = {
     'meshtastic': {'station-complet': r'^firmware-tbeam-\d.*\.factory\.bin$',
                    'station-maj': r'^firmware-tbeam-\d.*(?<!factory)\.bin$',
                    't-echo': r'^firmware-t-echo-\d.*(?<!-ota)\.uf2$',
-                   't-echo-zip': r'^firmware-t-echo-\d.*-ota\.zip$'},
+                   't-echo-zip': r'^firmware-t-echo-\d.*-ota\.zip$',
+                   # InkHUD : l'interface simplifiee officielle de Meshtastic pour les ecrans e-ink
+                   't-echo-inkhud': r'^firmware-t-echo-inkhud-\d.*(?<!-ota)\.uf2$',
+                   't-echo-inkhud-zip': r'^firmware-t-echo-inkhud-\d.*-ota\.zip$'},
     'meshcore': {'station-complet': r'^Tbeam_{puce}_companion_radio_ble-.*-merged\.bin$',
                  'station-maj': r'^Tbeam_{puce}_companion_radio_ble-.*(?<!merged)\.bin$',
                  't-echo-ble': r'^LilyGo_T-Echo_companion_radio_ble-.*\.uf2$',
@@ -852,7 +856,8 @@ def action_chercher(_):
 #   ...T-Echo_v1_<serie>    son programme de demarrage (mode mise a jour), avec ou sans disque TECHOBOOT
 DISQUE_MAJ = '/dev/disk/by-label/TECHOBOOT'     # JAMAIS un autre disque (15/10/2026 : « bootfs » est celui du Pi)
 DETAILS_RADIOS = os.path.join(RADIO, 'radios.json')   # ce que la station sait des T-Echo vus (par numero de serie)
-NOMS_VERSION = {'meshtastic': 'Meshtastic', 'meshcore-ble': 'MeshCore (téléphone)', 'meshcore-usb': 'MeshCore (station)'}
+NOMS_VERSION = {'meshtastic': 'Meshtastic', 'meshtastic-inkhud': 'Meshtastic (InkHUD)', 'meshcore-ble': 'MeshCore (téléphone)',
+                'meshcore-usb': 'MeshCore (station)'}
 
 
 def radios_branchees():
@@ -1003,6 +1008,8 @@ def ecrire_t_echo(serie, uf2, paquet):
 def fichiers_t_echo(cible):
     if cible == 'meshtastic':
         return fichier_logiciel('meshtastic', 't-echo'), fichier_logiciel('meshtastic', 't-echo-zip')[0]
+    if cible == 'meshtastic-inkhud':
+        return fichier_logiciel('meshtastic', 't-echo-inkhud'), fichier_logiciel('meshtastic', 't-echo-inkhud-zip')[0]
     v = 'ble' if cible == 'meshcore-ble' else 'usb'
     return fichier_logiciel('meshcore', 't-echo-' + v), fichier_logiciel('meshcore', 't-echo-%s-zip' % v)[0]
 
@@ -1038,12 +1045,14 @@ async def meshcore_serie_regler(port, sauvegarde, nom):
 
 
 def action_t_echo(texte):
-    """{radio: nom du port, cible: meshtastic | meshcore-ble | meshcore-usb | maj}"""
+    """{radio: nom du port, cible: meshtastic | meshtastic-inkhud | meshcore-ble | meshcore-usb | maj}
+    Meshtastic et Meshtastic (InkHUD) sont le meme reseau, avec les memes reglages : seule l'interface de
+    l'ecran change. La station note laquelle a chaque T-Echo (radios.json, « interface »)."""
     try:
         r = json.loads(texte)
         port = '/dev/serial/by-id/' + os.path.basename(str(r['radio']))
         cible = str(r['cible'])
-        assert cible in ('meshtastic', 'meshcore-ble', 'meshcore-usb', 'maj')
+        assert cible in ('meshtastic', 'meshtastic-inkhud', 'meshcore-ble', 'meshcore-usb', 'maj')
     except (ValueError, KeyError, TypeError, AssertionError):
         raise Echec('Réglage invalide.')
     if port not in radios_branchees():
@@ -1065,6 +1074,9 @@ def action_t_echo(texte):
         raise Echec('Ce T-Echo ne répond pas : débranchez-le, rebranchez-le et réessayez.')
     if cible == 'maj':
         cible = depart if depart != 'demarrage' else 'meshtastic'
+        if cible == 'meshtastic' and avant.get('interface') == 'inkhud':
+            cible = 'meshtastic-inkhud'          # une mise a jour garde l'interface choisie
+    meshtastic_cible = cible.startswith('meshtastic')
     dire('== T-Echo %s : %s → %s' % (serie[-6:], NOMS_VERSION.get(depart, 'mode mise à jour'), NOMS_VERSION[cible]))
     ici = lambda: port_de(serie)
     sauve_mt = 't-echo-%s-meshtastic' % serie
@@ -1097,8 +1109,8 @@ def action_t_echo(texte):
     # 2. Installer. Vers MeshCore depuis autre chose, on passe toujours par la version « usb » : c'est elle qui
     #    permet a la station de poser l'identite et les reglages ; la version « ble » les reprend telle quelle.
     etapes = []
-    if cible == 'meshtastic':
-        etapes = ['meshtastic']
+    if meshtastic_cible:
+        etapes = [cible]
     elif cible == 'meshcore-usb' or depart not in ('meshcore-usb', 'meshcore-ble'):
         etapes = ['meshcore-usb'] + (['meshcore-ble'] if cible == 'meshcore-ble' else [])
     else:
@@ -1116,7 +1128,9 @@ def action_t_echo(texte):
             dire('   réglages MeshCore gardés (identité comprise)')
 
     # 3. Retour sous Meshtastic depuis MeshCore : effacer ce qui reste de MeshCore, puis remettre ses reglages
-    if cible == 'meshtastic' and depart != 'meshtastic':
+    # (Logiciel d'avant inconnu, T-Echo arrive deja en mode mise a jour : on n'efface jamais une radio dont la
+    #  station n'a pas de sauvegarde ; vu le 19/10/2026 avec le T-Echo blanc)
+    if meshtastic_cible and depart not in ('meshtastic', 'demarrage'):
         dire('== Remise à zéro de Meshtastic (efface ce qui reste de MeshCore)')
         mt('--factory-reset-device', montrer=False, delai=60, port=ici())
         time.sleep(20)
@@ -1127,11 +1141,14 @@ def action_t_echo(texte):
             if not attendre(lambda: ici() and mt('--info', montrer=False, delai=40, port=ici())[0] == 0, 300, 5):
                 raise Echec('Le T-Echo ne répond pas sous Meshtastic.')
         restaurer_meshtastic(port=ici, nom=sauve_mt)
-    if cible == 'meshtastic':
+    if meshtastic_cible:
         dire('   le T-Echo répond :', attendre_meshtastic(port=ici))
     fin = reconnaitre(ici())
+    if meshtastic_cible:
+        fin['interface'] = 'inkhud' if cible == 'meshtastic-inkhud' else 'standard'
     noter_radio(fin)
-    dire('== Le T-Echo est sous', NOMS_VERSION.get(fin['logiciel'], fin['logiciel']), fin['version'], fin['nom'])
+    dire('== Le T-Echo est sous', NOMS_VERSION.get(cible if meshtastic_cible else fin['logiciel'], fin['logiciel']),
+         fin['version'], fin['nom'])
 
 
 def action_installer(texte):

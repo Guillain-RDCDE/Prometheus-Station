@@ -101,7 +101,8 @@ Plug a T-Echo into the station: the page recognises it by itself (*being identif
 | Choice | What it gives |
 |---|---|
 | **Update** | the latest kept version of what it already runs; settings and identity kept |
-| **Switch to Meshtastic** | the handheld Meshtastic radio of chapter 15 |
+| **Switch to Meshtastic (full screen)** | the handheld Meshtastic radio of chapter 15 |
+| **Switch to Meshtastic InkHUD (simple screen)** | the same Meshtastic radio, same settings and identity, with **InkHUD**, Meshtastic's simpler official interface for e-ink screens. The station remembers which interface each T-Echo has, and an update keeps it |
 | **Switch to MeshCore (phone)** | a MeshCore radio used with the MeshCore phone app, over Bluetooth: the usual handheld |
 | **Switch to MeshCore (station)** | a MeshCore radio driven through the USB cable, by the station (or a computer): for when there is no phone, but a keyboard and a screen on the station |
 
@@ -144,7 +145,7 @@ Installed by `10-radio.sh` ([chapter 15](15-meshtastic-radios.md)), which also f
 
 **On MeshCore, with a T-Echo put on MeshCore for the test, one metre away:** messages on *Public* both ways, each radio adding the other to its contacts from its announcement, and direct messages from the station **delivered**. A direct message only gets through once the other radio has heard the station's announcement (it needs the station's key); before that, it comes back *not delivered*.
 
-**T-Echo:** Meshtastic → MeshCore (station) → MeshCore (phone) → Meshtastic with its identity checked, and an update, on the same T-Echo; the T-Beam switched to MeshCore 1.18.0 and back, its MeshCore identity kept from 1.17.1.
+**T-Echo:** Meshtastic → MeshCore (station) → MeshCore (phone) → Meshtastic with its identity checked, and an update, on the same T-Echo; InkHUD installed on the other T-Echo, its settings kept; the T-Beam switched to MeshCore 1.18.0 and back, its MeshCore identity kept from 1.17.1.
 
 **Not tested:** setting a fixed position (it would have broadcast one); range outdoors.
 
@@ -158,6 +159,7 @@ Installed by `10-radio.sh` ([chapter 15](15-meshtastic-radios.md)), which also f
 | A direct message is *not delivered* | is the other radio on and in range? A T-Echo plugged into a computer without an app may not answer (see *Messages*). On MeshCore, the other radio must first have heard the station's announcement: the station announces itself when it connects and every 6 hours |
 | On MeshCore, nothing is ever received | same radio settings on both sides (frequency, bandwidth, SF, CR)? Then it is range: the station's short antenna indoors did not reach a repeater 1.4 km away during the tests; put it by a window, outdoors or on the mast |
 | The T-Echo doesn't appear under *T-Echo plugged in by USB* | a charge-only cable: `dmesg` shows *device descriptor read/64, error -32*; or the cable moved when you pressed reset: unplug it and plug it again |
+| A T-Echo is refused by the station (`dmesg`: *device not accepting address, error -71*, *unable to enumerate USB device*) | try **another USB port** of the Pi: during the tests one port kept refusing a T-Echo that another port took at once |
 | The page waits for *press reset twice* and nothing happens | press faster; its two front lights turn **red** in update mode. Unplug and plug the cable again if the station does not see it |
 | What the radio tool did | the window at the bottom of the page, or `sudo journalctl -u prometheus-radio-outil -n 50` |
 

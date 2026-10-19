@@ -113,6 +113,8 @@ Check with `--info` again: `Owner: Prometheus Station (🔥)`, `region: EU_868`.
 
 ## The T-Echo (the handhelds)
 
+> **Two screens to choose from.** Meshtastic offers the T-Echo its usual **full interface**, described below, or **InkHUD**, a simpler official interface made for e-ink screens: fewer screens, simpler navigation, same network, same settings, same identity. Here one T-Echo runs each. The station switches a plugged T-Echo from one to the other in one choice ([chapter 17](17-radio-page.md#the-t-echo-meshtastic-meshcore-for-a-phone-or-meshcore-for-the-station)). The buttons and screens described in this chapter are those of the full interface.
+
 ### Plug it in to set it up
 
 The T-Echo has its own battery: it only needs the cable to be set up, updated or charged. **Plug in one at a time**: see *Power* below.

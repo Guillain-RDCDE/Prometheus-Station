@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nœuds · Mesh</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/communaute.css">
+<link rel="stylesheet" href="mesh.css">
+<script src="/langue.js"></script>
+<script src="mesh.js"></script>
+</head>
+<body>
+<main>
+  <div id="entete"></div>
+  <input class="champ recherche-champ" id="cherche" type="search" placeholder="Chercher une radio (nom, numéro)" data-en-ph="Search a radio (name, number)" autocomplete="off">
+  <div class="puces" id="filtres"></div>
+  <div class="lignes" id="liste"></div>
+  <div id="attente-zone"></div>
+  <div id="import-zone" class="complet-seul"></div>
+</main>
+<script>
+// Les radios connues de la station (les « noeuds ») : liste, fiche detaillee, actions par radio.
+entete('noeuds', 'Nœuds', 'Nodes');
+var filtre = 'tout', ouvert = null, resultats = {};
+try { var q = new URLSearchParams(location.search).get('id'); if (q) ouvert = q; } catch (e) {}
+var TYPES_MC = { 1: T('compagnon', 'companion'), 2: T('répéteur', 'repeater'), 3: T('salon', 'room'), 4: T('capteur', 'sensor') };
+
+function filtres() {
+  var z = $('filtres'); z.innerHTML = '';
+  var choix = [['tout', T('Toutes', 'All')], ['jour', T('Entendues en 24 h', 'Heard in 24 h')], ['favori', T('Favorites', 'Favourites')]];
+  if (reseauActuel() === 'meshcore') choix.push(['relais', T('Répéteurs et salons', 'Repeaters and rooms')]);
+  else choix.push(['direct', T('En direct', 'Direct')], ['ignore', T('Ignorées', 'Ignored')]);
+  choix.forEach(function (c) {
+    var b = el('button', 'puce' + (c[0] === filtre ? ' choisie' : ''), c[1]);
+    b.onclick = function () { filtre = c[0]; filtres(); liste(); };
+    z.appendChild(b);
+  });
+}
+
+function liste() {
+  var d = station.details || {}, moi = d.moi || {}, z = $('liste'), cherche = $('cherche').value.trim().toLowerCase();
+  var l = (d.noeuds || []).filter(function (n) {
+    if (cherche && (n.nom + ' ' + n.court + ' ' + n.id).toLowerCase().indexOf(cherche) < 0) return false;
+    if (filtre === 'jour') return n.vu && maintenant() - n.vu < 86400;
+    if (filtre === 'favori') return n.favori;
+    if (filtre === 'ignore') return n.ignore;
+    if (filtre === 'direct') return n.sauts === 0;
+    if (filtre === 'relais') return n.type === 2 || n.type === 3;
+    return true;
+  });
+  z.innerHTML = '';
+  if (!l.length) { z.appendChild(el('p', 'rien', T('Aucune radio.', 'No radio.'))); return; }
+  l.forEach(function (n) {
+    var b = el('button', 'ligne-m' + (!n.vu || maintenant() - n.vu > 86400 ? ' ancien' : ''));
+    var h = el('div', 'haut'), nom = el('span', 'nom', n.nom);
+    if (n.court && n.court !== n.nom) nom.appendChild(el('span', 'court', n.court));
+    h.appendChild(nom);
+    if (n.favori) h.appendChild(el('span', 'mot', T('favori', 'favourite')));
+    if (n.ignore) h.appendChild(el('span', 'mot', T('ignorée', 'ignored')));
+    h.appendChild(el('span', 'quand', n.vu ? ilya(n.vu) : T('pas entendue depuis le redémarrage', 'not heard since restart')));
+    b.appendChild(h);
+    var infos = [];
+    if (n.materiel) infos.push(n.materiel);
+    if (typeof n.snr === 'number' && n.sauts === 0) infos.push('SNR ' + virgule(n.snr) + ' dB');
+    var s = sauts(n.sauts); if (s) infos.push(s);
+    if (typeof n.batterie === 'number') infos.push(n.batterie > 100 ? T('sur secteur', 'external power') : T('batterie ', 'battery ') + n.batterie + ' %');
+    if (n.lat && n.lon && moi.lat && moi.lon) infos.push(distance(moi, n));
+    if (infos.length) b.appendChild(el('div', 'infos', infos.join(' · ')));
+    b.onclick = function () { ouvert = ouvert === n.id ? null : n.id; liste(); };
+    z.appendChild(b);
+    if (ouvert === n.id) z.appendChild(fiche(n));
+  });
+}
+
+// ----- Fiche d'une radio : tout ce qu'on en sait, et ce qu'on peut lui demander
+function fiche(n) {
+  var f = el('div', 'fiche-noeud'), meshcore = reseauActuel() === 'meshcore', moi = (station.details || {}).moi || {};
+  var dl = el('dl', 'etat'); f.appendChild(dl);
+  function ligne(nom, v, complet) { if (v === undefined || v === null || v === '') return; var x = ligneEtat(nom, String(v)); if (complet) x.className = 'complet-seul'; dl.appendChild(x); }
+  ligne(T('Numéro', 'Number'), meshcore ? n.id.slice(0, 12) : n.id);
+  if (!meshcore) { ligne(T('Rôle', 'Role'), n.role); ligne(T('Matériel', 'Hardware'), n.materiel); }
+  else ligne(T('Genre', 'Kind'), TYPES_MC[n.type] || n.type);
+  ligne(T('Entendue', 'Heard'), n.vu ? ilya(n.vu) + ' (' + dateCourte(n.vu) + ')' : '');
+  if (typeof n.snr === 'number') ligne(T('Signal (SNR)', 'Signal (SNR)'), virgule(n.snr) + ' dB');
+  ligne(T('Relais', 'Hops'), sauts(n.sauts));
+  if (typeof n.batterie === 'number') ligne(T('Batterie', 'Battery'), (n.batterie > 100 ? T('sur secteur', 'external power') : n.batterie + ' %') + (n.tension ? ' · ' + virgule(n.tension, 2) + ' V' : ''));
+  if (typeof n.occupation === 'number') ligne(T('Occupation du canal', 'Channel use'), virgule(n.occupation) + ' %', true);
+  if (typeof n.emission === 'number') ligne(T('Temps d’émission', 'Airtime'), virgule(n.emission, 2) + ' %', true);
+  if (n.allumee) ligne(T('Allumée depuis', 'Up for'), duree(n.allumee), true);
+  if (n.lat && n.lon) ligne(T('Position', 'Position'), virgule(n.lat, 5) + ', ' + virgule(n.lon, 5) + (n.altitude ? ' · ' + n.altitude + ' m' : '') + (moi.lat && moi.lon ? ' · ' + distance(moi, n) : ''));
+  if (n.via_mqtt) ligne(T('Passée par internet', 'Through internet'), T('oui', 'yes'), true);
+  if (meshcore) { ligne(T('Chemin', 'Path'), n.chemin || T('direct ou inconnu', 'direct or unknown'), true); ligne(T('Dernière annonce', 'Last advert'), n.annonce ? dateCourte(n.annonce) : '', true); }
+  ligne(T('Clé publique', 'Public key'), n.cle, true);
+  if (dl.lastChild && n.cle) dl.lastChild.querySelector('dd').className = 'mono';
+
+  // Actions
+  var res = el('p', 'note'); res.id = 'res-' + n.id.slice(0, 12);
+  var a = el('div', 'liens');
+  function action(texte, faire, complet, confirmer) {
+    var b = el('button', 'lien' + (confirmer ? ' danger' : '') + (complet ? ' complet-seul' : ''), texte); b.type = 'button';
+    if (confirmer) deuxTemps(b, T('Toucher encore', 'Tap again'), faire); else b.onclick = faire;
+    a.appendChild(b);
+  }
+  function demande(quoi, p) {
+    dire(res, true, T('Demande envoyée par radio ; la réponse s’affiche ici (jusqu’à 2 minutes).', 'Request sent by radio; the answer shows here (up to 2 minutes).'));
+    ordre('demande', Object.assign({ id: n.id, quoi: quoi }, p || {})).then(function (r) { if (r.fini) dire(res, true, T('Réponse reçue.', 'Answer received.')); })
+      .catch(function (e) { dire(res, false, e.message); });
+  }
+  function simple(quoi, p, texte) {
+    ordre('noeud', Object.assign({ id: n.id, quoi: quoi }, p || {})).then(function (r) {
+      if (r.uri) { dire(res, true, T('Carte de contact : ', 'Contact card: ') + r.uri); return; }
+      dire(res, true, texte || T('Fait.', 'Done.')); setTimeout(rafraichir, 1500);
+    }).catch(function (e) { dire(res, false, e.message); });
+  }
+  action(T('Écrire', 'Write'), function () { location.href = 'messages.html?a=' + encodeURIComponent(n.id) + '&nom=' + encodeURIComponent(n.nom); });
+  if (!meshcore) {
+    action(T('Traceroute', 'Traceroute'), function () { demande('traceroute'); });
+    action(T('Demander sa position', 'Ask for position'), function () { demande('position'); });
+    action(T('Demander ses mesures', 'Ask for metrics'), function () { demande('telemetrie'); });
+    action(T('Demander l’environnement', 'Ask for environment'), function () { demande('telemetrie', { genre: 'environment_metrics' }); }, true);
+    action(T('Demander ses compteurs', 'Ask for its counters'), function () { demande('telemetrie', { genre: 'local_stats' }); }, true);
+    action(T('Demander sa fiche', 'Ask for its card'), function () { demande('fiche'); }, true);
+    action(n.favori ? T('Retirer des favoris', 'Remove from favourites') : T('Favori', 'Favourite'), function () { simple('favori', { oui: !n.favori }); });
+    action(n.ignore ? T('Ne plus ignorer', 'Stop ignoring') : T('Ignorer', 'Ignore'), function () { simple('ignorer', { oui: !n.ignore }); }, true);
+    action(T('Régler à distance', 'Configure remotely'), function () { location.href = 'distance.html?id=' + encodeURIComponent(n.id); }, true);
+    action(T('Oublier', 'Forget'), function () { simple('oublier'); }, true, true);
+  } else {
+    action(T('Découvrir le chemin', 'Discover path'), function () { demande('chemin'); });
+    action(T('Demander ses mesures', 'Ask for metrics'), function () { demande('telemetrie'); });
+    if (n.type === 2 || n.type === 3) {
+      action(T('Demander son état', 'Ask for status'), function () { demande('statut'); });
+      action(T('Trace', 'Trace'), function () { demande('trace'); }, true);
+      action(T('Se connecter, régler', 'Log in, configure'), function () { location.href = 'distance.html?id=' + encodeURIComponent(n.id); }, true);
+    }
+    action(n.favori ? T('Retirer des favoris', 'Remove from favourites') : T('Favori', 'Favourite'), function () { simple('favori', { oui: !n.favori }); });
+    action(T('Remettre le chemin à zéro', 'Reset path'), function () { simple('chemin-zero'); }, true);
+    action(T('Partager (annonce)', 'Share (advert)'), function () { simple('partager'); }, true);
+    action(T('Exporter la carte', 'Export card'), function () { simple('exporter'); }, true);
+    action(T('Oublier', 'Forget'), function () { simple('oublier'); }, true, true);
+  }
+  f.appendChild(a); f.appendChild(res);
+  var rz = el('div'); rz.id = 'resultats-' + n.id.slice(0, 12); f.appendChild(rz);
+  (resultats[n.id] || []).forEach(function (r) { rz.appendChild(ligneResultat(r)); });
+
+  // Historique du signal (ce que la station a entendu de cette radio)
+  var g = el('div'); f.appendChild(g);
+  var tg = el('div', 'titre-graphe'); tg.appendChild(el('b', '', T('Signal reçu (7 jours)', 'Signal received (7 days)'))); var tv = el('span'); tg.appendChild(tv); g.appendChild(tg);
+  var zg = el('div'); g.appendChild(zg);
+  api('/mesh/historique?quoi=signal&noeud=' + encodeURIComponent(n.id) + '&depuis=' + (maintenant() - 7 * 86400) + '&limite=2000').then(function (r) {
+    var p = r.donnees.filter(function (x) { return typeof x.snr === 'number'; });
+    tv.textContent = p.length + T(' paquets', ' packets');
+    graphe(zg, p.map(function (x) { return { x: x.heure, y: x.snr }; }), { unite: ' dB', titre: 'SNR' });
+  });
+  var tz = el('div', 'complet-seul'); f.appendChild(tz);
+  api('/mesh/historique?quoi=telemetrie&noeud=' + encodeURIComponent(n.id) + '&depuis=' + (maintenant() - 7 * 86400) + '&limite=2000').then(function (r) {
+    var p = r.donnees.filter(function (x) { return x.deviceMetrics && typeof x.deviceMetrics.voltage === 'number'; });
+    if (!p.length) return;
+    var t2 = el('div', 'titre-graphe'); t2.appendChild(el('b', '', T('Tension de sa batterie (7 jours)', 'Its battery voltage (7 days)'))); tz.appendChild(t2);
+    var z2 = el('div'); tz.appendChild(z2);
+    graphe(z2, p.map(function (x) { return { x: x.heure, y: x.deviceMetrics.voltage }; }), { unite: ' V', format: function (y) { return virgule(y, 2); } });
+  });
+  return f;
+}
+
+// Une reponse venue par radio, en clair
+function ligneResultat(r) {
+  var d = r.donnees || {}, z = el('div', 'resultat');
+  var NOMS = { traceroute: T('Traceroute', 'Traceroute'), position: T('Position', 'Position'), telemetrie: T('Mesures', 'Metrics'), fiche: T('Fiche', 'Card'),
+               chemin: T('Chemin', 'Path'), trace: T('Trace', 'Trace'), statut: T('État', 'Status') };
+  var t = el('div', 'haut'); t.appendChild(el('b', '', NOMS[r.type] || r.type)); t.appendChild(el('span', 'heure', heureSec(r.heure))); z.appendChild(t);
+  var txt;
+  if (d.erreur) txt = T('Pas de réponse : ', 'No answer: ') + ({ 'sans réponse': T('rien reçu en 2 minutes', 'nothing received within 2 minutes'), NO_RESPONSE: T('la radio n’a rien à donner (pas de position, ou elle refuse)', 'the radio has nothing to give (no position, or it refuses)'), MAX_RETRANSMIT: T('pas d’accusé après plusieurs essais', 'no ack after several tries') }[d.erreur] || d.erreur);
+  else if (r.type === 'traceroute') {
+    var noms = function (l) { return l.map(function (x) { return x.nom; }); };
+    var aller = [T('station', 'station')].concat(noms(d.aller), [T('elle', 'it')]), retour = [T('elle', 'it')].concat(noms(d.retour), [T('station', 'station')]);
+    var avec = function (l, s) { return l.map(function (x, i) { return i ? (typeof s[i - 1] === 'number' ? '(' + virgule(s[i - 1]) + ' dB) → ' : '→ ') + x : x; }).join(' '); };
+    txt = T('Aller : ', 'Out: ') + avec(aller, d.snr_aller || []) + '  ·  ' + T('Retour : ', 'Back: ') + avec(retour, d.snr_retour || []);
+  } else if (r.type === 'position') txt = d.latitude ? virgule(d.latitude, 5) + ', ' + virgule(d.longitude, 5) + (d.altitude ? ' · ' + d.altitude + ' m' : '') : T('position vide', 'empty position');
+  else if (r.type === 'telemetrie' && d.deviceMetrics) {
+    var m = d.deviceMetrics;
+    txt = [m.batteryLevel !== undefined ? (m.batteryLevel > 100 ? T('sur secteur', 'external power') : T('batterie ', 'battery ') + m.batteryLevel + ' %') : '', m.voltage ? virgule(m.voltage, 2) + ' V' : '',
+           m.channelUtilization !== undefined ? T('canal ', 'channel ') + virgule(m.channelUtilization) + ' %' : '', m.airUtilTx !== undefined ? T('émission ', 'airtime ') + virgule(m.airUtilTx, 2) + ' %' : '',
+           m.uptimeSeconds ? T('allumée depuis ', 'up for ') + duree(m.uptimeSeconds) : ''].filter(Boolean).join(' · ');
+  } else txt = JSON.stringify(d).slice(0, 400);
+  z.appendChild(el('div', 'chemin', txt));
+  if (typeof d.snr === 'number') z.appendChild(el('div', 'signal', 'SNR ' + virgule(d.snr) + ' dB'));
+  return z;
+}
+suivreResultats(function (r) {
+  if (!r.noeud) return;
+  var n = ((station.details || {}).noeuds || []).filter(function (x) { return x.id === r.noeud || x.id.indexOf(r.noeud) === 0; })[0];
+  var id = n ? n.id : r.noeud;
+  (resultats[id] = resultats[id] || []).unshift(r);
+  var z = $('resultats-' + id.slice(0, 12)); if (z) z.insertBefore(ligneResultat(r), z.firstChild);
+});
+
+// ----- MeshCore : radios annoncees qui attendent d'etre ajoutees (ajout a la main), import d'une carte
+function attente() {
+  var z = $('attente-zone'); z.innerHTML = '';
+  var l = (station.details || {}).attente || [];
+  if (reseauActuel() !== 'meshcore' || !l.length) return;
+  titreAvecAide(z, 'Radios qui attendent', 'Radios waiting', 'Avec l’ajout des contacts à la main, les radios qui s’annoncent attendent ici qu’on les ajoute.', 'With manual contact adding, radios that announce themselves wait here to be added.');
+  var d = el('div', 'lignes'); z.appendChild(d);
+  l.forEach(function (c) {
+    var li = el('div', 'ligne-m'), h = el('div', 'haut');
+    h.appendChild(el('span', 'nom', c.adv_name || c.public_key.slice(0, 12))); h.appendChild(el('span', 'quand', ilya(c.heure))); li.appendChild(h);
+    li.appendChild(el('div', 'infos', TYPES_MC[c.type] || ''));
+    var liens = el('div', 'liens'), res = el('p', 'note');
+    [['ajouter', T('Ajouter', 'Add')], ['ecarter', T('Écarter', 'Dismiss')]].forEach(function (x) {
+      var b = el('button', 'lien', x[1]); b.type = 'button';
+      b.onclick = function () { ordre('noeud', { quoi: x[0], id: c.public_key }).then(function () { rafraichir(); }).catch(function (e) { dire(res, false, e.message); }); };
+      liens.appendChild(b);
+    });
+    li.appendChild(liens); li.appendChild(res); d.appendChild(li);
+  });
+}
+function importer() {
+  var z = $('import-zone'); z.innerHTML = '';
+  if (reseauActuel() !== 'meshcore') return;
+  titreAvecAide(z, 'Ajouter une carte de contact', 'Add a contact card', 'Une carte « meshcore://… » donnée par quelqu’un (copiée depuis son appli) : la radio l’ajoute à ses contacts sans attendre son annonce.', 'A « meshcore://… » card given by someone (copied from their app): the radio adds it to its contacts without waiting for its advert.');
+  var f = el('form', 'form'); f.innerHTML = '<input class="champ" id="carte" placeholder="meshcore://…" autocomplete="off"><div class="bas-form"><p class="erreur" id="carte-res"></p><button class="bouton">' + T('Ajouter', 'Add') + '</button></div>';
+  z.appendChild(f);
+  f.onsubmit = function (ev) {
+    ev.preventDefault();
+    ordre('noeud', { quoi: 'importer', uri: $('carte').value.trim() }).then(function () { dire('carte-res', true, T('Contact ajouté.', 'Contact added.')); $('carte').value = ''; rafraichir(); })
+      .catch(function (e) { dire('carte-res', false, e.message); });
+  };
+}
+$('cherche').addEventListener('input', liste);
+function rafraichir() { return chargerStation().then(function () { filtres(); liste(); attente(); }); }
+rafraichir().then(importer).catch(function () {});
+setInterval(function () { if (!document.querySelector('.fiche-noeud')) rafraichir(); else chargerStation(); }, 20000);
+</script>
+</body>
+</html>

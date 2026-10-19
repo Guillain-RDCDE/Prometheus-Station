@@ -13,6 +13,9 @@
 #   prometheus-radio-outil t-echo '<json>'           {radio: port, cible: meshtastic | meshtastic-inkhud | meshcore-ble
 #                                                     | meshcore-usb | maj}
 #   prometheus-radio-outil detecter                  reconnait les T-Echo branches (logiciel, version, nom)
+#   prometheus-radio-outil restaurer '<json>'        {fichier} : remet une sauvegarde de la section Mesh (garde-fou compris)
+#   prometheus-radio-outil identifier                atelier : reconnait toute radio branchee et les disques UF2
+#   prometheus-radio-outil carte '<json>'            atelier : installe Meshtastic ou MeshCore sur une carte (voir action_carte)
 #
 # Ce qu'il garde, dans /srv/prometheus/radio :
 #   reseau.json      {reseau: meshtastic|meshcore, puce: SX1276|SX1262, mac, ble}  (lu par prometheus-radio)
@@ -127,9 +130,16 @@ def proprietaire():
 
 # ---------------------------------------------------------------- la radio de la station
 def port_station():
-    """La T-Beam : sa puce USB-serie (1a86 = CH9102, CP210x)."""
+    """La T-Beam : le port note dans reseau.json (son numero de serie USB, qui ne change pas), sinon sa puce
+    USB-serie (1a86 = CH9102, CP210x). Le port est note des qu'on le trouve : une autre carte de la meme marque
+    branchee pour l'atelier ne sera jamais prise pour la radio de la station."""
+    note = lire_json(RESEAU, {}).get('port')
+    if note and os.path.exists('/dev/serial/by-id/' + note):
+        return '/dev/serial/by-id/' + note
     for p in sorted(glob.glob('/dev/serial/by-id/*')):
         if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs')):
+            if not note:
+                noter_reseau(port=os.path.basename(p))
             return p
     raise Echec('La radio de la station n’est pas branchée.')
 
@@ -195,10 +205,10 @@ def sauvegarder_meshtastic(port=None, nom='meshtastic'):
     return sortie[debut:]
 
 
-def restaurer_meshtastic(port=None, nom='meshtastic'):
+def restaurer_meshtastic(port=None, nom='meshtastic', fichier=None):
     """Remet les reglages Meshtastic sauvegardes (identite comprise, verifiee). port peut etre une fonction."""
     p = (lambda: port() if callable(port) else port) if port is not None else (lambda: None)
-    fichier = os.path.join(SAUVEGARDES, nom + '-dernier.yaml')
+    fichier = fichier or os.path.join(SAUVEGARDES, nom + '-dernier.yaml')
     if not os.path.exists(fichier):
         dire('   (aucune sauvegarde Meshtastic pour cette radio : réglages d’usine, région Europe 868 MHz)')
         mt('--set', 'lora.region', 'EU_868', port=p())
@@ -210,8 +220,8 @@ def restaurer_meshtastic(port=None, nom='meshtastic'):
     # L'identite (cle privee) remise en bloc avec le reste n'est pas reprise par la radio, qui s'en fabrique une
     # nouvelle (vu le 14/10/2026) : on la remet seule, puis on verifie que la radio a bien retrouve la sienne.
     sauvee = open(fichier).read()
-    privee = re.search(r'^\s*privateKey:\s*(\S+)', sauvee, re.M)
-    publique = re.search(r'^\s*publicKey:\s*(\S+)', sauvee, re.M)
+    privee = re.search(r'^\s*(?:privateKey|private_key):\s*(\S+)', sauvee, re.M)
+    publique = re.search(r'^\s*(?:publicKey|public_key):\s*(\S+)', sauvee, re.M)
     if privee and publique:
         dire('== Remise de l’identité de la radio')
         attendre_meshtastic(port=port)
@@ -219,7 +229,7 @@ def restaurer_meshtastic(port=None, nom='meshtastic'):
         time.sleep(15)
         attendre_meshtastic(port=port)
         _, sortie = mt('--export-config', montrer=False, port=p())
-        lue = re.search(r'^\s*publicKey:\s*(\S+)', sortie, re.M)
+        lue = re.search(r'^\s*(?:publicKey|public_key):\s*(\S+)', sortie, re.M)
         if not lue or lue.group(1) != publique.group(1):
             raise Echec('La radio n’a pas repris son identité.')
         dire('   identité vérifiée : c’est bien la même radio pour les autres')
@@ -546,7 +556,8 @@ async def meshcore_lire(mc):
     moi = mc.self_info or {}
     cle = await mc.commands.export_private_key()
     canaux = []
-    for i in range(8):
+    info = await mc.commands.send_device_query()
+    for i in range(min(40, (info.payload or {}).get('max_channels') or 8) if info.type == EventType.DEVICE_INFO else 8):
         r = await mc.commands.get_channel(i)
         if r.type == EventType.CHANNEL_INFO and r.payload.get('channel_name'):
             canaux.append({'index': i, 'nom': r.payload['channel_name'], 'secret': r.payload['channel_secret'].hex()})
@@ -841,6 +852,11 @@ def action_chercher(_):
         if nouveau:
             nouveautes.append('MeshCore ' + v)
     dire('   nouvelles versions :', ', '.join(nouveautes) if nouveautes else 'aucune')
+    # Atelier : catalogue des cartes et logiciels des cartes suivies (une panne ici n'empeche pas le reste)
+    try:
+        chercher_catalogue()
+    except Exception as e:
+        dire('!! Catalogue de l’atelier non mis à jour :', e)
     # On garde les deux dernieres versions de chaque reseau
     for reseau in ('meshtastic', 'meshcore'):
         for vieux in versions(reseau)[GARDER_VERSIONS:]:
@@ -1172,6 +1188,568 @@ def action_installer(texte):
         relancer_service()
 
 
+# ---------------------------------------------------------------- section Mesh : remettre une sauvegarde
+SAUVE_MESH = os.path.join(RADIO, 'mesh-sauvegardes')     # ecrit par prometheus-radio avant chaque changement
+
+
+def action_restaurer(texte):
+    """{fichier: nom dans mesh-sauvegardes/ (ou sauvegardes/), auto: true si demande par le garde-fou}
+    Remet tous les reglages d'une sauvegarde dans la radio de la station. Meshtastic : si la radio ne repond
+    plus par le cable (reglage qui coupe la liaison), on reinstalle d'abord son logiciel, puis on remet tout."""
+    try:
+        r = json.loads(texte)
+        nom = os.path.basename(str(r['fichier']))
+    except (ValueError, KeyError, TypeError):
+        raise Echec('Réglage invalide.')
+    fichier = next((f for f in (os.path.join(SAUVE_MESH, nom), os.path.join(SAUVEGARDES, nom)) if os.path.isfile(f)), None)
+    if not fichier:
+        raise Echec('Sauvegarde introuvable : %s' % nom)
+    reseau = 'meshcore' if nom.startswith('meshcore') else 'meshtastic'
+    if reseau != reseau_actuel():
+        raise Echec('Cette sauvegarde est pour %s : la station est sur %s.' % (reseau.capitalize(), reseau_actuel().capitalize()))
+    if r.get('auto'):
+        dire('== Garde-fou : la radio ne répond plus depuis un réglage risqué ; remise des réglages d’avant')
+    dire('== Remise de la sauvegarde', nom)
+    arreter_service()
+    try:
+        if reseau == 'meshtastic':
+            try:
+                attendre_meshtastic(essais=3, delai=30)
+            except Echec:
+                dire('   la radio ne répond pas par le câble : réinstallation de Meshtastic avant de remettre ses réglages')
+                installer_station('meshtastic', complet=True)
+                attendre_meshtastic()
+            restaurer_meshtastic(fichier=fichier)
+            dire('   la radio s’appelle :', attendre_meshtastic())
+        else:
+            bluetooth(True)
+            s = json.load(open(fichier))
+
+            async def remettre():
+                mc = await meshcore_connecter(lire_json(RESEAU, {})['ble'])
+                try:
+                    # Les canaux crees depuis la sauvegarde partent (la sauvegarde dit tous ceux qui existaient)
+                    gardes = {c['index'] for c in s.get('canaux', [])}
+                    actuels = await meshcore_lire(mc)
+                    for c in actuels['canaux']:
+                        if c['index'] not in gardes and c['index']:
+                            dire('   canal retiré :', c['nom'])
+                            await mc.commands.set_channel(c['index'], '', b'\0' * 16)
+                    await meshcore_ecrire(mc, s)
+                    autres = s.get('autres') or {}
+                    if autres:
+                        infos = (await mc.commands.send_appstart()).payload or {}
+                        infos.update({k: v for k, v in autres.items() if v is not None})
+                        infos['manual_add_contacts'] = bool(infos.get('manual_add_contacts'))
+                        await mc.commands.set_other_params_from_infos(infos)
+                    await mc.commands.reboot()
+                finally:
+                    try:
+                        await mc.disconnect()
+                    except Exception:
+                        pass
+            asyncio.run(remettre())
+            dire('   réglages MeshCore remis ; la radio redémarre')
+    finally:
+        relancer_service()
+
+
+# ---------------------------------------------------------------- section Mesh : l'atelier (toute carte)
+# Le catalogue des cartes que Meshtastic et MeshCore savent faire tourner, les logiciels gardes pour elles,
+# la reconnaissance de n'importe quelle radio branchee, et son installation (ESP32, nRF52, RP2040).
+CATALOGUE = os.path.join(RADIO, 'catalogue.json')
+ATELIER = os.path.join(RADIO, 'atelier.json')
+SUIVIES = os.path.join(RADIO, 'cartes-suivies.json')        # ecrit par prometheus-admin (cartes cochees dans l'atelier)
+REGLAGES_STATION = '/srv/prometheus/communaute/reglages.json'
+# Familles de puces : nom dans les paquets Meshtastic (firmware-<famille>-<version>.zip) ; MeshCore : d'apres ses fichiers
+FAMILLES_MESHTASTIC = {'esp32': 'esp32', 'esp32-s3': 'esp32s3', 'esp32-c3': 'esp32c3', 'esp32-c6': 'esp32c6',
+                       'nrf52840': 'nrf52840', 'rp2040': 'rp2040', 'rp2350': 'rp2350', 'stm32': 'stm32'}
+FICHIER_MESHCORE = re.compile(r'^(?P<carte>.+?)_(?P<role>companion_radio_[a-z0-9]+|[Rr]epeater|room_server|[Rr]oom_[Ss]erver)'
+                              r'-v(?P<version>[\d.]+)-[0-9a-f]+(?P<fusion>-merged)?\.(?P<ext>bin|uf2|zip|hex)$')
+PONTS_SERIE = {'10c4', '1a86', '0403', '067b'}   # CP210x, CH34x/CH9102, FTDI, PL2303 : en general une carte ESP32
+ESPRESSIF = '303a'
+NORDIC = {'239a', '1915'}                        # chargeur Adafruit des nRF52, Nordic
+RASPBERRY = '2e8a'
+TRAVAIL = '/run/prometheus-atelier'
+
+
+def toutes_cartes():
+    try:
+        return json.load(open(REGLAGES_STATION)).get('mesh', {}).get('toutes_cartes') is True
+    except (OSError, ValueError):
+        return False
+
+
+def suivies():
+    """Les cartes dont la station garde les logiciels : celles cochees dans l'atelier et celles deja vues."""
+    s = lire_json(SUIVIES, {})
+    vues = lire_json(ATELIER, {}).get('vues', {})
+    return ({*s.get('meshtastic', []), *vues.get('meshtastic', []), 'tbeam', 't-echo'},
+            {*s.get('meshcore', []), *vues.get('meshcore', []), 'Tbeam_SX1276', 'Tbeam_SX1262', 'LilyGo_T-Echo'})
+
+
+def chercher_catalogue():
+    """Catalogue des cartes (internet) ; garde les logiciels des cartes suivies (ou de toutes, Parametres > Mesh)."""
+    dire('== Catalogue des cartes et logiciels de l’atelier' + (' (toutes les cartes)' if toutes_cartes() else ' (cartes suivies)'))
+    cat = lire_json(CATALOGUE, {})
+    mt_suivies, mc_suivies = suivies()
+    # Meshtastic : la liste officielle du materiel, et les cibles de la derniere version stable
+    r = next(x for x in github('meshtastic/firmware') if not x['prerelease'] and not x['draft'])
+    v = r['tag_name'].lstrip('v')
+    materiel = json.loads(telecharger('https://api.meshtastic.org/resource/deviceHardware'))
+    manifeste = next((a for a in r['assets'] if a['name'] == 'firmware-%s.json' % v), None)
+    cibles = {t['board']: t['platform'] for t in json.loads(telecharger(manifeste['browser_download_url']))['targets']} if manifeste else {}
+    noms = {m.get('platformioTarget'): m for m in materiel}
+    cartes = []
+    for cible, plateforme in sorted(cibles.items()):
+        m = noms.get(cible, {})
+        cartes.append({'cible': cible, 'nom': m.get('displayName') or cible, 'famille': plateforme,
+                       'modele': m.get('hwModelSlug', ''), 'suivi': m.get('supportLevel'), 'actif': m.get('activelySupported', True),
+                       'marques': m.get('tags', [])})
+    cat['meshtastic'] = {'version': v, 'cartes': cartes}
+    d = os.path.join(LOGICIELS, 'meshtastic', v, 'archives')
+    os.makedirs(d, exist_ok=True)
+    familles = {c['famille'] for c in cartes} if toutes_cartes() else {c['famille'] for c in cartes if c['cible'] in mt_suivies}
+    for a in r['assets']:
+        m = re.match(r'^firmware-([a-z0-9]+)-' + re.escape(v) + r'\.zip$', a['name'])
+        if m and m.group(1) in familles and not os.path.exists(os.path.join(d, a['name'])):
+            dire('   Meshtastic', v, ':', a['name'], '(%d Mo)' % (a['size'] // 1000000))
+            donnees = telecharger(a['browser_download_url'], empreinte(a))
+            with open(os.path.join(d, a['name']) + '.tmp', 'wb') as f:
+                f.write(donnees)
+            os.replace(os.path.join(d, a['name']) + '.tmp', os.path.join(d, a['name']))
+    dire('   Meshtastic : %d cartes connues, paquets gardés : %s' % (len(cartes), ', '.join(sorted(os.listdir(d))) or 'aucun'))
+    # MeshCore : trois logiciels (compagnon, repeteur, salon), un fichier par carte
+    rels = github('meshcore-dev/MeshCore')
+    cartes_mc = {}
+    for prefixe in ('companion-v', 'repeater-v', 'room-server-v'):
+        rel = next((x for x in rels if x['tag_name'].startswith(prefixe) and not x['prerelease'] and not x['draft']), None)
+        if not rel:
+            continue
+        for a in rel['assets']:
+            m = FICHIER_MESHCORE.match(a['name'])
+            if not m:
+                continue
+            role = m.group('role').lower()
+            role = 'repeteur' if 'repeater' in role else 'salon' if 'room' in role else role.replace('companion_radio_', 'compagnon-')
+            c = cartes_mc.setdefault(m.group('carte'), {'roles': {}, 'exts': set()})
+            c['exts'].add(m.group('ext') + ('-merged' if m.group('fusion') else ''))
+            c['roles'].setdefault(role, {'version': m.group('version'), 'fichiers': []})['fichiers'].append(
+                {'nom': a['name'], 'url': a['browser_download_url'], 'taille': a['size'], 'empreinte': empreinte(a)})
+    for nom, c in cartes_mc.items():
+        e = c.pop('exts')
+        c['famille'] = 'esp32' if 'bin-merged' in e else 'nrf52840' if 'zip' in e and 'uf2' in e else \
+            'rp2040' if 'uf2' in e else 'stm32' if 'hex' in e else 'esp32'
+    for nom, c in cartes_mc.items():
+        if not (toutes_cartes() or nom in mc_suivies):
+            continue
+        for role, x in c['roles'].items():
+            dd = os.path.join(LOGICIELS, 'meshcore', x['version'], 'cartes')
+            os.makedirs(dd, exist_ok=True)
+            for f in x['fichiers']:
+                if not os.path.exists(os.path.join(dd, f['nom'])):
+                    with open(os.path.join(dd, f['nom']) + '.tmp', 'wb') as s:
+                        s.write(telecharger(f['url'], f['empreinte']))
+                    os.replace(os.path.join(dd, f['nom']) + '.tmp', os.path.join(dd, f['nom']))
+    for c in cartes_mc.values():
+        for x in c['roles'].values():
+            for f in x['fichiers']:
+                f.pop('url', None)
+                f.pop('empreinte', None)
+    cat['meshcore'] = {'cartes': cartes_mc}
+    cat['heure'] = time.time()
+    ecrire_json(CATALOGUE, cat)
+    garde = sum(len(os.listdir(os.path.join(LOGICIELS, 'meshcore', x, 'cartes'))) for x in versions('meshcore')
+                if os.path.isdir(os.path.join(LOGICIELS, 'meshcore', x, 'cartes')))
+    dire('   MeshCore : %d cartes connues, %d fichiers gardés pour l’atelier' % (len(cartes_mc), garde))
+
+
+def usb_de(port):
+    """Fabricant, produit, identifiants USB d'un port serie (lus dans /sys)."""
+    d = os.path.realpath('/sys/class/tty/%s/device' % os.path.basename(os.path.realpath(port)))
+    while d != '/' and not os.path.exists(os.path.join(d, 'idVendor')):
+        d = os.path.dirname(d)
+    lu = lambda f: open(os.path.join(d, f)).read().strip() if os.path.exists(os.path.join(d, f)) else ''
+    return {'vid': lu('idVendor'), 'pid': lu('idProduct'), 'fabricant': lu('manufacturer'), 'produit': lu('product')}
+
+
+def disques_uf2():
+    """Les disques de mise a jour (UF2) des cartes branchees : seulement des disques USB qui ont INFO_UF2.TXT.
+    Jamais une partition de la station (15/10/2026 : « bootfs » est la carte SD du Pi)."""
+    res = []
+    for lien in glob.glob('/dev/disk/by-label/*'):
+        dev = os.path.basename(os.path.realpath(lien))
+        if '/usb' not in os.path.realpath('/sys/class/block/' + dev):
+            continue
+        point = '/run/prometheus-uf2-lire'
+        os.makedirs(point, exist_ok=True)
+        if subprocess.run(['mount', '-o', 'ro', lien, point], capture_output=True).returncode != 0:
+            continue
+        try:
+            info = open(os.path.join(point, 'INFO_UF2.TXT'), errors='replace').read()
+        except OSError:
+            info = None
+        finally:
+            subprocess.run(['umount', point], capture_output=True)
+        if info is None:
+            continue
+        champ = lambda n: (re.search(r'^%s:\s*(.+)$' % n, info, re.M) or [None, ''])[1].strip()
+        res.append({'disque': os.path.basename(lien), 'carte_id': champ('Board-ID'), 'modele': champ('Model'),
+                    'softdevice': champ('SoftDevice'), 'chargeur': champ('UF2 Bootloader')})
+    return res
+
+
+def identifier(port):
+    """Ce que fait tourner une radio branchee en USB : {port, logiciel, nom, version, materiel, puce, ...}."""
+    r = dict(usb_de(port), port=os.path.basename(port), serie=serie_de(port) or '', logiciel='inconnu', nom='', version='')
+    code, sortie = mt('--info', montrer=False, delai=30, port=port)
+    m = re.search(r'Owner: (.+?) \(', sortie)
+    if code == 0 and m:
+        v = re.search(r'"firmwareVersion": "([^"]+)"', sortie)
+        h = re.search(r'"hwModel": "([^"]+)"', sortie)
+        r.update(logiciel='meshtastic', nom=m.group(1), version=v.group(1) if v else '', materiel=h.group(1) if h else '')
+        cat = {c['modele']: c['cible'] for c in lire_json(CATALOGUE, {}).get('meshtastic', {}).get('cartes', []) if c.get('modele')}
+        r['carte'] = cat.get(r['materiel'], '')
+        return r
+
+    async def lire():
+        mc = await meshcore_serie(port)
+        if not mc:
+            return None
+        try:
+            from meshcore import EventType
+            info = await mc.commands.send_device_query()
+            p = info.payload if info.type == EventType.DEVICE_INFO else {}
+            return (mc.self_info or {}).get('name', ''), p.get('ver', ''), p.get('model', '')
+        finally:
+            await mc.disconnect()
+    lu = asyncio.run(lire())
+    if lu:
+        r.update(logiciel='meshcore-usb', nom=lu[0], version=lu[1], materiel=lu[2])
+        return r
+    if r['vid'] in PONTS_SERIE or r['vid'] == ESPRESSIF:
+        code, sortie = lancer([ESPTOOL, '--port', port, 'chip-id'], montrer=False, delai=60)
+        puce = re.search(r'(?:Chip is|Chip type:|Detecting chip type\.\.\.)\s*(ESP32[-\w]*)', sortie)
+        mac = MAC.search(sortie)
+        if puce:
+            r.update(logiciel='esp32', puce=puce.group(1), mac=mac.group(1) if mac else '')
+            # Meshtastic sous ESP32-S3 se reveille mal apres esptool : on la laisse repartir
+            time.sleep(3)
+            return r
+    if r['vid'] in NORDIC:
+        r['logiciel'] = 'nrf52'
+    elif r['vid'] == RASPBERRY:
+        r['logiciel'] = 'rp2040'
+    return r
+
+
+def action_identifier(_):
+    """Reconnait toutes les radios branchees (sauf celle de la station), et les disques de mise a jour."""
+    try:
+        station = port_station()
+    except Echec:
+        station = None
+    a = lire_json(ATELIER, {})
+    vues = a.get('vues', {'meshtastic': [], 'meshcore': []})
+    radios = []
+    for p in sorted(glob.glob('/dev/serial/by-id/*')):
+        if p == station:
+            continue
+        dire('   lecture de', os.path.basename(p), '…')
+        r = identifier(p)
+        dire('   %s : %s %s %s %s' % (r['port'], r['logiciel'], r.get('version', ''), r.get('nom', ''), r.get('materiel') or r.get('puce') or ''))
+        if r.get('carte') and r['carte'] not in vues['meshtastic']:
+            vues['meshtastic'].append(r['carte'])
+        radios.append(r)
+    disques = disques_uf2()
+    for d in disques:
+        dire('   disque de mise à jour', d['disque'], ':', d['carte_id'] or d['modele'])
+    if not radios and not disques:
+        dire('   aucune radio branchée à part celle de la station')
+    a.update(radios=radios, disques=disques, vues=vues, heure=time.time())
+    ecrire_json(ATELIER, a)
+
+
+def fichier_atelier(reseau, carte, role):
+    """Les fichiers a installer pour une carte : {'famille', 'version', fichiers par genre}."""
+    cat = lire_json(CATALOGUE, {})
+    if reseau == 'meshtastic':
+        c = next((x for x in cat.get('meshtastic', {}).get('cartes', []) if x['cible'] == carte), None)
+        if not c:
+            raise Echec('Carte inconnue du catalogue : %s (cherchez d’abord les logiciels avec internet).' % carte)
+        famille = c['famille']
+        for v in versions('meshtastic'):
+            z = os.path.join(LOGICIELS, 'meshtastic', v, 'archives', 'firmware-%s-%s.zip' % (famille, v))
+            if not os.path.exists(z):
+                continue
+            os.makedirs(TRAVAIL, exist_ok=True)
+            res = {'famille': famille, 'version': v}
+            with zipfile.ZipFile(z) as zz:
+                noms = zz.namelist()
+                base = 'firmware-%s-%s' % (carte, v)
+                for genre, nom in (('complet', base + '.factory.bin'), ('appli', base + '.bin'), ('uf2', base + '.uf2'),
+                                   ('zip', base + '-ota.zip'), ('meta', base + '.mt.json'), ('littlefs', 'littlefs-%s-%s.bin' % (carte, v))):
+                    if nom in noms:
+                        res[genre] = os.path.join(TRAVAIL, nom)
+                        with open(res[genre], 'wb') as f:
+                            f.write(zz.read(nom))
+                if 'meta' in res:
+                    meta = json.load(open(res['meta']))
+                    res['parties'] = {p['subtype']: int(p['offset'], 16) for p in meta.get('part') or []}
+                    ota = 'mt-%s-ota.bin' % meta.get('mcu', famille)
+                    if ota in noms:
+                        res['ota'] = os.path.join(TRAVAIL, ota)
+                        with open(res['ota'], 'wb') as f:
+                            f.write(zz.read(ota))
+            if 'complet' in res or 'uf2' in res:
+                return res
+        raise Echec('Logiciel Meshtastic de %s absent de la station : cochez cette carte dans l’atelier puis cherchez les logiciels (internet).' % carte)
+    c = cat.get('meshcore', {}).get('cartes', {}).get(carte)
+    if not c or role not in c.get('roles', {}):
+        raise Echec('Carte ou rôle MeshCore inconnu : %s %s.' % (carte, role))
+    for v in versions('meshcore'):
+        d = os.path.join(LOGICIELS, 'meshcore', v, 'cartes')
+        if not os.path.isdir(d):
+            continue
+        res = {'famille': c['famille'], 'version': v}
+        for f in c['roles'][role]['fichiers']:
+            # le catalogue donne les noms d'une version ; on cherche ceux de la meme carte et du meme role dans chaque version
+            motif = re.escape(f['nom']).replace(re.escape(c['roles'][role]['version']), r'[\d.]+')
+            motif = re.sub(r'-[0-9a-f]{6,}(?=(?:-merged)?\\\.)', '-[0-9a-f]+', motif)
+            trouve = next((n for n in os.listdir(d) if re.fullmatch(motif, n)), None)
+            if trouve:
+                genre = 'complet' if trouve.endswith('-merged.bin') else 'appli' if trouve.endswith('.bin') else \
+                    'uf2' if trouve.endswith('.uf2') else 'zip' if trouve.endswith('.zip') else 'hex'
+                res[genre] = os.path.join(d, trouve)
+        if any(k in res for k in ('complet', 'appli', 'uf2')):
+            return res
+    raise Echec('Logiciel MeshCore de %s absent de la station : cochez cette carte dans l’atelier puis cherchez les logiciels (internet).' % carte)
+
+
+def esptool_sur(port, *args, delai=600):
+    """esptool sur une carte de l'atelier. Une carte a USB integre (ESP32-S3) peut demander le bouton BOOT."""
+    fin = time.time() + 180
+    consigne = False
+    while True:
+        code, sortie = lancer([ESPTOOL, '--port', port, '--baud', '460800', *args], delai=delai)
+        if code == 0:
+            return sortie
+        if 'Failed to connect' not in sortie and 'No serial data received' not in sortie or time.time() > fin:
+            raise Echec('L’écriture dans la carte a échoué.')
+        if not consigne:
+            dire('== MAINTENEZ LE BOUTON BOOT DE LA CARTE en la rebranchant, puis relâchez-le (la station réessaie pendant 3 minutes)')
+            consigne = True
+        time.sleep(8)
+        p = [x for x in glob.glob('/dev/serial/by-id/*') if x != port_station_ou_rien()]
+        if port not in p and p:
+            port = p[0]
+
+
+def port_station_ou_rien():
+    try:
+        return port_station()
+    except Echec:
+        return None
+
+
+def nouveau_disque_uf2(avant, secondes):
+    def cherche():
+        for d in disques_uf2():
+            if d['disque'] not in avant:
+                return d['disque']
+        return None
+    return attendre(cherche, secondes, 3)
+
+
+def copier_uf2(disque, uf2):
+    point = '/run/prometheus-uf2'
+    os.makedirs(point, exist_ok=True)
+    lien = '/dev/disk/by-label/' + disque
+    if '/usb' not in os.path.realpath('/sys/class/block/' + os.path.basename(os.path.realpath(lien))):
+        raise Echec('Disque refusé (pas un disque USB).')
+    if subprocess.run(['mount', lien, point]).returncode != 0:
+        raise Echec('Impossible d’ouvrir le disque de la carte.')
+    try:
+        if not os.path.exists(os.path.join(point, 'INFO_UF2.TXT')):
+            raise Echec('Ce disque n’est pas celui d’une carte en mode mise à jour.')
+        dire('   copie de', os.path.basename(uf2), 'sur le disque', disque)
+        shutil.copyfile(uf2, os.path.join(point, os.path.basename(uf2)))
+        os.sync()
+    finally:
+        subprocess.run(['umount', point], capture_output=True)
+
+
+def toucher_1200(port):
+    """Le signal « 1200 bauds » fait passer beaucoup de cartes nRF52 et RP2040 en mode mise a jour."""
+    try:
+        import serial
+        s = serial.Serial(port, 1200)
+        s.dtr = False
+        s.close()
+    except Exception:
+        pass
+
+
+def console_meshcore(port, lignes):
+    """Ligne de commande serie d'un repeteur ou d'un salon MeshCore : une commande par ligne, sa reponse."""
+    import serial
+    s = serial.Serial(port, 115200, timeout=1)
+    time.sleep(2)
+    s.read(4096)
+    for l in lignes:
+        s.write((l + '\r').encode())
+        time.sleep(1.5)
+        rep = s.read(4096).decode('utf-8', 'replace').strip()
+        dire('   >', l.split(' ')[0] + (' …' if ' ' in l else ''), '·', rep.splitlines()[-1][:120] if rep else '(pas de réponse)')
+    s.close()
+
+
+def action_carte(texte):
+    """{port ou disque, reseau: meshtastic|meshcore, carte, role (MeshCore : compagnon-ble|compagnon-usb|repeteur|salon),
+    mode: maj|complet, garder: true (identite et reglages gardes si c'est possible), nom, mot_de_passe (repeteur)}"""
+    try:
+        p = json.loads(texte)
+        reseau, carte, mode = p['reseau'], str(p['carte']), p.get('mode', 'complet')
+        assert reseau in ('meshtastic', 'meshcore') and mode in ('maj', 'complet') and re.fullmatch(r'[\w.+-]{1,60}', carte)
+    except (ValueError, KeyError, TypeError, AssertionError):
+        raise Echec('Réglage invalide.')
+    role = str(p.get('role') or '')
+    port = '/dev/serial/by-id/' + os.path.basename(str(p['port'])) if p.get('port') else None
+    disque = os.path.basename(str(p['disque'])) if p.get('disque') else None
+    if port and port == port_station_ou_rien():
+        raise Echec('C’est la radio de la station : elle se met à jour depuis la Vue d’ensemble.')
+    if port and not os.path.exists(port):
+        raise Echec('Cette radio n’est plus branchée.')
+    if not port and not disque:
+        raise Echec('Aucune radio choisie.')
+    f = fichier_atelier(reseau, carte, role)
+    famille = f['famille']
+    dire('== %s : %s %s sur %s (%s)' % ('Mise à jour' if mode == 'maj' else 'Installation', reseau.capitalize(), f['version'], carte, famille))
+    if famille == 'stm32':
+        raise Echec('Cette carte (STM32) s’installe avec un programmateur ST-Link : pas depuis la station.')
+    serie = serie_de(port) if port else ''
+    avant = identifier(port) if port else {'logiciel': 'demarrage'}
+    sauvegarde = None
+    cle_sauve = (serie or carte).replace('/', '')
+    # 1. Garder ce qui peut l'etre
+    if avant['logiciel'] == 'meshtastic':
+        sauvegarde = sauvegarder_meshtastic(port, 'carte-%s-meshtastic' % cle_sauve)
+        sauvegarde = os.path.join(SAUVEGARDES, 'carte-%s-meshtastic-dernier.yaml' % cle_sauve)
+    elif avant['logiciel'] == 'meshcore-usb':
+        async def garder():
+            mc = await meshcore_serie(port, 20)
+            try:
+                return await meshcore_lire(mc) if mc else None
+            finally:
+                if mc:
+                    await mc.disconnect()
+        s = asyncio.run(garder())
+        if s:
+            ranger_sauvegarde('carte-%s-meshcore.json' % cle_sauve, json.dumps(s, ensure_ascii=False, indent=1))
+            sauvegarde = os.path.join(SAUVEGARDES, 'carte-%s-meshcore-dernier.json' % cle_sauve)
+            dire('   réglages MeshCore gardés (identité comprise)')
+    # 2. Ecrire
+    if famille.startswith('esp32'):
+        if not port:
+            raise Echec('Une carte ESP32 s’installe par son port série : branchez-la normalement.')
+        if mode == 'complet' or reseau != avant['logiciel'].split('-')[0]:
+            if 'complet' not in f:
+                raise Echec('Image complète absente pour cette carte.')
+            dire('   effacement complet de la carte…')
+            esptool_sur(port, 'erase-flash')
+            pieces = ['0x0', f['complet']]
+            if reseau == 'meshtastic' and 'ota' in f and 'ota_1' in f.get('parties', {}):
+                pieces += [hex(f['parties']['ota_1']), f['ota']]
+            if reseau == 'meshtastic' and 'littlefs' in f and 'spiffs' in f.get('parties', {}):
+                pieces += [hex(f['parties']['spiffs']), f['littlefs']]
+            esptool_sur(port, 'write-flash', *pieces)
+        else:
+            if 'appli' not in f:
+                raise Echec('Fichier de mise à jour absent pour cette carte.')
+            esptool_sur(port, 'write-flash', hex(f.get('parties', {}).get('ota_0', 0x10000)), f['appli'])
+        dire('   écrit ; la carte redémarre')
+        time.sleep(10)
+    else:
+        if 'uf2' not in f:
+            raise Echec('Fichier UF2 absent pour cette carte.')
+        deja = [d['disque'] for d in disques_uf2()]
+        if disque and disque in deja:
+            cible = disque
+        else:
+            if avant['logiciel'] == 'meshtastic':
+                dire('   passage en mode mise à jour…')
+                mt('--enter-dfu', montrer=False, delai=60, port=port)
+            elif port:
+                toucher_1200(port)
+            cible = nouveau_disque_uf2(deja, 25)
+            if not cible:
+                dire('== APPUYEZ DEUX FOIS RAPIDEMENT SUR LE BOUTON RESET DE LA CARTE' if famille.startswith('nrf') else
+                     '== MAINTENEZ LE BOUTON BOOT DE LA CARTE en la rebranchant, puis relâchez-le')
+                dire('   (la station attend 5 minutes au plus)')
+                cible = nouveau_disque_uf2(deja, 300)
+            if not cible:
+                raise Echec('La carte n’est pas passée en mode mise à jour.')
+        copier_uf2(cible, f['uf2'])
+        dire('   écrit ; la carte redémarre')
+        attendre(lambda: cible not in [d['disque'] for d in disques_uf2()], 60, 3)
+        time.sleep(10)
+    # 3. Retrouver la carte et la regler
+    def ici():
+        ports = [x for x in glob.glob('/dev/serial/by-id/*') if x != port_station_ou_rien()]
+        meme = [x for x in ports if serie and serie_de(x) == serie]
+        return (meme or ports or [None])[0]
+    if not attendre(ici, 90, 3):
+        dire('   la carte ne revient pas par le câble (logiciel « Bluetooth » ou sans port USB) : vérifiez-la à la main')
+        return
+    nouveau = ici()
+    if reseau == 'meshtastic':
+        try:
+            dire('   la carte répond :', attendre_meshtastic(port=ici, essais=8, delai=40))
+        except Echec:
+            if famille.startswith('nrf'):
+                dire('== APPUYEZ UNE FOIS SUR LE BOUTON RESET DE LA CARTE')
+                attendre_meshtastic(port=ici, essais=30, delai=20)
+            else:
+                raise
+        if avant['logiciel'] not in ('meshtastic', 'demarrage', 'inconnu', 'esp32') and famille.startswith('nrf'):
+            dire('== Remise à zéro de Meshtastic (efface ce qui reste de l’ancien logiciel)')
+            mt('--factory-reset-device', montrer=False, delai=60, port=ici())
+            time.sleep(20)
+            attendre_meshtastic(port=ici, essais=10, delai=30)
+        efface = mode == 'complet' or avant['logiciel'] != 'meshtastic'
+        if not efface:
+            dire('   mise à jour : la carte a gardé ses réglages et son identité')
+        elif sauvegarde and sauvegarde.endswith('.yaml') and p.get('garder') is not False:
+            restaurer_meshtastic(port=ici, fichier=sauvegarde)
+        else:
+            dire('   carte neuve pour la station : région Europe 868 MHz (obligatoire pour émettre)')
+            mt('--set', 'lora.region', 'EU_868', port=ici())
+        dire('   la carte s’appelle :', attendre_meshtastic(port=ici))
+    elif role == 'compagnon-usb' and mode == 'maj' and avant['logiciel'] == 'meshcore-usb':
+        dire('   mise à jour : la carte a gardé ses réglages et son identité')
+    elif role == 'compagnon-usb':
+        s = asyncio.run(meshcore_serie_regler(nouveau, sauvegarde if sauvegarde and sauvegarde.endswith('.json') and p.get('garder') is not False else '/nonexistent',
+                                              ' '.join(str(p.get('nom') or 'Prometheus ' + (serie or carte)[-4:]).split())[:31]))
+        ranger_sauvegarde('carte-%s-meshcore.json' % cle_sauve, json.dumps(s, ensure_ascii=False, indent=1))
+    elif role in ('repeteur', 'salon'):
+        # Repeteur, salon : leur ligne de commande serie (reglage europeen conseille, nom, mot de passe)
+        lignes = ['set radio %s,%s,%s,%s' % (MESHCORE_EU['freq'], MESHCORE_EU['bw'], MESHCORE_EU['sf'], MESHCORE_EU['cr'])]
+        if p.get('nom'):
+            lignes.append('set name ' + ' '.join(str(p['nom']).split())[:31])
+        if p.get('mot_de_passe'):
+            lignes.append('password ' + str(p['mot_de_passe'])[:15])
+        lignes.append('reboot')
+        console_meshcore(nouveau, lignes)
+        dire('   %s réglé (Europe 869,618 MHz) ; il redémarre' % ('répéteur' if role == 'repeteur' else 'salon'))
+    fin = identifier(ici()) if ici() else {}
+    a = lire_json(ATELIER, {})
+    vues = a.setdefault('vues', {'meshtastic': [], 'meshcore': []})
+    if carte not in vues[reseau]:
+        vues[reseau].append(carte)
+    ecrire_json(ATELIER, a)
+    dire('== La carte est sous', reseau.capitalize(), fin.get('version', ''), fin.get('nom', ''))
+
+
 def resumer():
     """outil.json : ce que la page Radio montre (versions gardees, sauvegardes, T-Echo connus)."""
     s = {}
@@ -1186,7 +1764,8 @@ def resumer():
 
 ACTIONS = {'sauvegarder': action_sauvegarder, 'regler': action_regler, 'reseau': action_reseau,
            'chercher': action_chercher, 'chercher-auto': action_chercher, 'installer': action_installer,
-           't-echo': action_t_echo, 'detecter': action_detecter, 'resumer': None}
+           't-echo': action_t_echo, 'detecter': action_detecter, 'restaurer': action_restaurer,
+           'identifier': action_identifier, 'carte': action_carte, 'resumer': None}
 
 if __name__ == '__main__':
     action = sys.argv[1] if len(sys.argv) > 1 else ''
@@ -1202,7 +1781,9 @@ if __name__ == '__main__':
     dire('== %s — %s' % (time.strftime('%d/%m/%Y %H:%M:%S'), {'sauvegarder': 'sauvegarde des réglages de la radio',
          'regler': 'réglages de la radio', 'reseau': 'changement de réseau', 'chercher': 'recherche des logiciels des radios',
          'chercher-auto': 'recherche quotidienne des logiciels des radios', 'installer': 'mise à jour d’une radio',
-         't-echo': 'T-Echo : installation', 'detecter': 'reconnaissance des radios branchées'}[action]))
+         't-echo': 'T-Echo : installation', 'detecter': 'reconnaissance des radios branchées',
+         'restaurer': 'remise d’une sauvegarde des réglages', 'identifier': 'atelier : reconnaissance des radios branchées',
+         'carte': 'atelier : installation d’une carte'}[action]))
     code = 0
     try:
         if action == 'chercher-auto':

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>À distance · Mesh</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="mesh.css">
+<script src="/langue.js"></script>
+<script src="mesh.js"></script>
+<script src="champs.js"></script>
+<script src="formulaire.js"></script>
+</head>
+<body>
+<main>
+  <div id="entete"></div>
+  <p class="erreur" id="erreur-page"></p>
+  <div id="contenu"></div>
+</main>
+<script>
+// Administration a distance (desactivee par defaut : Parametres > Mesh) : regler une autre radio par le reseau.
+entete('distance', 'À distance', 'Remote');
+var cible = new URLSearchParams(location.search).get('id') || '', schema = null, attendues = {};
+
+function choixRadio(z, filtreFn, rappel) {
+  var s = el('select', 'champ'); s.appendChild(el('option', '', T('Choisir une radio…', 'Choose a radio…'))).value = '';
+  ((station.details || {}).noeuds || []).filter(filtreFn).forEach(function (n) { var o = el('option', '', n.nom + ' · ' + n.id.slice(0, 12)); o.value = n.id; s.appendChild(o); });
+  if (cible) s.value = cible;
+  s.onchange = function () { cible = s.value; history.replaceState(null, '', '?id=' + encodeURIComponent(cible)); rappel(); };
+  z.appendChild(s);
+}
+
+function page() {
+  var z = $('contenu'); z.innerHTML = '';
+  if (!(station.mesh || {}).distance) {
+    z.appendChild(el('p', 'rien', T('L’administration à distance est désactivée. Elle s’allume dans Paramètres > Radio > Mesh.', 'Remote administration is turned off. Turn it on in Settings > Radio > Mesh.')));
+    var a = el('a', 'lien', T('Ouvrir les Paramètres →', 'Open Settings →')); a.href = '/parametres/#radio'; z.appendChild(a);
+    return;
+  }
+  if (!radioPrete()) { z.appendChild(el('p', 'rien', T('La radio doit être activée et connectée.', 'The radio must be turned on and connected.'))); return; }
+  (reseauActuel() === 'meshtastic' ? meshtastic : meshcore)(z);
+}
+
+// ===================================================================== Meshtastic
+function meshtastic(z) {
+  titreAvecAide(z, 'Régler une autre radio', 'Configure another radio', 'La radio choisie doit avoir la clé publique de la station dans ses « clés admin » (section Sécurité, à régler une fois par câble ou par l’appli). Chaque lecture et écriture passe par le réseau : comptez de quelques secondes à une minute.', 'The chosen radio must have the station\'s public key in its « admin keys » (Security section, set once by cable or with the app). Every read and write goes over the network: allow a few seconds to a minute.');
+  var moi = (station.details || {}).moi || {};
+  var cle = el('dl', 'etat'); cle.appendChild(ligneEtat(T('Clé publique de la station (à mettre dans ses clés admin)', 'Station public key (to put in its admin keys)'), moi.cle || '?'));
+  cle.querySelector('dd').className = 'mono'; z.appendChild(cle);
+  var zc = el('div'); zc.style.marginTop = '14px'; z.appendChild(zc);
+  choixRadio(zc, function () { return true; }, function () { page(); });
+  if (!cible) return;
+  var res = el('p', 'note'); z.appendChild(res);
+  var liens = el('div', 'liens'); z.appendChild(liens);
+  function demande(p, texte) {
+    dire(res, true, T('Demande envoyée…', 'Request sent…'));
+    return ordre('distant', Object.assign({ id: cible }, p)).then(function (r) { attendues[r.demande] = p; dire(res, true, texte || T('Envoyé ; la réponse s’affiche plus bas.', 'Sent; the answer shows below.')); })
+      .catch(function (e) { dire(res, false, e.message); });
+  }
+  [['infos', T('Lire ses informations', 'Read its information')], ['proprietaire', T('Lire son nom', 'Read its name')]].forEach(function (x) {
+    var b = el('button', 'lien', x[1]); b.type = 'button'; b.onclick = function () { demande({ quoi: x[0] }); }; liens.appendChild(b);
+  });
+  [['redemarrer', T('Redémarrer', 'Restart')], ['heure', T('Mettre à l’heure', 'Set the time')], ['oublier-tout', T('Oublier toutes les radios', 'Forget all radios')], ['eteindre', T('Éteindre', 'Turn off')]].forEach(function (x) {
+    var b = el('button', 'lien danger', x[1]); b.type = 'button';
+    deuxTemps(b, T('Toucher encore', 'Tap again'), function () { demande({ quoi: 'action', action: x[0] }, T('Envoyé.', 'Sent.')); });
+    liens.appendChild(b);
+  });
+  titreAvecAide(z, 'Ses réglages', 'Its settings', 'Lisez une section, changez ce qu’il faut, puis écrivez-la (dans les 5 minutes suivant la lecture : la radio l’exige).', 'Read a section, change what is needed, then write it (within 5 minutes of reading: the radio requires it).');
+  var zs = el('div'); zs.id = 'sections'; z.appendChild(zs);
+  [['config', schema.config], ['module', schema.module]].forEach(function (g) {
+    Object.keys(g[1] || {}).forEach(function (s) {
+      var cle = g[0] + '.' + s, info = SECTIONS[cle] || [s, s];
+      var d = el('div', 'ligne-m'), h = el('div', 'haut'); h.appendChild(el('span', 'nom', T(info[0], info[1])));
+      var b = el('button', 'lien', T('Lire', 'Read')); b.type = 'button'; h.appendChild(b); d.appendChild(h);
+      var f = el('div'); f.id = 'f-' + cle.replace('.', '-'); d.appendChild(f);
+      b.onclick = function () { f.innerHTML = ''; f.appendChild(el('p', 'note', T('Lecture par le réseau…', 'Reading over the network…'))); demande({ quoi: 'lire', genre: g[0], section: s }, ''); };
+      zs.appendChild(d);
+    });
+  });
+  var zr = el('div', 'lignes'); zr.id = 'reponses'; z.appendChild(zr);
+}
+function reponseMeshtastic(r) {
+  var d = r.donnees || {};
+  if (r.type === 'distant-config' && d.section && !d.erreur) {
+    var cle = d.genre + '.' + d.section, f = $('f-' + cle.replace('.', '-'));
+    if (!f || !schema[d.genre][d.section]) return;
+    f.innerHTML = '';
+    var form = sectionFormulaire(cle, schema[d.genre][d.section], d.valeurs, schema.drapeaux, true);
+    f.appendChild(form.zone);
+    var b = el('button', 'bouton', T('Écrire dans cette radio', 'Write to this radio')); b.type = 'button'; var res = el('p', 'note');
+    b.onclick = function () {
+      var c; try { c = form.changements(); } catch (e) { dire(res, false, e.message); return; }
+      if (!Object.keys(c.valeurs).length) { dire(res, true, T('Rien n’a changé.', 'Nothing changed.')); return; }
+      ordre('distant', { id: cible, quoi: 'ecrire', genre: d.genre, section: d.section, valeurs: c.valeurs })
+        .then(function () { dire(res, true, T('Envoyé ; l’accusé s’affiche plus bas. La radio redémarre ensuite.', 'Sent; the ack shows below. The radio then restarts.')); })
+        .catch(function (e) { dire(res, false, e.message); });
+    };
+    f.appendChild(b); f.appendChild(res);
+    return;
+  }
+  var z = $('reponses'); if (!z) return;
+  var l = el('div', 'resultat'), h = el('div', 'haut');
+  h.appendChild(el('b', '', { 'distant-infos': T('Informations', 'Information'), 'distant-proprietaire': T('Nom', 'Name'), 'distant-ecrit': T('Écriture', 'Write'), 'distant-action': T('Action', 'Action'), 'distant-config': T('Lecture', 'Read') }[r.type] || r.type));
+  h.appendChild(el('span', 'heure', heureSec(r.heure))); l.appendChild(h);
+  var txt = d.erreur ? T('Refus ou pas de réponse : ', 'Refused or no answer: ') + d.erreur + (d.erreur === 'sans réponse' || d.erreur === 'MAX_RETRANSMIT' ? '' : T(' (la clé de la station est-elle dans ses clés admin ?)', ' (is the station key in its admin keys?)'))
+    : d.accuse ? T('Reçu par la radio.', 'Received by the radio.')
+    : d.proprietaire ? d.proprietaire.long_name + ' (' + d.proprietaire.short_name + ') · ' + (d.proprietaire.hw_model || '') + ' · ' + (d.proprietaire.role || '')
+    : d.infos ? 'Meshtastic ' + d.infos.firmware_version + ' · ' + (d.infos.hw_model || '') + ' · ' + (d.infos.role || '')
+    : JSON.stringify(d).slice(0, 400);
+  l.appendChild(el('div', 'chemin', txt));
+  z.insertBefore(l, z.firstChild);
+}
+
+// ===================================================================== MeshCore
+var COMMANDES = ['ver', 'clock', 'get name', 'get radio', 'get tx', 'get repeat', 'get af', 'get advert.interval', 'neighbors', 'advert', 'clock sync', 'reboot'];
+function meshcore(z) {
+  titreAvecAide(z, 'Répéteurs et salons', 'Repeaters and rooms', 'Se connecter à un répéteur ou un salon MeshCore avec son mot de passe : on lit alors son état, ses voisins, ses accès, et l’administrateur peut lui envoyer des commandes (« get radio », « set tx 20 », « reboot »…).', 'Log in to a MeshCore repeater or room with its password: you then read its status, neighbours and access list, and the administrator can send it commands (« get radio », « set tx 20 », « reboot »…).');
+  var zc = el('div'); z.appendChild(zc);
+  choixRadio(zc, function (n) { return n.type === 2 || n.type === 3; }, function () { page(); });
+  if (!((station.details || {}).noeuds || []).some(function (n) { return n.type === 2 || n.type === 3; }))
+    z.appendChild(el('p', 'rien', T('Aucun répéteur ni salon parmi les contacts de la station.', 'No repeater or room among the station\'s contacts.')));
+  if (!cible) return;
+  var res = el('p', 'note');
+  var f = el('form', 'form'); f.innerHTML = '<label>' + T('Mot de passe (vide = invité)', 'Password (empty = guest)') + '</label><input class="champ" type="password" id="mdp" maxlength="15" autocomplete="off">' +
+    '<div class="bas-form"><button class="bouton">' + T('Se connecter', 'Log in') + '</button></div>';
+  z.appendChild(f);
+  function demande(p) {
+    dire(res, true, T('Demande envoyée par radio…', 'Request sent by radio…'));
+    return ordre('demande', Object.assign({ id: cible }, p)).then(function (r) { dire(res, true, r.fini ? T('Réponse reçue.', 'Answer received.') : T('Envoyé ; la réponse s’affiche plus bas.', 'Sent; the answer shows below.')); })
+      .catch(function (e) { dire(res, false, e.message); });
+  }
+  f.onsubmit = function (ev) { ev.preventDefault(); demande({ quoi: 'connexion', mot_de_passe: $('mdp').value }); };
+  var liens = el('div', 'liens'); z.appendChild(liens);
+  [['statut', T('État', 'Status')], ['voisins', T('Voisins', 'Neighbours')], ['acces', T('Accès', 'Access list')], ['telemetrie', T('Mesures', 'Metrics')], ['deconnexion', T('Se déconnecter', 'Log out')]].forEach(function (x) {
+    var b = el('button', 'lien', x[1]); b.type = 'button'; b.onclick = function () { demande({ quoi: x[0] }); }; liens.appendChild(b);
+  });
+  z.appendChild(res);
+  titreAvecAide(z, 'Commande', 'Command', 'Une ligne de commande du répéteur (administrateur connecté). La réponse arrive par radio.', 'A repeater command line (administrator logged in). The answer comes back by radio.');
+  var fc = el('form', 'form'); fc.innerHTML = '<input class="champ mono" id="cmd" placeholder="get radio" autocomplete="off"><div class="liens" id="suggestions"></div><div class="bas-form"><button class="bouton">' + T('Envoyer', 'Send') + '</button></div>';
+  z.appendChild(fc);
+  COMMANDES.forEach(function (c) { var b = el('button', 'lien mono', c); b.type = 'button'; b.onclick = function () { $('cmd').value = c; }; $('suggestions').appendChild(b); });
+  fc.onsubmit = function (ev) { ev.preventDefault(); demande({ quoi: 'commande', commande: $('cmd').value }); };
+  var zr = el('div', 'lignes'); zr.id = 'reponses'; z.appendChild(zr);
+}
+function reponseMeshCore(r) {
+  var z = $('reponses'); if (!z) return;
+  var d = r.donnees || {}, l = el('div', 'resultat'), h = el('div', 'haut');
+  h.appendChild(el('b', '', { connexion: T('Connexion', 'Login'), statut: T('État', 'Status'), voisins: T('Voisins', 'Neighbours'), acces: T('Accès', 'Access'), commande: T('Réponse', 'Reply'),
+                              'commande-envoyee': T('Commande', 'Command'), telemetrie: T('Mesures', 'Metrics') }[r.type] || r.type));
+  h.appendChild(el('span', 'heure', heureSec(r.heure))); l.appendChild(h);
+  var txt;
+  if (d.erreur) txt = d.erreur;
+  else if (r.type === 'connexion') txt = d.is_admin ? T('Connecté en administrateur.', 'Logged in as administrator.') : T('Connecté en invité.', 'Logged in as guest.');
+  else if (r.type === 'commande') txt = d.reponse;
+  else if (r.type === 'commande-envoyee') txt = '> ' + d.commande;
+  else txt = Object.keys(d).filter(function (k) { return k !== 'pubkey_pre' && k !== 'pubkey_prefix'; }).map(function (k) { return k + ' : ' + (typeof d[k] === 'object' ? JSON.stringify(d[k]) : d[k]); }).join('\n');
+  var p = el('div', 'chemin mono', txt); p.style.whiteSpace = 'pre-wrap'; l.appendChild(p);
+  z.insertBefore(l, z.firstChild);
+}
+
+chargerStation().then(function () {
+  return reseauActuel() === 'meshtastic' ? api('/mesh/schema').then(function (s) { schema = s; }) : null;
+}).then(function () {
+  page();
+  suivreResultats(function (r) { if (reseauActuel() === 'meshtastic') reponseMeshtastic(r); else reponseMeshCore(r); });
+}).catch(function (e) { $('erreur-page').textContent = e.message; });
+</script>
+</body>
+</html>

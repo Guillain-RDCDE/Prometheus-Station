@@ -28,6 +28,9 @@ cp "$ICI/web/ajouter/index.html" "$WEB/ajouter/"
 rm -f "$WEB/ajouter/maj.html"   # remplacee par /parametres/
 mkdir -p "$WEB/parametres"
 cp "$ICI/web/parametres/index.html" "$ICI/web/parametres/affiche.html" "$ICI/web/parametres/radio.html" "$WEB/parametres/"
+# Section Mesh (plan Mesh, 19/10/2026) : la station Meshtastic / MeshCore complete
+mkdir -p "$WEB/parametres/mesh"
+cp "$ICI"/web/parametres/mesh/* "$WEB/parametres/mesh/"
 mkdir -p "$WEB/messages"
 cp "$ICI/web/messages/index.html" "$WEB/messages/"
 mkdir -p "$WEB/encyclopedies"

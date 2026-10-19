@@ -369,8 +369,18 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <h2 data-en="Show received radio messages on the station's screen">Afficher sur l’écran de la station les messages reçus par radio</h2>
   <div class="puces" id="radio-ecran"></div>
   <div class="groupe" style="margin-top:14px">
-    <a class="ligne" href="/parametres/radio.html"><span class="nom" data-en="Open the radio page (state, radios heard, all channels)">Ouvrir la page Radio (état, radios entendues, tous les canaux)</span><span class="chevron">›</span></a>
+    <a class="ligne" href="/parametres/mesh/"><span class="nom" data-en="Open the Mesh section (nodes, channels, all settings, statistics, workshop)">Ouvrir la section Mesh (nœuds, canaux, tous les réglages, statistiques, atelier)</span><span class="chevron">›</span></a>
     <a class="ligne" href="/messages/?depuis=parametres"><span class="nom" data-en="Open the message board">Ouvrir le tableau des messages</span><span class="chevron">›</span></a>
+  </div>
+  <!-- Section Mesh (plan Mesh, 19/10/2026) : ses reglages ; tout desactive au depart -->
+  <h2 class="avec-aide"><span data-en="Mesh: history kept">Mesh : historique gardé</span><button class="aide-bouton" aria-controls="aide-mesh-histo" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
+  <div class="aide" id="aide-mesh-histo"><div><p data-en="The station notes every packet its radio hears, and its measurements every minute, for the Statistics and the Technical log. Older entries are deleted automatically.">La station note chaque paquet que sa radio entend, et ses mesures chaque minute, pour les Statistiques et le Journal technique. Les plus anciens sont effacés tout seuls.</p></div></div>
+  <div class="puces" id="mesh-histo"></div>
+  <div class="groupe" style="margin-top:14px">
+    <div class="ligne"><label class="nom" for="mesh-distance"><span data-en="Remote administration">Administration à distance</span><span class="sous valeur" data-en="Configure other radios over the network" style="max-width:none">Régler d’autres radios par le réseau</span></label><button class="aide-bouton" aria-controls="aide-mesh-distance" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button><input type="checkbox" class="interrupteur" id="mesh-distance"></div>
+    <div class="aide" id="aide-mesh-distance"><div><p data-en="From the Mesh section, read and change the settings of another radio, or log in to a MeshCore repeater. That radio must have given the station the right to do so (its admin key or password).">Depuis la section Mesh, lire et changer les réglages d’une autre radio, ou se connecter à un répéteur MeshCore. Il faut que cette radio en ait donné le droit à la station (sa clé admin ou son mot de passe).</p></div></div>
+    <div class="ligne"><label class="nom" for="mesh-toutes"><span data-en="Software of every board">Logiciels de toutes les cartes</span><span class="sous valeur" data-en="About 1 GB per version" style="max-width:none">Environ 1 Go par version</span></label><button class="aide-bouton" aria-controls="aide-mesh-toutes" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button><input type="checkbox" class="interrupteur" id="mesh-toutes"></div>
+    <div class="aide" id="aide-mesh-toutes"><div><p data-en="With internet, the station keeps the Meshtastic and MeshCore software of every known board, not only those it follows. Then any radio brought by a neighbour can be installed without internet.">Avec internet, la station garde les logiciels Meshtastic et MeshCore de toutes les cartes connues, pas seulement celles qu’elle suit. N’importe quelle radio apportée par un voisin pourra alors être installée sans internet.</p></div></div>
   </div>
 </section>
 
@@ -976,6 +986,11 @@ function afficherCommunaute() {
     function (v) { return v === ra.delai; }, function (v) { regler('radio', { delai: v }); });
   puces($('radio-ecran'), [[0, T('Non', 'No')], [1, '1 min'], [2, '2 min'], [5, '5 min'], [15, '15 min']],
     function (v) { return v === ra.ecran_minutes; }, function (v) { regler('radio', { ecran_minutes: v }); });
+  var me = reg.mesh || { historique_jours: 90, distance: false, toutes_cartes: false };
+  puces($('mesh-histo'), [[30, T('30 jours', '30 days')], [90, T('90 jours', '90 days')], [365, T('1 an', '1 year')], [0, T('Toujours', 'Forever')]],
+    function (v) { return v === me.historique_jours; }, function (v) { regler('mesh', { historique_jours: v }); });
+  $('mesh-distance').checked = me.distance;
+  $('mesh-toutes').checked = me.toutes_cartes;
   etatRadio();
 }
 // Etat de la radio, tenu a jour par le programme prometheus-radio
@@ -1009,7 +1024,8 @@ function communaute() {
 // Interrupteurs : effet immediat
 [['annonce-active', 'annonce', 'active'], ['annonce-defile', 'annonce', 'defile'], ['annonce-ecran', 'annonce', 'ecran'],
  ['registre-active', 'registre', 'active'], ['registre-lieu', 'registre', 'lieu'],
- ['entraide-active', 'entraide', 'active'], ['urgence-active', 'urgence', 'active'], ['radio-active', 'radio', 'active']].forEach(function (x) {
+ ['entraide-active', 'entraide', 'active'], ['urgence-active', 'urgence', 'active'], ['radio-active', 'radio', 'active'],
+ ['mesh-distance', 'mesh', 'distance'], ['mesh-toutes', 'mesh', 'toutes_cartes']].forEach(function (x) {
   $(x[0]).onchange = function () { var v = {}; v[x[2]] = this.checked; regler(x[1], v); };
 });
 // Texte de l'annonce : bouton Enregistrer

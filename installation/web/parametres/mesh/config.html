@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration · Mesh</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="mesh.css">
+<script src="/langue.js"></script>
+<script src="mesh.js"></script>
+<script src="champs.js"></script>
+<script src="formulaire.js"></script>
+</head>
+<body>
+<main>
+  <div id="entete"></div>
+  <p class="note" id="chargement" data-en="Reading the radio's settings…">Lecture des réglages de la radio…</p>
+  <p class="erreur" id="erreur-page"></p>
+  <div id="contenu"></div>
+</main>
+<script>
+// Configuration de la radio de la station : TOUS ses reglages (Meshtastic : generes depuis sa description ;
+// MeshCore : sa liste, plus courte). Chaque ecriture est precedee d'une sauvegarde.
+entete('config', 'Configuration', 'Settings');
+var schema = null, lu = null, formulaires = [];
+
+function charger() {
+  $('chargement').hidden = false; $('erreur-page').textContent = '';
+  chargerStation().then(function () {
+    if (!radioPrete()) throw new Error(T('La radio doit être activée et connectée pour lire ses réglages.', 'The radio must be turned on and connected to read its settings.'));
+    return Promise.all([reseauActuel() === 'meshtastic' ? api('/mesh/schema') : Promise.resolve(null), ordre('config-lire')]);
+  }).then(function (x) {
+    schema = x[0]; lu = x[1];
+    $('chargement').hidden = true;
+    if (reseauActuel() === 'meshtastic') pageMeshtastic(); else pageMeshCore();
+  }).catch(function (e) { $('chargement').hidden = true; $('erreur-page').textContent = e.message; });
+}
+
+// ===================================================================== Meshtastic
+function pageMeshtastic() {
+  var z = $('contenu'); z.innerHTML = ''; formulaires = [];
+  // Identite
+  titreAvecAide(z, 'Identité de la radio', 'Radio identity', 'Le nom que les autres voient. Le nom court (4 caractères au plus, ou un émoji) s’affiche sur leurs écrans.', 'The name the others see. The short name (4 characters at most, or one emoji) shows on their screens.');
+  var f = el('form', 'form'); f.innerHTML =
+    '<label for="p-long">' + T('Nom', 'Name') + '</label><input class="champ" id="p-long" maxlength="39" autocomplete="off">' +
+    '<label for="p-court">' + T('Nom court', 'Short name') + '</label><input class="champ" id="p-court" maxlength="4" autocomplete="off">' +
+    '<div class="complet-seul"><label class="case"><input type="checkbox" id="p-licence"> ' + T('Radioamateur licencié (sans chiffrement, puissance libre)', 'Licensed ham operator (no encryption, power unrestricted)') + '</label>' +
+    '<label class="case"><input type="checkbox" id="p-muet"> ' + T('Ne reçoit pas de messages (relais muet)', 'Does not receive messages (unmessageable relay)') + '</label></div>' +
+    '<div class="bas-form"><p class="erreur" id="p-res"></p><button class="bouton">' + T('Enregistrer le nom', 'Save the name') + '</button></div>';
+  z.appendChild(f);
+  $('p-long').value = lu.proprietaire.long; $('p-court').value = lu.proprietaire.court;
+  $('p-licence').checked = lu.proprietaire.licence; $('p-muet').checked = lu.proprietaire.muet;
+  f.onsubmit = function (ev) {
+    ev.preventDefault();
+    if (octets($('p-court').value.trim()) > 4) { dire('p-res', false, T('Nom court : 4 octets au plus (un émoji en prend 4).', 'Short name: 4 bytes at most (an emoji takes 4).')); return; }
+    envoyer('proprietaire', { long: $('p-long').value, court: $('p-court').value.trim(), licence: $('p-licence').checked, muet: $('p-muet').checked }, 'p-res', this);
+  };
+
+  // Position fixe
+  titreAvecAide(z, 'Position de la station', 'Station position', 'Une position fixe est envoyée à toutes les radios : elles connaissent alors la distance et la direction de la station. Sans GPS, c’est le seul moyen de la donner.', 'A fixed position is sent to every radio: they then know the station\'s distance and direction. Without GPS, this is the only way to give it.');
+  var fp = el('form', 'form'); fp.innerHTML =
+    '<div class="trois"><input class="champ" id="pos-lat" inputmode="decimal" placeholder="' + T('Latitude (ex. 46,12345)', 'Latitude (e.g. 46.12345)') + '">' +
+    '<input class="champ" id="pos-lon" inputmode="decimal" placeholder="' + T('Longitude (ex. -1,23456)', 'Longitude (e.g. -1.23456)') + '">' +
+    '<input class="champ" id="pos-alt" inputmode="numeric" placeholder="' + T('Altitude (m)', 'Altitude (m)') + '"></div>' +
+    '<label class="case"><input type="checkbox" id="pos-fixe"> ' + T('Position fixe activée', 'Fixed position on') + '</label>' +
+    '<div class="bas-form"><p class="erreur" id="pos-res"></p><button class="bouton">' + T('Enregistrer la position', 'Save the position') + '</button></div>';
+  z.appendChild(fp);
+  $('pos-fixe').checked = lu.position.fixe;
+  if (lu.position.fixe) { $('pos-lat').value = virgule(lu.position.lat || 0, 5); $('pos-lon').value = virgule(lu.position.lon || 0, 5); $('pos-alt').value = lu.position.alt || ''; }
+  fp.onsubmit = function (ev) {
+    ev.preventDefault();
+    if (!$('pos-fixe').checked) { envoyer('position', { fixe: false }, 'pos-res', this); return; }
+    var n = function (id) { return Number(String($(id).value).replace(',', '.')); };
+    var lat = n('pos-lat'), lon = n('pos-lon');
+    if (!$('pos-lat').value || !$('pos-lon').value || isNaN(lat) || isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+      dire('pos-res', false, T('Une latitude et une longitude en degrés.', 'A latitude and a longitude in degrees.')); return;
+    }
+    envoyer('position', { fixe: true, lat: lat, lon: lon, alt: parseInt($('pos-alt').value, 10) || 0 }, 'pos-res', this);
+  };
+
+  // Messages tout prets (texte du module)
+  var mp = el('div', 'complet-seul'); z.appendChild(mp);
+  titreAvecAide(mp, 'Messages tout prêts', 'Canned messages', 'Les messages qu’on choisit sur la radio sans clavier, séparés par « | » (200 caractères en tout). Le module se règle dans la page Modules.', 'The messages picked on the radio without a keyboard, separated by « | » (200 characters in all). The module is set in the Modules page.');
+  var fm = el('form', 'form'); fm.innerHTML = '<textarea class="champ" id="mp-texte" maxlength="200" placeholder="' + T('Je vais bien|Besoin d’aide|J’arrive', 'I am fine|Need help|On my way') + '"></textarea>' +
+    '<div class="bas-form"><p class="erreur" id="mp-res"></p><button class="bouton">' + T('Enregistrer', 'Save') + '</button></div>';
+  mp.appendChild(fm);
+  $('mp-texte').value = lu.messages_prets || '';
+  fm.onsubmit = function (ev) { ev.preventDefault(); envoyer('messages-prets', { texte: $('mp-texte').value }, 'mp-res', this); };
+
+  // Tous les reglages, section par section
+  titreAvecAide(z, 'Réglages de la radio', 'Radio settings', 'Tous les réglages de la radio, section par section. La version légère montre l’essentiel ; la complète montre tout, même ce qui sert très rarement.', 'All the radio\'s settings, section by section. The light version shows the essentials; the full one shows everything, even what is very rarely used.');
+  var ordreSections = ['lora', 'device', 'position', 'power', 'bluetooth', 'security', 'display', 'network', 'device_ui'];
+  Object.keys(schema.config || {}).forEach(function (s) { if (ordreSections.indexOf(s) < 0) ordreSections.push(s); });
+  ordreSections.forEach(function (s) {
+    if (!(schema.config || {})[s]) return;
+    var fo = sectionFormulaire('config.' + s, schema.config[s], (lu.config || {})[s], schema.drapeaux, s === 'lora');
+    formulaires.push(fo); z.appendChild(fo.zone);
+  });
+  barreEcriture(z);
+  actionsRadio(z);
+  sauvegardes(z);
+}
+
+// La barre du bas : ecrire d'un coup tous les reglages changes (une seule ecriture, un redemarrage)
+function barreEcriture(z) {
+  var b = el('div', 'barre-ecrire');
+  var res = el('p', 'erreur'); res.id = 'ecr-res'; res.style.flex = '1'; res.style.margin = '0';
+  var annuler = el('button', 'bouton secondaire', T('Annuler', 'Cancel')); annuler.type = 'button';
+  var ecrire = el('button', 'bouton', T('Écrire dans la radio', 'Write to the radio')); ecrire.type = 'button';
+  b.appendChild(res); b.appendChild(annuler); b.appendChild(ecrire); z.appendChild(b);
+  annuler.onclick = function () { charger(); };
+  ecrire.onclick = function () {
+    var sections = {}, risques = [];
+    try {
+      formulaires.forEach(function (f) { var c = f.changements(); if (Object.keys(c.valeurs).length) { sections[f.cle] = c.valeurs; risques = risques.concat(c.risques); } });
+    } catch (e) { dire(res, false, e.message); return; }
+    if (!Object.keys(sections).length) { dire(res, true, T('Rien n’a changé.', 'Nothing changed.')); return; }
+    // Un reglage risque : on le dit, il faut toucher une deuxieme fois
+    if (risques.length && !ecrire.classList.contains('confirmer')) {
+      ecrire.classList.add('confirmer'); ecrire.textContent = T('Toucher encore pour écrire', 'Tap again to write');
+      dire(res, false, T('Attention : ', 'Warning: ') + risques.filter(function (x, i) { return risques.indexOf(x) === i; }).map(function (r) { return T(RISQUES[r][0], RISQUES[r][1]); }).join(' '));
+      setTimeout(function () { ecrire.classList.remove('confirmer'); ecrire.textContent = T('Écrire dans la radio', 'Write to the radio'); }, 8000);
+      return;
+    }
+    ecrire.classList.remove('confirmer'); ecrire.textContent = T('Écriture…', 'Writing…'); ecrire.disabled = true;
+    ordre('config-ecrire', { sections: sections }).then(function (r) {
+      dire(res, true, apresEcriture(r));
+      setTimeout(charger, 40000);
+    }).catch(function (e) { dire(res, false, e.message); }).then(function () {
+      ecrire.disabled = false; ecrire.textContent = T('Écrire dans la radio', 'Write to the radio');
+    });
+  };
+}
+
+function envoyer(action, p, idRes, form) {
+  var b = form && form.querySelector('.bouton'); if (b) b.disabled = true;
+  dire(idRes, true, T('Envoi à la radio…', 'Sending to the radio…'));
+  return ordre(action, p).then(function (r) { dire(idRes, true, apresEcriture(r)); return r; })
+    .catch(function (e) { dire(idRes, false, e.message); }).then(function (r) { if (b) b.disabled = false; return r; });
+}
+
+// Actions sur la radio de la station
+function actionsRadio(z) {
+  titreAvecAide(z, 'La radio de la station', 'The station radio', 'Redémarrer, mettre à l’heure, s’annoncer. Les remises à zéro (version complète) sont précédées d’une sauvegarde qu’on peut remettre ensuite.', 'Restart, set the clock, announce itself. Factory resets (full version) are preceded by a backup that can be put back afterwards.');
+  var d = el('div'); z.appendChild(d);
+  var res = el('p', 'note'); res.id = 'act-res';
+  var meshcore = reseauActuel() === 'meshcore';
+  var liste = [['redemarrer', T('Redémarrer', 'Restart'), true], ['heure', T('Mettre à l’heure de la station', 'Set the station\'s time'), false],
+               ['annonce', T('S’annoncer maintenant', 'Announce now'), false], ['sauvegarder', T('Sauvegarder les réglages', 'Back up the settings'), false]];
+  if (!meshcore) liste = liste.concat([['oublier-tout', T('Oublier toutes les radios', 'Forget all radios'), true, true], ['eteindre', T('Éteindre la radio', 'Turn the radio off'), true, true],
+                                       ['usine', T('Remise à zéro (garde l’identité)', 'Factory reset (keeps identity)'), true, true], ['usine-complete', T('Remise à zéro complète (nouvelle identité)', 'Full factory reset (new identity)'), true, true]]);
+  else liste = liste.concat([['cle', T('Afficher la clé privée', 'Show the private key'), false, true], ['usine', T('Remise à zéro', 'Factory reset'), true, true]]);
+  liste.forEach(function (a) {
+    var b = el('button', 'bouton secondaire petit' + (a[3] ? ' complet-seul' : ''), a[1]); b.type = 'button';
+    var faire = function () {
+      var action = meshcore && a[0] === 'annonce' ? ['demande', { quoi: 'annonce' }] : ['action', { quoi: a[0] }];
+      dire(res, true, T('Envoi…', 'Sending…'));
+      ordre(action[0], action[1]).then(function (r) {
+        if (r.cle) { dire(res, true, T('Clé privée (à garder secrète) : ', 'Private key (keep it secret): ') + r.cle); return; }
+        dire(res, true, apresEcriture(r));
+      }).catch(function (e) { dire(res, false, e.message); });
+    };
+    if (a[2]) deuxTemps(b, T('Toucher encore : ', 'Tap again: ') + a[1].toLowerCase(), faire); else b.onclick = faire;
+    d.appendChild(b);
+  });
+  d.appendChild(res);
+}
+
+// Sauvegardes prises avant chaque changement ; les remettre passe par l'outil radio (la radio est arretee un moment)
+function sauvegardes(z) {
+  titreAvecAide(z, 'Sauvegardes des réglages', 'Settings backups', 'Les réglages gardés avant chaque changement fait ici (30 au plus par réseau). En remettre une redonne à la radio tous ses réglages d’alors, identité comprise.', 'The settings kept before every change made here (30 at most per network). Putting one back gives the radio all its settings of that time, identity included.');
+  var d = el('div', 'lignes'); z.appendChild(d);
+  blocOutil(z);
+  finOutil = function () { setTimeout(charger, 5000); };
+  api('/mesh/sauvegardes').then(function (r) {
+    var l = r.sauvegardes.filter(function (s) { return s.reseau === reseauActuel(); });
+    if (!l.length) { d.appendChild(el('p', 'rien', T('Aucune sauvegarde pour l’instant.', 'No backup yet.'))); return; }
+    l.forEach(function (s, i) {
+      var li = el('div', 'ligne-m' + (i > 4 ? ' complet-seul' : '')), h = el('div', 'haut');
+      h.appendChild(el('span', 'nom', (s.raison || s.fichier).replace(/^avant : /, T('avant : ', 'before: ')))); h.appendChild(el('span', 'quand', dateCourte(s.heure)));
+      li.appendChild(h);
+      var b = el('button', 'lien', T('Remettre ces réglages', 'Put these settings back')); b.type = 'button'; b.dataset.outil = '1';
+      deuxTemps(b, T('Toucher encore : la radio sera coupée 1 à 3 minutes', 'Tap again: the radio will be off for 1 to 3 minutes'), function () {
+        lancerOutil('restaurer', JSON.stringify({ fichier: s.fichier }));
+      });
+      var liens = el('div', 'liens'); liens.appendChild(b); liens.appendChild(el('span', 'heure complet-seul', s.fichier)); li.appendChild(liens);
+      d.appendChild(li);
+    });
+  });
+}
+
+// ===================================================================== MeshCore
+function pageMeshCore() {
+  var z = $('contenu'); z.innerHTML = '';
+  var moi = lu.moi || {}, ap = lu.appareil || {};
+  var etat = el('dl', 'etat'); z.appendChild(etat);
+  etat.appendChild(ligneEtat(T('Logiciel', 'Firmware'), 'MeshCore ' + (ap.ver || '') + (ap.fw_build ? ' (' + ap.fw_build + ')' : '')));
+  if (ap.model) etat.appendChild(ligneEtat(T('Matériel', 'Hardware'), ap.model));
+  etat.appendChild(ligneEtat(T('Contacts au plus', 'Contacts at most'), String(ap.max_contacts || '—')));
+  if (lu.batterie && lu.batterie.total_kb) etat.appendChild(ligneEtat(T('Mémoire utilisée', 'Storage used'), lu.batterie.used_kb + ' / ' + lu.batterie.total_kb + ' Ko'));
+  var cle = el('div', 'complet-seul'); cle.appendChild(ligneEtat(T('Clé publique', 'Public key'), moi.public_key || '')); cle.lastChild.querySelector('dd').className = 'mono'; etat.appendChild(cle);
+
+  var f = el('form', 'form'); z.appendChild(f);
+  function bloc(titre, en, aide, aideEn, html, complet) {
+    var d = el('div', complet ? 'complet-seul' : ''); f.appendChild(d);
+    titreAvecAide(d, titre, en, aide, aideEn);
+    var c = el('div'); c.innerHTML = html; d.appendChild(c);
+  }
+  bloc('Nom et position', 'Name and position', 'Le nom annoncé aux autres radios, et la position fixe envoyée avec l’annonce (vide = aucune).', 'The name announced to other radios, and the fixed position sent with the announcement (empty = none).',
+    '<label for="m-nom">' + T('Nom', 'Name') + '</label><input class="champ" id="m-nom" maxlength="31">' +
+    '<div class="deux"><input class="champ" id="m-lat" inputmode="decimal" placeholder="Latitude"><input class="champ" id="m-lon" inputmode="decimal" placeholder="Longitude"></div>');
+  bloc('Radio', 'Radio', 'Fréquence, largeur de bande, SF et CR : toutes les radios du réseau doivent avoir les mêmes. En Europe, « EU/UK Narrow » : 869,618 MHz, 62,5 kHz, SF8, CR8.', 'Frequency, bandwidth, SF and CR: all radios of the network must share them. In Europe, « EU/UK Narrow »: 869.618 MHz, 62.5 kHz, SF8, CR8.',
+    '<div class="deux"><div><label for="m-freq">' + T('Fréquence (MHz)', 'Frequency (MHz)') + '</label><input class="champ" id="m-freq" inputmode="decimal"></div>' +
+    '<div><label for="m-bw">' + T('Largeur (kHz)', 'Bandwidth (kHz)') + '</label><select class="champ" id="m-bw">' + [7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250, 500].map(function (x) { return '<option value="' + x + '">' + virgule(x, x % 1 ? (String(x).split('.')[1].length) : 0) + '</option>'; }).join('') + '</select></div>' +
+    '<div><label for="m-sf">SF</label><select class="champ" id="m-sf">' + [5, 6, 7, 8, 9, 10, 11, 12].map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></div>' +
+    '<div><label for="m-cr">CR</label><select class="champ" id="m-cr">' + [5, 6, 7, 8].map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></div></div>' +
+    '<label for="m-tx">' + T('Puissance (dBm, ', 'Power (dBm, ') + T('au plus ', 'at most ') + (moi.max_tx_power || '?') + ')</label><input class="champ" id="m-tx" inputmode="numeric">' +
+    '<p class="risque erreur">' + T(RISQUES.reseau[0], RISQUES.reseau[1]) + '</p>' +
+    '<label class="case complet-seul"><input type="checkbox" id="m-repeat"> ' + T('Relayer les autres (mode répéteur du compagnon)', 'Relay others (companion repeat mode)') + '</label>');
+  bloc('Contacts et annonces', 'Contacts and adverts', 'Comment la radio ajoute les autres à ses contacts, et ce qu’elle met dans son annonce.', 'How the radio adds others to its contacts, and what it puts in its advert.',
+    '<label class="case"><input type="checkbox" id="m-manuel"> ' + T('Ajout des contacts à la main (sinon : tous ceux qui s’annoncent)', 'Add contacts by hand (otherwise: everyone who announces)') + '</label>' +
+    '<label for="m-locpol">' + T('Position dans l’annonce', 'Position in the advert') + '</label><select class="champ" id="m-locpol"><option value="0">' + T('Non', 'No') + '</option><option value="1">' + T('Oui', 'Yes') + '</option></select>' +
+    '<div class="complet-seul"><label for="m-multi">' + T('Accusés multiples', 'Multiple acks') + '</label><select class="champ" id="m-multi"><option value="0">0</option><option value="1">1</option><option value="2">2</option></select>' +
+    '<label for="m-auto">' + T('Ajout automatique (drapeaux, nombre)', 'Auto-add (flags, number)') + '</label><input class="champ" id="m-auto" inputmode="numeric">' +
+    '<label for="m-chemin">' + T('Taille des étapes du chemin', 'Path hash size') + '</label><select class="champ" id="m-chemin"><option value="0">1 ' + T('octet', 'byte') + '</option><option value="1">2 ' + T('octets', 'bytes') + '</option><option value="2">3 ' + T('octets', 'bytes') + '</option></select>' +
+    '<label for="m-portee">' + T('Portée d’envoi par défaut (vide = partout)', 'Default flood scope (empty = everywhere)') + '</label><input class="champ" id="m-portee"></div>');
+  bloc('Télémétrie', 'Telemetry', 'Qui peut demander les mesures de la radio (batterie, position, capteurs).', 'Who may request the radio\'s measurements (battery, position, sensors).',
+    ['base', 'loc', 'env'].map(function (k) {
+      return '<label for="m-tel-' + k + '">' + { base: T('Mesures de base', 'Base'), loc: T('Position', 'Location'), env: T('Environnement', 'Environment') }[k] + '</label>' +
+        '<select class="champ" id="m-tel-' + k + '"><option value="0">' + T('Personne', 'Nobody') + '</option><option value="1">' + T('Contacts favoris', 'Favourite contacts') + '</option><option value="2">' + T('Tout le monde', 'Everyone') + '</option></select>';
+    }).join(''), true);
+  bloc('Réglages avancés', 'Advanced', 'Réglage fin de la radio, code Bluetooth, variables propres au matériel. Rarement utile.', 'Fine radio tuning, Bluetooth code, hardware-specific variables. Rarely useful.',
+    '<div class="deux"><div><label for="m-rx">' + T('Délai de réception', 'Rx delay') + '</label><input class="champ" id="m-rx" inputmode="numeric"></div>' +
+    '<div><label for="m-af">' + T('Facteur de temps d’émission', 'Airtime factor') + '</label><input class="champ" id="m-af" inputmode="numeric"></div></div>' +
+    '<label for="m-code">' + T('Code Bluetooth (6 chiffres)', 'Bluetooth PIN (6 digits)') + '</label><input class="champ" id="m-code" inputmode="numeric" maxlength="6">' +
+    '<p class="risque erreur">' + T('La station se reconnecte avec le code 123456 : en changer impose de refaire l’appairage.', 'The station reconnects with PIN 123456: changing it requires pairing again.') + '</p>' +
+    '<label for="m-vars">' + T('Variables (une par ligne : nom=valeur)', 'Variables (one per line: name=value)') + '</label><textarea class="champ" id="m-vars" rows="3"></textarea>', true);
+  var bas = el('div', 'barre-ecrire'); bas.innerHTML = '<p class="erreur" id="mc-res" style="flex:1;margin:0"></p><button class="bouton" type="submit">' + T('Écrire dans la radio', 'Write to the radio') + '</button>';
+  f.appendChild(bas);
+
+  // Valeurs actuelles
+  var v = function (id, x) { $(id).value = x === undefined || x === null ? '' : x; };
+  v('m-nom', moi.name); v('m-lat', moi.adv_lat ? virgule(moi.adv_lat, 6) : ''); v('m-lon', moi.adv_lon ? virgule(moi.adv_lon, 6) : '');
+  v('m-freq', virgule(moi.radio_freq, 3)); v('m-bw', String(moi.radio_bw)); v('m-sf', String(moi.radio_sf)); v('m-cr', String(moi.radio_cr)); v('m-tx', moi.tx_power);
+  $('m-repeat').checked = !!ap.repeat; $('m-repeat').closest('label').hidden = !('repeat' in ap); $('m-manuel').checked = !!moi.manual_add_contacts;
+  v('m-locpol', String(moi.adv_loc_policy || 0)); v('m-multi', String(moi.multi_acks || 0));
+  v('m-auto', (lu.ajout_auto || {}).config); v('m-chemin', String(ap.path_hash_mode || 0)); v('m-portee', (lu.portee_defaut || {}).scope_name || '');
+  v('m-tel-base', String(moi.telemetry_mode_base || 0)); v('m-tel-loc', String(moi.telemetry_mode_loc || 0)); v('m-tel-env', String(moi.telemetry_mode_env || 0));
+  v('m-rx', (lu.reglage_fin || {}).rx_delay); v('m-af', (lu.reglage_fin || {}).airtime_factor); v('m-code', ap.ble_pin);
+  v('m-vars', Object.keys(lu.variables || {}).map(function (k) { return k + '=' + lu.variables[k]; }).join('\n'));
+  var depart = lireMeshCore();
+
+  f.onsubmit = function (ev) {
+    ev.preventDefault();
+    var a = lireMeshCore(), c = {};
+    if (a.nom !== depart.nom) c.name = a.nom;
+    if (a.lat !== depart.lat || a.lon !== depart.lon) { c.lat = a.lat || 0; c.lon = a.lon || 0; }
+    if (JSON.stringify(a.radio) !== JSON.stringify(depart.radio)) c.radio = a.radio;
+    if (a.tx !== depart.tx) c.tx_power = a.tx;
+    if (JSON.stringify(a.autres) !== JSON.stringify(depart.autres)) c.autres = a.autres;
+    if (a.auto !== depart.auto && a.auto !== null) c.ajout_auto = a.auto;
+    if (a.chemin !== depart.chemin) c.chemin_mode = a.chemin;
+    if (a.portee !== depart.portee) c.portee_defaut = a.portee;
+    if (JSON.stringify(a.fin) !== JSON.stringify(depart.fin)) c.reglage_fin = a.fin;
+    if (a.code !== depart.code) c.code = a.code;
+    var vars = {}; Object.keys(a.vars).forEach(function (k) { if (a.vars[k] !== depart.vars[k]) vars[k] = a.vars[k]; });
+    if (Object.keys(vars).length) c.variables = vars;
+    if (!Object.keys(c).length) { dire('mc-res', true, T('Rien n’a changé.', 'Nothing changed.')); return; }
+    var b = f.querySelector('.barre-ecrire .bouton');
+    if ((c.radio || c.code !== undefined) && !b.classList.contains('confirmer')) {
+      b.classList.add('confirmer'); b.textContent = T('Toucher encore pour écrire', 'Tap again to write');
+      dire('mc-res', false, c.radio ? T(RISQUES.reseau[0], RISQUES.reseau[1]) : T('Le code Bluetooth change.', 'The Bluetooth PIN changes.'));
+      setTimeout(function () { b.classList.remove('confirmer'); b.textContent = T('Écrire dans la radio', 'Write to the radio'); }, 8000);
+      return;
+    }
+    b.classList.remove('confirmer'); b.textContent = T('Écrire dans la radio', 'Write to the radio');
+    envoyer('config-ecrire', { valeurs: c }, 'mc-res', null).then(function (r) { if (r) setTimeout(charger, 4000); });
+  };
+  actionsRadio(z);
+  sauvegardes(z);
+}
+function lireMeshCore() {
+  var n = function (id) { var x = String($(id).value).trim().replace(',', '.'); return x === '' ? null : Number(x); };
+  var vars = {};
+  $('m-vars').value.split('\n').forEach(function (l) { var i = l.indexOf('='); if (i > 0) vars[l.slice(0, i).trim()] = l.slice(i + 1).trim(); });
+  return { nom: $('m-nom').value.trim(), lat: n('m-lat'), lon: n('m-lon'),
+           radio: Object.assign({ freq: n('m-freq'), bw: n('m-bw'), sf: n('m-sf'), cr: n('m-cr') }, 'repeat' in ((lu || {}).appareil || {}) ? { repeat: $('m-repeat').checked ? 1 : 0 } : {}),
+           tx: n('m-tx'), autres: { manual_add_contacts: $('m-manuel').checked, adv_loc_policy: n('m-locpol'), multi_acks: n('m-multi'),
+           telemetry_mode_base: n('m-tel-base'), telemetry_mode_loc: n('m-tel-loc'), telemetry_mode_env: n('m-tel-env') },
+           auto: n('m-auto'), chemin: n('m-chemin'), portee: $('m-portee').value.trim(), fin: { rx_delay: n('m-rx'), airtime_factor: n('m-af') },
+           code: n('m-code'), vars: vars };
+}
+charger();
+</script>
+</body>
+</html>

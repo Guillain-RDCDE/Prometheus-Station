@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier · Mesh</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="mesh.css">
+<script src="/langue.js"></script>
+<script src="mesh.js"></script>
+<style>
+  .cartes-liste { max-height: 420px; overflow: auto; border-top: 1px solid var(--trait); border-bottom: 1px solid var(--trait); padding: 4px 0; }
+  .cartes-liste label { display: flex; align-items: center; gap: 8px; padding: 5px 2px; font-size: .92rem; cursor: pointer; }
+  .cartes-liste label span { color: var(--pale); font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="entete"></div>
+  <h2 class="avec-aide"><span data-en="Plugged-in radios">Radios branchées</span><button class="aide-bouton" type="button" data-aide="aide-radios">?</button></h2>
+  <p class="aide" id="aide-radios" hidden data-en="Plug any Meshtastic or MeshCore radio into a USB port of the station: it is recognised, and the station installs or updates its software without internet. Its settings and identity are kept whenever possible.">Branchez sur une prise USB de la station n’importe quelle radio Meshtastic ou MeshCore : elle est reconnue, et la station installe ou met à jour son logiciel sans internet. Ses réglages et son identité sont gardés chaque fois que c’est possible.</p>
+  <div class="lignes" id="radios"></div>
+  <button class="bouton secondaire" id="b-identifier" type="button" data-outil="1" data-en="Recognise the plugged-in radios">Reconnaître les radios branchées</button>
+  <div id="outil"></div>
+
+  <h2 class="avec-aide"><span data-en="Software kept on the station">Logiciels gardés sur la station</span><button class="aide-bouton" type="button" data-aide="aide-logiciels">?</button></h2>
+  <p class="aide" id="aide-logiciels" hidden data-en="To install radios without internet, the station keeps the software of the boards it follows (the ones ticked below, and those already plugged in), or of every board if chosen in Settings > Mesh. With internet, it fetches the latest stable versions every day.">Pour installer des radios sans internet, la station garde les logiciels des cartes qu’elle suit (celles cochées plus bas, et celles déjà branchées), ou de toutes les cartes si c’est choisi dans Paramètres > Mesh. Avec internet, elle va chercher chaque jour les dernières versions stables.</p>
+  <dl class="etat" id="logiciels"></dl>
+  <button class="bouton secondaire" id="b-chercher" type="button" data-outil="1" data-en="Fetch the latest versions (internet)">Chercher les dernières versions (internet)</button>
+
+  <div class="complet-seul">
+    <h2 class="avec-aide"><span data-en="Boards followed">Cartes suivies</span><button class="aide-bouton" type="button" data-aide="aide-suivies">?</button></h2>
+    <p class="aide" id="aide-suivies" hidden data-en="Tick the boards you may meet (yours, your neighbours'): their software is downloaded at the next search. The list comes from Meshtastic and MeshCore themselves.">Cochez les cartes que vous pourriez rencontrer (les vôtres, celles des voisins) : leurs logiciels sont téléchargés à la prochaine recherche. La liste vient de Meshtastic et MeshCore eux-mêmes.</p>
+    <input class="champ recherche-champ" id="cherche-carte" type="search" placeholder="Chercher une carte (Heltec, RAK, T-Deck…)" data-en-ph="Search a board (Heltec, RAK, T-Deck…)" autocomplete="off">
+    <div class="deux">
+      <div><b>Meshtastic</b><div class="cartes-liste" id="liste-mt"></div></div>
+      <div><b>MeshCore</b><div class="cartes-liste" id="liste-mc"></div></div>
+    </div>
+    <div class="bas-form"><p class="erreur" id="suivies-res"></p><button class="bouton" id="b-suivies" type="button" data-en="Save the boards followed">Enregistrer les cartes suivies</button></div>
+  </div>
+</main>
+<script>
+// Atelier : installer ou mettre a jour le logiciel de n'importe quelle radio branchee, sans internet.
+entete('atelier', 'Atelier', 'Workshop');
+aides();
+blocOutil($('outil'));
+var at = null;
+finOutil = function () { charger(); };
+var ROLES = { 'compagnon-ble': T('Compagnon (avec l’appli du téléphone, Bluetooth)', 'Companion (with the phone app, Bluetooth)'),
+              'compagnon-usb': T('Compagnon (piloté par câble : par la station)', 'Companion (driven by cable: by the station)'),
+              'compagnon-wifi': T('Compagnon (wifi)', 'Companion (wifi)'), repeteur: T('Répéteur (relais fixe, en hauteur)', 'Repeater (fixed relay, high up)'),
+              salon: T('Salon (messages gardés pour un groupe)', 'Room server (messages kept for a group)') };
+var LOGICIELS = { meshtastic: 'Meshtastic', 'meshcore-usb': T('MeshCore (compagnon par câble)', 'MeshCore (cable companion)'), 'meshcore-ble': T('MeshCore (téléphone)', 'MeshCore (phone)'),
+                  esp32: T('carte ESP32 (logiciel non reconnu : MeshCore Bluetooth, répéteur, ou vide)', 'ESP32 board (software not recognised: MeshCore Bluetooth, repeater, or empty)'),
+                  nrf52: T('carte nRF52 (logiciel non reconnu)', 'nRF52 board (software not recognised)'), rp2040: T('carte RP2040 (logiciel non reconnu)', 'RP2040 board (software not recognised)'),
+                  inconnu: T('logiciel non reconnu', 'software not recognised'), demarrage: T('mode mise à jour', 'update mode'), 'meshtastic-muet': T('Meshtastic, ne répond pas', 'Meshtastic, not answering') };
+
+function techo(port) { return /TTGO_eink|NRF52_DK|T-Echo_v1/.test(port); }
+// Familles compatibles avec ce qu'on a reconnu
+function familles(r) {
+  if (r.logiciel === 'nrf52' || r.disque && /nRF52/i.test(r.carte_id || '')) return ['nrf52840'];
+  if (r.logiciel === 'rp2040' || r.disque && /RP2/i.test(r.disque)) return ['rp2040', 'rp2350'];
+  if (r.puce) return [{ 'ESP32-S3': 'esp32s3', 'ESP32-C3': 'esp32c3', 'ESP32-C6': 'esp32c6' }[r.puce.slice(0, 8)] || 'esp32'];
+  return null;   // inconnu : toutes
+}
+function famillesMeshCore(f) { return f ? f.map(function (x) { return x.indexOf('esp32') === 0 ? 'esp32' : x === 'rp2350' ? 'rp2040' : x; }) : null; }
+
+function ligneCarte(r) {
+  var li = el('div', 'ligne-m'), h = el('div', 'haut');
+  h.appendChild(el('span', 'nom', r.nom || r.materiel || r.produit || r.disque || r.port));
+  h.appendChild(el('span', 'quand', r.disque ? T('disque ', 'disk ') + r.disque : (r.serie || r.port || '').slice(-8)));
+  li.appendChild(h);
+  var infos = [r.disque ? T('en mode mise à jour', 'in update mode') + (r.carte_id ? ' · ' + r.carte_id : '') + (r.softdevice ? ' · ' + r.softdevice : '')
+               : (LOGICIELS[r.logiciel] || r.logiciel) + (r.version ? ' ' + r.version : '')];
+  if (r.materiel && r.logiciel === 'meshtastic') infos.push(r.materiel);
+  if (r.puce) infos.push(r.puce);
+  if (r.fabricant || r.produit) infos.push([r.fabricant, r.produit].filter(Boolean).join(' '));
+  li.appendChild(el('div', 'infos', infos.join(' · ')));
+  // Formulaire d'installation
+  var f = el('form', 'form'), cat = at.catalogue || {}, fam = familles(r);
+  f.innerHTML = '<div class="deux"><div><label>' + T('Réseau', 'Network') + '</label><select class="champ" name="reseau"><option value="meshtastic">Meshtastic</option><option value="meshcore">MeshCore</option></select></div>' +
+    '<div><label>' + T('Ce qu’on fait', 'What to do') + '</label><select class="champ" name="mode"><option value="maj">' + T('Mettre à jour (garde tout)', 'Update (keeps everything)') + '</option><option value="complet">' + T('Installer de zéro (efface la carte)', 'Install from scratch (erases the board)') + '</option></select></div></div>' +
+    '<label>' + T('Carte', 'Board') + '</label><select class="champ" name="carte"></select>' +
+    '<div name="zone-role"><label>' + T('Logiciel MeshCore', 'MeshCore firmware') + '</label><select class="champ" name="role"></select></div>' +
+    '<div name="zone-rep"><div class="deux"><input class="champ" name="nom" maxlength="31" placeholder="' + T('Nom (facultatif)', 'Name (optional)') + '" autocomplete="off">' +
+    '<input class="champ" name="mdp" type="password" maxlength="15" placeholder="' + T('Mot de passe admin (facultatif)', 'Admin password (optional)') + '" autocomplete="off"></div></div>' +
+    '<label class="case"><input type="checkbox" name="garder" checked> ' + T('Garder son identité et ses réglages (si c’est le même réseau)', 'Keep its identity and settings (if same network)') + '</label>' +
+    '<div class="bas-form"><p class="erreur" name="res"></p><button class="bouton" data-outil="1">' + T('Lancer', 'Start') + '</button></div>';
+  li.appendChild(f);
+  f.reseau.value = r.logiciel && r.logiciel.indexOf('meshcore') === 0 ? 'meshcore' : 'meshtastic';
+  f.mode.value = r.logiciel === 'meshtastic' || r.logiciel === 'meshcore-usb' ? 'maj' : 'complet';
+  function remplir() {
+    // Une carte non reconnue se choisit expres : le logiciel d'une autre carte peut la rendre inutilisable
+    var s = f.carte; s.innerHTML = '';
+    s.appendChild(el('option', '', T('Choisir la carte… (écrit dessus ou sur sa boîte)', 'Choose the board… (printed on it or on its box)'))).value = '';
+    var suiv = suivies[f.reseau.value] || [];
+    function ajouter(valeur, texte) { var o = el('option', '', texte); o.value = valeur; s.appendChild(o); }
+    if (f.reseau.value === 'meshtastic') {
+      var l = ((cat.meshtastic || {}).cartes || []).filter(function (c) { return !fam || fam.indexOf(c.famille) >= 0; });
+      l.sort(function (a, b) { return (suiv.indexOf(b.cible) >= 0) - (suiv.indexOf(a.cible) >= 0) || (a.actif === b.actif ? 0 : a.actif ? -1 : 1) || a.nom.localeCompare(b.nom); });
+      l.forEach(function (c) { ajouter(c.cible, c.nom + ' · ' + c.cible + (suiv.indexOf(c.cible) >= 0 ? T(' (suivie)', ' (followed)') : '')); });
+      if (r.carte) s.value = r.carte;
+    } else {
+      var fm = famillesMeshCore(fam), cartes = (cat.meshcore || {}).cartes || {};
+      Object.keys(cartes).filter(function (k) { return !fm || fm.indexOf(cartes[k].famille) >= 0; })
+        .sort(function (a, b) { return (suiv.indexOf(b) >= 0) - (suiv.indexOf(a) >= 0) || a.localeCompare(b); })
+        .forEach(function (k) { ajouter(k, k.replace(/_/g, ' ') + (suiv.indexOf(k) >= 0 ? T(' (suivie)', ' (followed)') : '')); });
+    }
+    if (s.options.length === 1) s.options[0].textContent = T('Aucune carte au catalogue : cherchez d’abord les logiciels (internet).', 'No board in the catalogue: fetch the software first (internet).');
+    roles();
+  }
+  function roles() {
+    var meshcore = f.reseau.value === 'meshcore', c = (((cat.meshcore || {}).cartes || {})[f.carte.value] || {}).roles || {};
+    f.querySelector('[name=zone-role]').hidden = !meshcore;
+    f.role.innerHTML = '';
+    Object.keys(c).forEach(function (k) { var o = el('option', '', ROLES[k] || k); o.value = k; f.role.appendChild(o); });
+    f.querySelector('[name=zone-rep]').hidden = !(meshcore && /repeteur|salon/.test(f.role.value));
+  }
+  f.reseau.onchange = remplir; f.carte.onchange = roles; f.role.onchange = roles;
+  remplir();
+  var res = f.querySelector('[name=res]');
+  f.onsubmit = function (ev) {
+    ev.preventDefault();
+    if (!f.carte.value) { dire(res, false, T('Choisissez d’abord la carte.', 'Choose the board first.')); return; }
+    var b = f.querySelector('.bouton');
+    if (f.mode.value === 'complet' && !b.classList.contains('confirmer')) {
+      b.classList.add('confirmer'); b.textContent = T('Toucher encore : la carte est effacée', 'Tap again: the board is erased');
+      setTimeout(function () { b.classList.remove('confirmer'); b.textContent = T('Lancer', 'Start'); }, 6000);
+      return;
+    }
+    b.classList.remove('confirmer'); b.textContent = T('Lancer', 'Start');
+    var p = { reseau: f.reseau.value, carte: f.carte.value, mode: f.mode.value, garder: f.garder.checked };
+    if (r.disque) p.disque = r.disque; else p.port = r.port;
+    if (p.reseau === 'meshcore') { p.role = f.role.value; if (f.nom.value.trim()) p.nom = f.nom.value.trim(); if (f.mdp.value) p.mot_de_passe = f.mdp.value; }
+    var corps = JSON.stringify(p);
+    if (corps.length > 290) { dire(res, false, T('Nom ou mot de passe trop long.', 'Name or password too long.')); return; }
+    lancerOutil('carte', corps);
+  };
+  return li;
+}
+
+// Les T-Echo : leurs operations eprouvees (plan radio R5), comme sur l'ancienne page Radio
+function ligneTEcho(r) {
+  var li = el('div', 'ligne-m'), h = el('div', 'haut');
+  h.appendChild(el('span', 'nom', (r.nom || 'T-Echo') + ' · ' + (r.serie || '').slice(-6))); li.appendChild(h);
+  var inkhud = r.logiciel === 'meshtastic' && r.interface === 'inkhud';
+  li.appendChild(el('div', 'infos', r.logiciel ? (inkhud ? 'Meshtastic (InkHUD)' : LOGICIELS[r.logiciel] || r.logiciel) + (r.version ? ' ' + r.version : '') : T('à reconnaître…', 'being identified…')));
+  if (r.logiciel && r.logiciel !== 'meshtastic-muet') {
+    var a = el('div', 'actions-radio'), s = el('select', 'champ');
+    [['', T('Choisir…', 'Choose…')], ['maj', T('Mettre à jour', 'Update')], ['meshtastic', T('Passer sur Meshtastic (écran complet)', 'Switch to Meshtastic (full screen)')],
+     ['meshtastic-inkhud', T('Passer sur Meshtastic InkHUD (écran simplifié)', 'Switch to Meshtastic InkHUD (simple screen)')],
+     ['meshcore-ble', T('Passer sur MeshCore (téléphone)', 'Switch to MeshCore (phone)')], ['meshcore-usb', T('Passer sur MeshCore (station)', 'Switch to MeshCore (station)')]].forEach(function (c) {
+      if (c[0] && c[0] === (inkhud ? 'meshtastic-inkhud' : r.logiciel)) return;
+      var o = el('option', '', c[1]); o.value = c[0]; s.appendChild(o);
+    });
+    var b = el('button', 'bouton secondaire', T('Lancer', 'Start')); b.type = 'button'; b.dataset.outil = '1';
+    b.onclick = function () { if (s.value) lancerOutil('t-echo', JSON.stringify({ radio: r.port, cible: s.value })); };
+    a.appendChild(s); a.appendChild(b); li.appendChild(a);
+  }
+  return li;
+}
+
+var reconnaissance = false;
+function afficher() {
+  var z = $('radios'); z.innerHTML = '';
+  var st = el('a', 'ligne-m'); st.href = './'; st.style.display = 'block';
+  var moi = (station.details || {}).moi || {}, h = el('div', 'haut');
+  h.appendChild(el('span', 'nom', T('Radio de la station', 'Station radio') + (moi.nom ? ' · ' + moi.nom : ''))); h.appendChild(el('span', 'quand', '→'));
+  st.appendChild(h); st.appendChild(el('div', 'infos', [moi.materiel, RESEAUX[reseauActuel()] + ' ' + (moi.version || ''), T('mise à jour et réseau : Vue d’ensemble', 'update and network: Overview')].filter(Boolean).join(' · ')));
+  z.appendChild(st);
+  var connues = {}; ((at.atelier || {}).radios || []).forEach(function (r) { connues[r.port] = r; });
+  var tEcho = {}; ((station.outil || {}).radios || []).forEach(function (r) { tEcho[r.port] = r; });
+  var aReconnaitre = false;
+  (at.ports || []).forEach(function (p) {
+    if (p === at.station) return;
+    if (techo(p)) { var t = tEcho[p] || { port: p }; if (!t.logiciel) aReconnaitre = true; z.appendChild(ligneTEcho(t)); return; }
+    if (connues[p]) z.appendChild(ligneCarte(connues[p]));
+    else {
+      aReconnaitre = true;
+      var li = el('div', 'ligne-m'); li.appendChild(el('div', 'nom', p)); li.appendChild(el('div', 'infos', T('à reconnaître…', 'being identified…'))); z.appendChild(li);
+    }
+  });
+  ((at.atelier || {}).disques || []).forEach(function (d) { z.appendChild(ligneCarte(d)); });
+  // Une radio vient d'etre branchee : on la fait reconnaitre, une fois
+  if (aReconnaitre && !occupe && !reconnaissance) { reconnaissance = true; lancerOutil(Object.keys(tEcho).some(function (p) { return techo(p) && !tEcho[p].logiciel; }) ? 'detecter' : 'identifier', ''); }
+  if (!aReconnaitre) reconnaissance = false;
+  // Logiciels
+  var o = at.outil || {}, v = o.versions || {}, c = at.catalogue || {}, l = $('logiciels'); l.innerHTML = '';
+  l.appendChild(ligneEtat('Meshtastic', (v.meshtastic || []).join(', ') || T('aucun', 'none')));
+  l.appendChild(ligneEtat('MeshCore', (v.meshcore || []).join(', ') || T('aucun', 'none')));
+  l.appendChild(ligneEtat(T('Cartes connues', 'Boards known'), c.heure ? ((c.meshtastic || {}).cartes || []).length + ' Meshtastic · ' + Object.keys((c.meshcore || {}).cartes || {}).length + ' MeshCore' : T('pas encore de catalogue (internet)', 'no catalogue yet (internet)')));
+  l.appendChild(ligneEtat(T('Logiciels gardés pour', 'Software kept for'), at.toutes_cartes ? T('toutes les cartes', 'every board') : T('les cartes suivies', 'the boards followed')));
+  if (c.heure) l.appendChild(ligneEtat(T('Catalogue du', 'Catalogue of'), dateCourte(c.heure)));
+  boutonsOutil();
+}
+
+// Cartes suivies (version complete)
+var suivies = { meshtastic: [], meshcore: [] };
+function listeCartes() {
+  var q = $('cherche-carte').value.trim().toLowerCase(), c = at.catalogue || {};
+  var mt = $('liste-mt'), mc = $('liste-mc'); mt.innerHTML = ''; mc.innerHTML = '';
+  function ligne(zone, reseau, valeur, nom, sous) {
+    if (q && (nom + ' ' + valeur + ' ' + sous).toLowerCase().indexOf(q) < 0) return;
+    var l = el('label'), x = el('input', 'case'); x.type = 'checkbox'; x.checked = suivies[reseau].indexOf(valeur) >= 0;
+    x.onchange = function () { var a = suivies[reseau]; if (x.checked) { if (a.indexOf(valeur) < 0) a.push(valeur); } else a.splice(a.indexOf(valeur), 1); };
+    l.appendChild(x); l.appendChild(document.createTextNode(nom)); l.appendChild(el('span', '', sous)); zone.appendChild(l);
+  }
+  ((c.meshtastic || {}).cartes || []).forEach(function (x) { ligne(mt, 'meshtastic', x.cible, x.nom, x.famille); });
+  var m = (c.meshcore || {}).cartes || {};
+  Object.keys(m).sort().forEach(function (k) { ligne(mc, 'meshcore', k, k.replace(/_/g, ' '), m[k].famille); });
+}
+$('cherche-carte').oninput = listeCartes;
+$('b-suivies').onclick = function () {
+  fetch('/admin-api/mesh/atelier/suivies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(suivies) })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (r) { dire('suivies-res', r.ok, r.ok ? T('Enregistré : les logiciels seront gardés à la prochaine recherche.', 'Saved: the software will be kept at the next search.') : TE(r.d.erreur)); });
+};
+$('b-identifier').onclick = function () { lancerOutil('identifier', ''); };
+$('b-chercher').onclick = function () { lancerOutil('chercher', ''); };
+
+function charger() {
+  return Promise.all([chargerStation(), api('/mesh/atelier')]).then(function (x) {
+    at = x[1]; ecart = at.maintenant - Date.now() / 1000;
+    var s = at.suivies || {}; suivies = { meshtastic: (s.meshtastic || []).slice(), meshcore: (s.meshcore || []).slice() };
+    if (!document.activeElement || !document.activeElement.closest('.ligne-m form')) afficher();
+    listeCartes();
+  }).catch(function () {});
+}
+charger();
+setInterval(function () { if (!occupe) charger(); }, 20000);
+</script>
+</body>
+</html>

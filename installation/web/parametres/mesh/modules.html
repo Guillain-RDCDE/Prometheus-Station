@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modules · Mesh</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="mesh.css">
+<script src="/langue.js"></script>
+<script src="mesh.js"></script>
+<script src="champs.js"></script>
+<script src="formulaire.js"></script>
+</head>
+<body>
+<main>
+  <div id="entete"></div>
+  <p class="note" id="chargement" data-en="Reading the radio's modules…">Lecture des modules de la radio…</p>
+  <p class="erreur" id="erreur-page"></p>
+  <div id="contenu"></div>
+</main>
+<script>
+// Les modules Meshtastic de la radio de la station (MQTT, Store & Forward, telemetrie...) : tous leurs reglages.
+entete('modules', 'Modules', 'Modules');
+var formulaires = [];
+function charger() {
+  $('chargement').hidden = false; $('erreur-page').textContent = '';
+  chargerStation().then(function () {
+    if (reseauActuel() !== 'meshtastic') throw new Error(T('Les modules sont propres à Meshtastic : la station est sur MeshCore.', 'Modules belong to Meshtastic: the station is on MeshCore.'));
+    if (!radioPrete()) throw new Error(T('La radio doit être activée et connectée pour lire ses réglages.', 'The radio must be turned on and connected to read its settings.'));
+    return Promise.all([api('/mesh/schema'), ordre('config-lire')]);
+  }).then(function (x) {
+    var schema = x[0], lu = x[1], z = $('contenu');
+    $('chargement').hidden = true; z.innerHTML = ''; formulaires = [];
+    titreAvecAide(z, 'Modules de la radio', 'Radio modules', 'Des fonctions en plus de la messagerie : courrier gardé, mesures, test de portée, alertes, capteurs… Tous éteints au départ, sauf la télémétrie de base.', 'Features on top of messaging: stored mail, measurements, range test, alerts, sensors… All off at first, except basic telemetry.');
+    var ordreModules = ['telemetry', 'store_forward', 'range_test', 'neighbor_info', 'canned_message', 'external_notification', 'detection_sensor',
+                        'mqtt', 'serial', 'remote_hardware', 'audio', 'ambient_lighting', 'paxcounter', 'statusmessage', 'traffic_management', 'tak'];
+    Object.keys(schema.module || {}).forEach(function (s) { if (ordreModules.indexOf(s) < 0) ordreModules.push(s); });
+    ordreModules.forEach(function (s) {
+      if (!(schema.module || {})[s]) return;
+      var f = sectionFormulaire('module.' + s, schema.module[s], (lu.module || {})[s], schema.drapeaux, false);
+      // Un module allume se voit dans le resume
+      var actif = Object.keys((lu.module || {})[s] || {}).some(function (k) { return /enabled$/.test(k) && lu.module[s][k] === true; });
+      if (actif) f.zone.querySelector('summary b').textContent += T(' · allumé', ' · on');
+      formulaires.push(f); z.appendChild(f.zone);
+    });
+    var b = el('div', 'barre-ecrire');
+    b.innerHTML = '<p class="erreur" id="ecr-res" style="flex:1;margin:0"></p>';
+    var annuler = el('button', 'bouton secondaire', T('Annuler', 'Cancel')), ecrire = el('button', 'bouton', T('Écrire dans la radio', 'Write to the radio'));
+    annuler.type = ecrire.type = 'button'; b.appendChild(annuler); b.appendChild(ecrire); z.appendChild(b);
+    annuler.onclick = charger;
+    ecrire.onclick = function () {
+      var sections = {}, risques = [];
+      try { formulaires.forEach(function (f) { var c = f.changements(); if (Object.keys(c.valeurs).length) { sections[f.cle] = c.valeurs; risques = risques.concat(c.risques); } }); }
+      catch (e) { dire('ecr-res', false, e.message); return; }
+      if (!Object.keys(sections).length) { dire('ecr-res', true, T('Rien n’a changé.', 'Nothing changed.')); return; }
+      if (risques.length && !ecrire.classList.contains('confirmer')) {
+        ecrire.classList.add('confirmer'); ecrire.textContent = T('Toucher encore pour écrire', 'Tap again to write');
+        dire('ecr-res', false, T('Attention : ', 'Warning: ') + risques.filter(function (r, i) { return risques.indexOf(r) === i; }).map(function (r) { return T(RISQUES[r][0], RISQUES[r][1]); }).join(' '));
+        setTimeout(function () { ecrire.classList.remove('confirmer'); ecrire.textContent = T('Écrire dans la radio', 'Write to the radio'); }, 8000);
+        return;
+      }
+      ecrire.classList.remove('confirmer'); ecrire.disabled = true; ecrire.textContent = T('Écriture…', 'Writing…');
+      ordre('config-ecrire', { sections: sections }).then(function (r) { dire('ecr-res', true, apresEcriture(r)); setTimeout(charger, 40000); })
+        .catch(function (e) { dire('ecr-res', false, e.message); })
+        .then(function () { ecrire.disabled = false; ecrire.textContent = T('Écrire dans la radio', 'Write to the radio'); });
+    };
+  }).catch(function (e) { $('chargement').hidden = true; $('erreur-page').textContent = e.message; });
+}
+charger();
+</script>
+</body>
+</html>

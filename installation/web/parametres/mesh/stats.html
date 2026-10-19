@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statistiques · Mesh</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/communaute.css">
+<link rel="stylesheet" href="mesh.css">
+<script src="/langue.js"></script>
+<script src="mesh.js"></script>
+</head>
+<body>
+<main>
+  <div id="entete"></div>
+  <div class="puces" id="periodes"></div>
+  <dl class="etat" id="resume"></dl>
+  <div id="graphes"></div>
+  <h2 data-en="Packets by kind">Paquets par genre</h2>
+  <table class="tableau" id="t-genre"></table>
+  <h2 data-en="Radios heard">Radios entendues</h2>
+  <table class="tableau" id="t-radio"></table>
+  <div class="complet-seul">
+    <h2 class="avec-aide"><span data-en="Radio counters">Compteurs de la radio</span><button class="aide-bouton" type="button" data-aide="aide-compteurs">?</button></h2>
+    <p class="aide" id="aide-compteurs" hidden data-en="What the station's radio counts by itself since it started (last reading). They restart from zero when the radio restarts.">Ce que la radio de la station compte elle-même depuis son démarrage (dernier relevé). Ils repartent de zéro quand la radio redémarre.</p>
+    <table class="tableau" id="t-compteurs"></table>
+  </div>
+</main>
+<script>
+// Statistiques : ce que la station a mesure et entendu (historique SQLite, releve chaque minute).
+entete('stats', 'Statistiques', 'Statistics');
+aides();
+var jours = 1;
+function periodes() {
+  var z = $('periodes'); z.innerHTML = '';
+  [[1, '24 h'], [7, T('7 jours', '7 days')], [30, T('30 jours', '30 days')], [90, T('90 jours', '90 days')]].forEach(function (p) {
+    var b = el('button', 'puce' + (p[0] === jours ? ' choisie' : ''), p[1]);
+    b.onclick = function () { jours = p[0]; periodes(); charger(); };
+    z.appendChild(b);
+  });
+}
+var NOMS_PORTS = { TEXT_MESSAGE_APP: T('Messages', 'Messages'), POSITION_APP: T('Positions', 'Positions'), NODEINFO_APP: T('Fiches de radios', 'Node cards'),
+  TELEMETRY_APP: T('Mesures', 'Telemetry'), ROUTING_APP: T('Accusés et routage', 'Acks and routing'), TRACEROUTE_APP: 'Traceroute', NEIGHBORINFO_APP: T('Voisins', 'Neighbors'),
+  CHIFFRE: T('Chiffrés (autre canal)', 'Encrypted (other channel)'), ADMIN_APP: T('Administration', 'Administration'), STORE_FORWARD_APP: 'Store & Forward', RANGE_TEST_APP: T('Test de portée', 'Range test'),
+  ADVERT: T('Annonces', 'Adverts'), GRP_TXT: T('Messages de canal', 'Channel messages'), TXT_MSG: T('Messages directs', 'Direct messages'), ACK: T('Accusés', 'Acks'),
+  PATH: T('Chemins', 'Paths'), TRACE: 'Trace', REQ: T('Demandes', 'Requests'), RESPONSE: T('Réponses', 'Responses'), ANON_REQ: T('Demandes anonymes', 'Anonymous requests') };
+
+function charger() {
+  var depuis = maintenant() - jours * 86400;
+  chargerStation().then(function () {
+    var r = reseauActuel();
+    return Promise.all([api('/mesh/historique?quoi=stats&reseau=' + r + '&depuis=' + depuis), api('/mesh/historique?quoi=comptes&reseau=' + r + '&depuis=' + depuis)]);
+  }).then(function (x) {
+    var stats = x[0].donnees, c = x[1].donnees, r = reseauActuel();
+    // Resume
+    var z = $('resume'); z.innerHTML = '';
+    var recus = 0, emis = 0;
+    c.par_genre.forEach(function (g) { if (g.sens === 'recu') recus += g.n; else emis += g.n; });
+    z.appendChild(ligneEtat(T('Paquets entendus', 'Packets heard'), String(recus)));
+    z.appendChild(ligneEtat(T('Paquets émis par la station', 'Packets sent by the station'), String(emis)));
+    z.appendChild(ligneEtat(T('Radios différentes entendues', 'Different radios heard'), String(c.par_radio.filter(function (x) { return x.id; }).length)));
+    var hz = el('div', 'complet-seul'); hz.appendChild(el('dt', '', T('Historique gardé', 'History kept')));
+    hz.appendChild(el('dd', '', c.total + T(' paquets depuis le ', ' packets since ') + dateCourte(c.premier) + ' · ' + Math.round(c.taille / 1024) + ' Ko')); z.appendChild(hz);
+
+    // Graphiques : une mesure chacun
+    var g = $('graphes'); g.innerHTML = '';
+    function courbe(titre, en, points, o, complet) {
+      var d = el('div', complet ? 'complet-seul' : ''); g.appendChild(d);
+      var t = el('div', 'titre-graphe'); t.appendChild(el('b', '', T(titre, en)));
+      var dern = points.filter(function (p) { return typeof p.y === 'number'; }).slice(-1)[0];
+      t.appendChild(el('span', '', dern ? T('dernier : ', 'last: ') + (o.format || function (y) { return virgule(y); })(dern.y) + (o.unite || '') : ''));
+      d.appendChild(t); var zg = el('div'); d.appendChild(zg);
+      graphe(zg, points, Object.assign({ debut: depuis, fin: maintenant() }, o));
+    }
+    var station_ = stats.filter(function (s) { return s.source === 'station'; }), radio_ = stats.filter(function (s) { return s.source === 'radio'; });
+    if (r === 'meshtastic') {
+      courbe('Temps d’émission de la station (%, dernière heure)', 'Station airtime (%, last hour)', station_.map(function (s) { return { x: s.heure, y: s.emission }; }),
+             { min: 0, limite: 10, texteLimite: T('limite 10 %', 'limit 10 %'), unite: ' %' });
+      courbe('Occupation du canal (%)', 'Channel use (%)', station_.map(function (s) { return { x: s.heure, y: s.occupation }; }), { min: 0, unite: ' %' });
+      courbe('Radios entendues dans l’heure', 'Radios heard in the hour', station_.map(function (s) { return { x: s.heure, y: s.entendus_1h }; }), { min: 0, format: function (y) { return String(Math.round(y)); } });
+      courbe('Bruit de fond (dBm)', 'Noise floor (dBm)', radio_.map(function (s) { return { x: s.heure, y: s.noiseFloor }; }), { unite: ' dBm', format: function (y) { return String(Math.round(y)); } }, true);
+      courbe('Tension de la batterie de la radio (V)', 'Radio battery voltage (V)', station_.map(function (s) { return { x: s.heure, y: s.tension }; }), { unite: ' V', format: function (y) { return virgule(y, 2); } }, true);
+    } else {
+      // MeshCore : temps d'emission tire des compteurs (secondes d'emission cumulees)
+      var air = [];
+      for (var i = 1; i < station_.length; i++) {
+        var a = station_[i - 1], b = station_[i], dt = b.heure - a.heure;
+        if (typeof a.tx_air_secs === 'number' && typeof b.tx_air_secs === 'number' && b.tx_air_secs >= a.tx_air_secs && dt > 0)
+          air.push({ x: b.heure, y: (b.tx_air_secs - a.tx_air_secs) / dt * 100 });
+      }
+      courbe('Temps d’émission de la station (%)', 'Station airtime (%)', air, { min: 0, limite: 10, texteLimite: T('limite 10 %', 'limit 10 %'), unite: ' %' });
+      courbe('Bruit de fond (dBm)', 'Noise floor (dBm)', station_.map(function (s) { return { x: s.heure, y: s.noise_floor }; }), { unite: ' dBm', format: function (y) { return String(Math.round(y)); } });
+      courbe('Tension de la batterie de la radio (V)', 'Radio battery voltage (V)', station_.map(function (s) { return { x: s.heure, y: s.battery_mv ? s.battery_mv / 1000 : null }; }), { unite: ' V', format: function (y) { return virgule(y, 2); } }, true);
+    }
+    var tranches = c.par_tranche.filter(function (t) { return t.sens === 'recu'; });
+    courbe(c.pas === 3600 ? 'Paquets entendus par heure' : 'Paquets entendus par jour', c.pas === 3600 ? 'Packets heard per hour' : 'Packets heard per day',
+           tranches.map(function (t) { return { x: t.heure, y: t.n }; }), { min: 0, barres: true, largeur: c.pas, format: function (y) { return String(Math.round(y)); } });
+
+    // Tableaux
+    var tg = $('t-genre'); tg.innerHTML = '<tr><th>' + T('Genre', 'Kind') + '</th><th class="n">' + T('Entendus', 'Heard') + '</th><th class="n">' + T('Émis', 'Sent') + '</th></tr>';
+    var genres = {};
+    c.par_genre.forEach(function (x) { var k = x.port; genres[k] = genres[k] || { recu: 0, emis: 0 }; genres[k][x.sens] += x.n; });
+    Object.keys(genres).sort(function (a, b) { return (genres[b].recu + genres[b].emis) - (genres[a].recu + genres[a].emis); }).forEach(function (k) {
+      var tr = el('tr'); tr.appendChild(el('td', '', NOMS_PORTS[k] || k)); tr.appendChild(el('td', 'n', String(genres[k].recu))); tr.appendChild(el('td', 'n', String(genres[k].emis))); tg.appendChild(tr);
+    });
+    if (!Object.keys(genres).length) tg.appendChild(el('tr')).appendChild(el('td', '', T('Aucun sur cette période.', 'None for this period.')));
+    var tr_ = $('t-radio'); tr_.innerHTML = '<tr><th>' + T('Radio', 'Radio') + '</th><th class="n">' + T('Paquets', 'Packets') + '</th><th class="n">' + T('SNR moyen', 'Mean SNR') + '</th><th class="n">' + T('Dernier', 'Last') + '</th></tr>';
+    c.par_radio.forEach(function (x) {
+      var tr = el('tr'); tr.appendChild(el('td', '', x.nom || x.id || T('(sans nom)', '(no name)'))); tr.appendChild(el('td', 'n', String(x.n)));
+      tr.appendChild(el('td', 'n', typeof x.snr === 'number' ? virgule(x.snr) + ' dB' : '—')); tr.appendChild(el('td', 'n', ilya(x.vu))); tr_.appendChild(tr);
+    });
+    if (!c.par_radio.length) tr_.appendChild(el('tr')).appendChild(el('td', '', T('Aucune sur cette période.', 'None for this period.')));
+    // Compteurs bruts : le dernier releve
+    var tc = $('t-compteurs'); tc.innerHTML = '';
+    var dernier = (r === 'meshtastic' ? radio_ : station_).slice(-1)[0] || {};
+    Object.keys(dernier).filter(function (k) { return k !== 'heure' && k !== 'reseau' && k !== 'source'; }).forEach(function (k) {
+      var tr = el('tr'); tr.appendChild(el('td', 'mono', k)); tr.appendChild(el('td', 'n', String(dernier[k]))); tc.appendChild(tr);
+    });
+    if (dernier.heure) tc.appendChild(el('tr')).appendChild(el('td', 'note', T('Relevé : ', 'Reading: ') + dateCourte(dernier.heure)));
+  }).catch(function (e) { $('graphes').textContent = e.message; });
+}
+periodes();
+charger();
+setInterval(charger, 60000);
+</script>
+</body>
+</html>

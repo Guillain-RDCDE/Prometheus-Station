@@ -41,8 +41,8 @@ for F in "$DOSSIER"/*; do
            echo $R > /srv/prometheus/.maj-systeme ; /usr/local/bin/prometheus-etat'
       fi
       sleep 3 ;;
-    radio-sauvegarder|radio-regler|radio-reseau|radio-chercher|radio-installer|radio-t-echo|radio-detecter)
-      # Page Radio (plan radio R3 a R5) : prometheus-radio-outil, a part, un seul a la fois ;
+    radio-sauvegarder|radio-regler|radio-reseau|radio-chercher|radio-installer|radio-t-echo|radio-detecter|radio-restaurer|radio-identifier|radio-carte)
+      # Page Radio (plan radio R3 a R5) et section Mesh (restaurer, atelier) : prometheus-radio-outil, a part, un seul a la fois ;
       # son detail s'ecrit dans ajouter/radio-outil.txt (le contenu de l'ordre = ses reglages, verifies par l'outil)
       echo "Radio : ${ORDRE#radio-} demande depuis la page"
       if systemctl is-active --quiet prometheus-radio-outil; then

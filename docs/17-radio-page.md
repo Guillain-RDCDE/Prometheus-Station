@@ -2,7 +2,9 @@
 
 *Phase 2.* The message board ([chapter 16](16-radio-message-board.md)) is the simple door to the radio, for everyone. The **Radio page** is the station's radio set, for the keeper only: what the radio hears, every channel, direct messages, its settings, the choice between the two big LoRa networks, **Meshtastic** and **MeshCore**, and the radios' software.
 
-Open it from **Settings › Station › Radio › Open the radio page**. It is protected by the station's password, like the Settings.
+> **Since 19 October 2026 this page is the Overview of the [Mesh section](18-mesh-section.md)**, which adds every setting, the nodes and what to ask them, channels, statistics, a workshop for any board and remote administration. Everything below still applies: the old address leads there.
+
+Open it from **Settings › Station › Radio › Open the Mesh section**. It is protected by the station's password, like the Settings.
 
 <p>
 <img src="images/radio-page.png" width="240" alt="Radio page: state, radios heard, messages">
@@ -163,4 +165,4 @@ Installed by `10-radio.sh` ([chapter 15](15-meshtastic-radios.md)), which also f
 | The page waits for *press reset twice* and nothing happens | press faster; its two front lights turn **red** in update mode. Unplug and plug the cable again if the station does not see it |
 | What the radio tool did | the window at the bottom of the page, or `sudo journalctl -u prometheus-radio-outil -n 50` |
 
-Next: what comes after is in the [Reference](REFERENCE.md#status-october-2026).
+Next: the whole station behind this page, [chapter 18 — the Mesh section](18-mesh-section.md).

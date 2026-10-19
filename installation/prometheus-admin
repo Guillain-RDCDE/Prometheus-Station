@@ -38,6 +38,14 @@
 #   GET  /radio                 -> la page Radio : {etat, details (radio, canaux, radios entendues), journal}
 #   POST /radio/envoyer         -> envoyer depuis la page Radio {texte, canal, a} (a vide : tout le canal ; sinon message direct)
 #   POST /radio/code            -> code Bluetooth lu sur l'ecran de la radio, au premier passage a MeshCore {code}
+#   Section Mesh (plan Mesh, 19/10/2026) — les ordres passent par prometheus-radio (dossier radio/ordres) :
+#   POST /mesh/ordre            -> {action, p} ; attend la reponse 20 s au plus -> {ok, r | erreur} ou {id, attente: true}
+#   GET  /mesh/reponse?id=      -> la reponse d'un ordre (quand elle a tarde)
+#   GET  /mesh/resultats?depuis=-> reponses arrivees par radio (traceroute, position, reglages lus a distance...)
+#   GET  /mesh/historique?quoi=paquets|stats|signal|telemetrie|comptes&noeud=&depuis=&limite=
+#   GET  /mesh/schema           -> tous les reglages Meshtastic connus (pour les formulaires)
+#   GET  /mesh/sauvegardes      -> reglages gardes avant chaque changement
+#   GET  /mesh/atelier          -> radios branchees, cartes connues, logiciels gardes (outil radio)
 # Et pour l'administrateur connecte :
 #   POST /panneau   -> enregistrer le texte du panneau d'accueil {texte}
 #   POST /reglages  -> allumer, eteindre, regler une fonction {section, valeurs}
@@ -78,9 +86,16 @@ DEFAUT = {
     'recherches': {'epingles': []},     # sujets epingles sur l'accueil : [{titre, lien}]
     # Radio Meshtastic reliee au tableau des messages (programme prometheus-radio)
     'radio': {'active': False, 'qui': 'tous', 'delai': 60, 'ecran_minutes': 0},   # ecran : 0 = pas sur l'ecran e-ink
+    # Section Mesh : duree de l'historique (jours, 0 = toujours), administration a distance des autres radios,
+    # logiciels de toutes les cartes gardes sur la station (sinon : seulement les cartes deja vues ou cochees)
+    'mesh': {'historique_jours': 90, 'distance': False, 'toutes_cartes': False},
 }
 CHOIX = {'couleur': ('info', 'important', 'urgent'), 'vitesse': ('lente', 'normale', 'rapide'), 'duree': (0, 24, 72, 168),
-         'qui': ('tous', 'admin'), 'delai': (30, 60, 300), 'ecran_minutes': (0, 1, 2, 5, 15)}
+         'qui': ('tous', 'admin'), 'delai': (30, 60, 300), 'ecran_minutes': (0, 1, 2, 5, 15),
+         'historique_jours': (0, 30, 90, 365)}
+# Ordres de la section Mesh compris par prometheus-radio (Meshtastic et/ou MeshCore)
+ORDRES_MESH = ('config-lire', 'config-ecrire', 'canal', 'canaux-lien', 'proprietaire', 'position', 'messages-prets',
+               'noeud', 'demande', 'action', 'distant')
 MAX_FICHES = 2000
 RECHERCHES = os.path.join(COMMUNAUTE, 'recherches.json')   # {lien: {titre, n}} : aucun visiteur n'y est note
 DEJA_COMPTE = {}                # (adresse, lien) -> heure : un meme telephone ne compte qu'une fois par heure
@@ -212,6 +227,120 @@ def maj_radio(reseau):
     if gardees and installee and version_num(gardees[0])[:3] > version_num(installee)[:3]:
         return gardees[0]
     return ''
+
+
+def lire_json(chemin, defaut):
+    try:
+        return json.load(open(chemin))
+    except (OSError, ValueError):
+        return defaut
+
+
+def ordre_mesh(action, p):
+    """Depose un ordre pour prometheus-radio et attend sa reponse (20 s au plus)."""
+    ident = secrets.token_hex(8)
+    os.makedirs(os.path.join(RADIO, 'ordres'), exist_ok=True)
+    ecrire_public(os.path.join(RADIO, 'ordres', '%d-%s.json' % (time.time() * 1000, ident)),
+                  json.dumps({'id': ident, 'action': action, 'p': p, 'heure': time.time()}, ensure_ascii=False))
+    reponse = os.path.join(RADIO, 'reponses', ident + '.json')
+    fin = time.time() + 20
+    while time.time() < fin:
+        r = lire_json(reponse, None)
+        if r:
+            return r
+        time.sleep(0.25)
+    return {'id': ident, 'attente': True}
+
+
+def historique(q):
+    """Lecture de l'historique (SQLite ecrit par prometheus-radio)."""
+    import sqlite3
+    chemin = os.path.join(RADIO, 'historique.db')
+    if not os.path.exists(chemin):
+        return []
+    db = sqlite3.connect('file:%s?mode=ro' % chemin, uri=True, timeout=5)
+    try:
+        def nombre(cle, defaut):
+            try:
+                return float(q.get(cle, [defaut])[0])
+            except (TypeError, ValueError):
+                return defaut
+        quoi = q.get('quoi', [''])[0]
+        depuis = nombre('depuis', time.time() - 86400)
+        limite = int(min(max(nombre('limite', 300), 1), 5000))
+        noeud = q.get('noeud', [''])[0][:80]
+        res_ = q.get('reseau', [''])[0]
+        filtre_reseau = ' AND reseau = ?' if res_ in ('meshtastic', 'meshcore') else ''
+        arg_reseau = (res_,) if filtre_reseau else ()
+        if quoi == 'paquets':
+            sql = 'SELECT heure, reseau, sens, de, nom, a, port, canal, snr, rssi, sauts, relais, resume FROM paquets WHERE heure > ?' + filtre_reseau
+            args = [depuis, *arg_reseau]
+            if noeud:
+                sql += ' AND (de = ? OR a = ?)'
+                args += [noeud, noeud]
+            port = q.get('port', [''])[0]
+            if port:
+                sql += ' AND port = ?'
+                args.append(port[:40])
+            lignes = db.execute(sql + ' ORDER BY heure DESC LIMIT ?', (*args, limite)).fetchall()
+            cles = ('heure', 'reseau', 'sens', 'de', 'nom', 'a', 'port', 'canal', 'snr', 'rssi', 'sauts', 'relais', 'resume')
+            return [dict(zip(cles, l[:-1] + (json.loads(l[-1]) if l[-1] else None,))) for l in lignes]
+        if quoi == 'stats':
+            # Une valeur par tranche (300 tranches au plus sur la periode demandee)
+            pas = max(60, (time.time() - depuis) / 300)
+            lignes = db.execute('SELECT MAX(heure), reseau, donnees FROM stats WHERE heure > ?' + filtre_reseau +
+                                ' GROUP BY CAST(heure / ? AS INTEGER), reseau ORDER BY 1', (depuis, *arg_reseau, pas)).fetchall()
+            return [dict(json.loads(l[2]), heure=l[0], reseau=l[1]) for l in lignes]
+        if quoi == 'signal':
+            lignes = db.execute('SELECT heure, snr, rssi, sauts, port FROM paquets WHERE de = ? AND heure > ? AND sens = ? '
+                                'ORDER BY heure DESC LIMIT ?', (noeud, depuis, 'recu', limite)).fetchall()
+            return [dict(zip(('heure', 'snr', 'rssi', 'sauts', 'port'), l)) for l in reversed(lignes)]
+        if quoi == 'telemetrie':
+            lignes = db.execute('SELECT heure, donnees FROM telemetrie WHERE noeud = ? AND heure > ? ORDER BY heure DESC LIMIT ?',
+                                (noeud, depuis, limite)).fetchall()
+            return [dict(json.loads(l[1]), heure=l[0]) for l in reversed(lignes)]
+        if quoi == 'comptes':
+            # Paquets par genre, par radio et par heure sur la periode : le resume de la page Statistiques
+            par_genre = db.execute('SELECT port, sens, COUNT(*) FROM paquets WHERE heure > ?' + filtre_reseau + ' GROUP BY port, sens',
+                                   (depuis, *arg_reseau)).fetchall()
+            par_radio = db.execute('SELECT de, MAX(nom), COUNT(*), AVG(snr), MAX(heure) FROM paquets WHERE heure > ? AND sens = ?' +
+                                   filtre_reseau + ' GROUP BY de ORDER BY 3 DESC LIMIT 50', (depuis, 'recu', *arg_reseau)).fetchall()
+            pas = 3600 if time.time() - depuis <= 2 * 86400 else 86400
+            par_heure = db.execute('SELECT CAST(heure / ? AS INTEGER) * ?, sens, COUNT(*) FROM paquets WHERE heure > ?' + filtre_reseau +
+                                   ' GROUP BY 1, sens ORDER BY 1', (pas, pas, depuis, *arg_reseau)).fetchall()
+            total = db.execute('SELECT COUNT(*), MIN(heure) FROM paquets').fetchone()
+            return {'par_genre': [{'port': a, 'sens': b, 'n': c} for a, b, c in par_genre],
+                    'par_radio': [{'id': a, 'nom': b, 'n': c, 'snr': d, 'vu': e} for a, b, c, d, e in par_radio],
+                    'par_tranche': [{'heure': a, 'sens': b, 'n': c} for a, b, c in par_heure], 'pas': pas,
+                    'total': total[0], 'premier': total[1], 'taille': os.path.getsize(chemin)}
+        return []
+    finally:
+        db.close()
+
+
+def port_station():
+    """Le port de la T-Beam de la station (nom dans /dev/serial/by-id) : celui note par l'outil radio, sinon sa puce."""
+    ports = [os.path.basename(p) for p in sorted(glob.glob('/dev/serial/by-id/*'))]
+    note = lire_json(os.path.join(RADIO, 'reseau.json'), {}).get('port')
+    if note in ports:
+        return note
+    return next((p for p in ports if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs'))), '')
+
+
+def sauvegardes_mesh():
+    """Les reglages gardes avant chaque changement (section Mesh et outil radio), les plus recents d'abord."""
+    res = []
+    for f in glob.glob(os.path.join(RADIO, 'mesh-sauvegardes', '*')):
+        try:
+            premiere = open(f, errors='replace').readline().strip()
+        except OSError:
+            continue
+        raison = premiere[len('# Prometheus Station - '):] if premiere.startswith('# Prometheus Station - ') else ''
+        if f.endswith('.json'):
+            raison = lire_json(f, {}).get('raison', '')
+        res.append({'fichier': os.path.basename(f), 'heure': os.path.getmtime(f), 'raison': raison,
+                    'reseau': 'meshcore' if os.path.basename(f).startswith('meshcore') else 'meshtastic'})
+    return sorted(res, key=lambda x: -x['heure'])
 
 
 def lire_fichier(chemin, defaut=''):
@@ -388,6 +517,42 @@ class Admin(BaseHTTPRequestHandler):
                 r = {}
             sujets = sorted(({'lien': l, 'titre': v['titre'], 'n': v['n']} for l, v in r.items()), key=lambda x: -x['n'])[:30]
             return self.repondre(200, {'sujets': sujets, 'epingles': reglages()['recherches']['epingles']})
+        if self.path.startswith('/mesh/') or self.path == '/mesh':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            from urllib.parse import urlsplit, parse_qs
+            u = urlsplit(self.path)
+            q = parse_qs(u.query)
+            if u.path == '/mesh/reponse':
+                ident = ''.join(c for c in q.get('id', [''])[0] if c.isalnum())[:32]
+                r = lire_json(os.path.join(RADIO, 'reponses', ident + '.json'), None) if ident else None
+                return self.repondre(200, r or {'id': ident, 'attente': True})
+            if u.path == '/mesh/resultats':
+                try:
+                    depuis = float(q.get('depuis', ['0'])[0])
+                except ValueError:
+                    depuis = 0
+                return self.repondre(200, {'resultats': [r for r in lire_json(os.path.join(RADIO, 'resultats.json'), [])
+                                                         if r.get('heure', 0) > depuis], 'maintenant': time.time()})
+            if u.path == '/mesh/historique':
+                try:
+                    return self.repondre(200, {'donnees': historique(q), 'maintenant': time.time()})
+                except Exception as e:
+                    return self.repondre(500, {'erreur': 'Historique illisible : %s' % e})
+            if u.path == '/mesh/schema':
+                return self.repondre(200, lire_json(os.path.join(RADIO, 'schema.json'), {}))
+            if u.path == '/mesh/sauvegardes':
+                return self.repondre(200, {'sauvegardes': sauvegardes_mesh()})
+            if u.path == '/mesh/atelier':
+                return self.repondre(200, {'atelier': lire_json(os.path.join(RADIO, 'atelier.json'), {}),
+                                           'outil': lire_json(os.path.join(RADIO, 'outil.json'), {}),
+                                           'catalogue': lire_json(os.path.join(RADIO, 'catalogue.json'), {}),
+                                           'suivies': lire_json(os.path.join(RADIO, 'cartes-suivies.json'), {}),
+                                           'station': port_station(),
+                                           'toutes_cartes': reglages()['mesh']['toutes_cartes'],
+                                           'ports': [os.path.basename(p) for p in sorted(glob.glob('/dev/serial/by-id/*'))],
+                                           'maintenant': time.time()})
+            return self.repondre(404)
         if self.path == '/radio':
             if not self.connecte():
                 return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
@@ -402,6 +567,8 @@ class Admin(BaseHTTPRequestHandler):
             # l'outil radio en sait (logiciel, version, nom ; par numero de serie, qui ne change pas)
             ports = sorted(glob.glob('/dev/serial/by-id/*'))
             station = next((p for p in ports if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs'))), None)
+            if reseau.get('port') and '/dev/serial/by-id/' + reseau['port'] in ports:
+                station = '/dev/serial/by-id/' + reseau['port']   # le port de la T-Beam, note par l'outil radio
             connus = outil.pop('t_echo', {})
             outil['radios'] = []
             for p in ports:
@@ -418,7 +585,9 @@ class Admin(BaseHTTPRequestHandler):
                                        'details': lu('details.json', {}), 'journal': lu('journal.json', []),
                                        # outil radio : versions gardees, sauvegardes, radios branchees (outil.json)
                                        'outil': outil,
-                                       'reseau': {'reseau': reseau.get('reseau', 'meshtastic'), 'puce': reseau.get('puce')}})
+                                       'reseau': {'reseau': reseau.get('reseau', 'meshtastic'), 'puce': reseau.get('puce')},
+                                       # section Mesh : ses reglages, et le garde-fou en cours apres un reglage risque
+                                       'mesh': reglages()['mesh'], 'garde_fou': lu('garde-fou.json', None)})
         if self.path == '/api/messages':
             with VERROU:
                 fusionner_radio()
@@ -687,6 +856,32 @@ class Admin(BaseHTTPRequestHandler):
             f = os.path.join(RADIO, 'a-envoyer', '%d-%s.json' % (time.time() * 1000, ident))
             ecrire_public(f, json.dumps({'id': ident, 'texte': texte, 'canal': canal, 'a': a}, ensure_ascii=False))
             return self.repondre(200, {'id': ident})
+
+        if self.path == '/mesh/ordre':
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            action, p = d.get('action'), d.get('p', {})
+            if action not in ORDRES_MESH or not isinstance(p, dict):
+                return self.repondre(400, {'erreur': 'Réglage invalide.'})
+            if not reglages()['radio']['active']:
+                return self.repondre(403, {'erreur': 'La radio est désactivée dans les Paramètres.'})
+            r = ordre_mesh(action, p)
+            if r.get('attente'):
+                return self.repondre(202, r)
+            return self.repondre(200 if r.get('ok') else 400, r if r.get('ok') else {'erreur': r.get('erreur') or 'Refusé.'})
+
+        if self.path == '/mesh/atelier/suivies':
+            # Les cartes dont la station garde les logiciels (cochees dans l'atelier) : {meshtastic: [cibles], meshcore: [cartes]}
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            s = {}
+            for k in ('meshtastic', 'meshcore'):
+                v = d.get(k, [])
+                if not isinstance(v, list) or len(v) > 300 or not all(isinstance(x, str) and re.fullmatch(r'[\w.+-]{1,60}', x) for x in v):
+                    return self.repondre(400, {'erreur': 'Réglage invalide.'})
+                s[k] = sorted(set(v))
+            ecrire_public(os.path.join(RADIO, 'cartes-suivies.json'), json.dumps(s))
+            return self.repondre(200, s)
 
         if self.path == '/radio/code':
             # Premier passage a MeshCore : le code a 6 chiffres affiche sur l'ecran de la radio (lu par prometheus-radio-outil)

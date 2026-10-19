@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canaux · Mesh</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="mesh.css">
+<script src="/langue.js"></script>
+<script src="/vendor/qrcode.js"></script>
+<script src="mesh.js"></script>
+<style>
+  .qr { display: flex; justify-content: center; margin: 14px 0 6px; }
+  .qr svg { width: 220px; height: 220px; background: #fff; padding: 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <div id="entete"></div>
+  <p class="note" id="chargement" data-en="Reading the channels…">Lecture des canaux…</p>
+  <p class="erreur" id="erreur-page"></p>
+  <div id="contenu"></div>
+</main>
+<script>
+// Les canaux de la radio de la station : un canal = un nom et une cle ; seuls ceux qui ont la meme cle se lisent.
+entete('canaux', 'Canaux', 'Channels');
+var lu = null, edite = null;
+
+function charger() {
+  $('chargement').hidden = false; $('erreur-page').textContent = '';
+  chargerStation().then(function () {
+    if (!radioPrete()) throw new Error(T('La radio doit être activée et connectée.', 'The radio must be turned on and connected.'));
+    return ordre('config-lire');
+  }).then(function (r) { lu = r; $('chargement').hidden = true; (reseauActuel() === 'meshtastic' ? pageMeshtastic : pageMeshCore)(); })
+    .catch(function (e) { $('chargement').hidden = true; $('erreur-page').textContent = e.message; });
+}
+function nomPreset() { var m = (station.details || {}).moi || {}; return m.preset || 'LongFast'; }
+function genreCle(psk) {
+  if (!psk) return T('aucune : messages en clair', 'none: plain text');
+  if (psk === 'AQ==') return T('clé publique (connue de tous)', 'public key (known to all)');
+  if (atob(psk).length === 1) return T('clé publique simple n° ', 'simple public key no. ') + atob(psk).charCodeAt(0);
+  return T('clé privée de ', 'private key of ') + atob(psk).length * 8 + ' bits';
+}
+
+// ===================================================================== Meshtastic
+function pageMeshtastic() {
+  var z = $('contenu'); z.innerHTML = '';
+  titreAvecAide(z, 'Canaux', 'Channels', 'Un canal, c’est un nom et une clé : seules les radios qui ont la même clé lisent ses messages. Le canal principal (LongFast, clé publique) est celui que tout le monde entend.', 'A channel is a name and a key: only radios with the same key read its messages. The primary channel (LongFast, public key) is the one everyone hears.');
+  var l = el('div', 'lignes'); z.appendChild(l);
+  var actifs = lu.canaux.filter(function (c) { return c.role; });
+  actifs.forEach(function (c) {
+    var s = c.reglages, li = el('div', 'ligne-m'), h = el('div', 'haut');
+    h.appendChild(el('span', 'nom', s.name || (c.role === 1 ? nomPreset() : T('Canal ', 'Channel ') + c.index)));
+    h.appendChild(el('span', 'mot', c.role === 1 ? T('principal', 'primary') : T('secondaire', 'secondary')));
+    h.appendChild(el('span', 'quand', '#' + c.index));
+    li.appendChild(h);
+    var infos = [T('Clé : ', 'Key: ') + genreCle(s.psk)];
+    var mod = s.module_settings || {};
+    infos.push(mod.position_precision ? T('position partagée (précision ', 'position shared (precision ') + mod.position_precision + ' bits)' : T('position non partagée', 'position not shared'));
+    if (mod.is_muted) infos.push(T('muet', 'muted'));
+    li.appendChild(el('div', 'infos', infos.join(' · ')));
+    var cz = el('div', 'infos complet-seul', [s.uplink_enabled ? T('monte sur internet', 'uplink to internet') : '', s.downlink_enabled ? T('descend d’internet', 'downlink from internet') : ''].filter(Boolean).join(' · '));
+    li.appendChild(cz);
+    var liens = el('div', 'liens');
+    var b = el('button', 'lien', T('Modifier', 'Edit')); b.type = 'button'; b.onclick = function () { edite = edite === c.index ? null : c.index; pageMeshtastic(); };
+    liens.appendChild(b);
+    var res = el('p', 'note');
+    if (c.role === 2) {
+      var sup = el('button', 'lien danger', T('Supprimer', 'Delete')); sup.type = 'button';
+      deuxTemps(sup, T('Toucher encore pour supprimer', 'Tap again to delete'), function () {
+        ordre('canal', { index: c.index, supprimer: true }).then(function (r) { dire(res, true, apresEcriture(r)); setTimeout(charger, 3000); }).catch(function (e) { dire(res, false, e.message); });
+      });
+      liens.appendChild(sup);
+    }
+    li.appendChild(liens); li.appendChild(res);
+    if (edite === c.index) li.appendChild(formCanal(c));
+    l.appendChild(li);
+  });
+  if (actifs.length < 8) {
+    var n = el('button', 'bouton secondaire', T('Ajouter un canal', 'Add a channel')); n.type = 'button';
+    n.onclick = function () { edite = edite === 'nouveau' ? null : 'nouveau'; pageMeshtastic(); };
+    z.appendChild(n);
+    if (edite === 'nouveau') z.appendChild(formCanal(null));
+  }
+
+  // Partager / importer
+  titreAvecAide(z, 'Partager les canaux', 'Share the channels', 'Le lien (ou son QR code) donne les canaux de la station à une autre radio : l’appli Meshtastic d’un téléphone le lit. Il contient les clés : ne le donnez qu’à ceux qui doivent lire.', 'The link (or its QR code) gives the station\'s channels to another radio: a phone\'s Meshtastic app reads it. It contains the keys: only give it to those who should read.');
+  var p = el('div'); z.appendChild(p);
+  var voir = el('button', 'bouton secondaire', T('Montrer le lien et le QR code', 'Show the link and QR code')); voir.type = 'button'; p.appendChild(voir);
+  voir.onclick = function () {
+    voir.hidden = true;
+    var qr = qrcode(0, 'M'); qr.addData(lu.url); qr.make();
+    var q = el('div', 'qr'); q.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); p.appendChild(q);
+    var t = el('p', 'mono', lu.url); p.appendChild(t);
+  };
+  var imp = el('div', 'complet-seul'); z.appendChild(imp);
+  titreAvecAide(imp, 'Importer des canaux', 'Import channels', 'Coller un lien de canaux (https://meshtastic.org/e/#…). « Ajouter » garde les canaux actuels ; « Remplacer » met ceux du lien à la place (région et préréglage compris).', 'Paste a channel link (https://meshtastic.org/e/#…). « Add » keeps the current channels; « Replace » puts the link\'s ones instead (region and preset included).');
+  var f = el('form', 'form'); f.innerHTML = '<input class="champ" id="url" placeholder="https://meshtastic.org/e/#…" autocomplete="off">' +
+    '<label class="case"><input type="checkbox" id="url-ajouter" checked> ' + T('Ajouter (garder les canaux actuels)', 'Add (keep the current channels)') + '</label>' +
+    '<div class="bas-form"><p class="erreur" id="url-res"></p><button class="bouton">' + T('Importer', 'Import') + '</button></div>';
+  imp.appendChild(f);
+  f.onsubmit = function (ev) {
+    ev.preventDefault();
+    var ajouter = $('url-ajouter').checked, b = f.querySelector('.bouton');
+    if (!ajouter && !b.classList.contains('confirmer')) {
+      b.classList.add('confirmer'); b.textContent = T('Toucher encore : tout est remplacé', 'Tap again: everything is replaced');
+      dire('url-res', false, T(RISQUES.reseau[0], RISQUES.reseau[1])); return;
+    }
+    b.classList.remove('confirmer'); b.textContent = T('Importer', 'Import');
+    ordre('canaux-lien', { url: $('url').value.trim(), ajouter: ajouter }).then(function (r) { dire('url-res', true, apresEcriture(r)); setTimeout(charger, ajouter ? 3000 : 40000); })
+      .catch(function (e) { dire('url-res', false, e.message); });
+  };
+}
+
+function formCanal(c) {
+  var s = c ? c.reglages : { name: '', psk: '', module_settings: {} }, mod = s.module_settings || {};
+  var f = el('form', 'form');
+  f.innerHTML = '<label>' + T('Nom (11 caractères au plus ; vide pour le principal = nom du préréglage)', 'Name (11 characters at most; empty for primary = preset name)') + '</label><input class="champ" name="nom" maxlength="11" autocomplete="off">' +
+    '<label>' + T('Clé', 'Key') + '</label><select class="champ" name="psk">' +
+    (c ? '<option value="garder">' + T('Garder la clé actuelle', 'Keep the current key') + ' (' + genreCle(s.psk) + ')</option>' : '') +
+    '<option value="aleatoire">' + T('Nouvelle clé privée au hasard (256 bits)', 'New random private key (256 bits)') + '</option>' +
+    '<option value="defaut">' + T('Clé publique, connue de tous', 'Public key, known to all') + '</option>' +
+    '<option value="aucune">' + T('Aucune (en clair)', 'None (plain text)') + '</option>' +
+    '<option value="saisie">' + T('Clé donnée (base64)', 'Given key (base64)') + '</option></select>' +
+    '<input class="champ" name="cle" placeholder="base64" hidden autocomplete="off">' +
+    '<div class="secret complet-seul"><input class="champ" name="actuelle" type="password" readonly><button class="bouton secondaire" type="button" name="voir">' + T('Afficher', 'Show') + '</button></div>' +
+    '<label>' + T('Partager la position sur ce canal', 'Share the position on this channel') + '</label><select class="champ" name="precision">' +
+    [[0, T('Non', 'No')], [32, T('Exacte', 'Exact')], [16, T('À environ 400 m', 'Within about 400 m')], [13, T('À environ 3 km', 'Within about 3 km')], [11, T('À environ 12 km', 'Within about 12 km')]]
+      .map(function (x) { return '<option value="' + x[0] + '">' + x[1] + '</option>'; }).join('') + '</select>' +
+    '<label class="case"><input type="checkbox" name="muet"> ' + T('Muet (pas d’alerte pour ce canal)', 'Muted (no alert for this channel)') + '</label>' +
+    '<div class="complet-seul"><label class="case"><input type="checkbox" name="montee"> ' + T('Monter sur internet (MQTT)', 'Uplink to internet (MQTT)') + '</label>' +
+    '<label class="case"><input type="checkbox" name="descente"> ' + T('Descendre d’internet (MQTT)', 'Downlink from internet (MQTT)') + '</label></div>' +
+    '<div class="bas-form"><p class="erreur" name="res"></p><button class="bouton">' + (c ? T('Enregistrer le canal', 'Save the channel') : T('Créer le canal', 'Create the channel')) + '</button></div>';
+  f.nom.value = s.name || ''; f.actuelle.value = s.psk || '';
+  if ([0, 32, 16, 13, 11].indexOf(mod.position_precision || 0) < 0) { var o = el('option', '', mod.position_precision + ' bits'); o.value = mod.position_precision; f.precision.appendChild(o); }
+  f.precision.value = String(mod.position_precision || 0);
+  f.muet.checked = !!mod.is_muted; f.montee.checked = !!s.uplink_enabled; f.descente.checked = !!s.downlink_enabled;
+  f.psk.onchange = function () { f.cle.hidden = f.psk.value !== 'saisie'; };
+  f.voir.onclick = function () { f.actuelle.type = f.actuelle.type === 'password' ? 'text' : 'password'; };
+  var res = f.querySelector('[name=res]');
+  f.onsubmit = function (ev) {
+    ev.preventDefault();
+    var p = { nom: f.nom.value.trim(), psk: f.psk.value === 'saisie' ? f.cle.value.trim() : f.psk.value, precision: +f.precision.value,
+              muet: f.muet.checked, montee: f.montee.checked, descente: f.descente.checked };
+    if (c) p.index = c.index;
+    if (octets(p.nom) > 11) { dire(res, false, T('Nom : 11 octets au plus.', 'Name: 11 bytes at most.')); return; }
+    if (c && c.role === 1 && p.psk !== 'garder' && !f.querySelector('.bouton').classList.contains('confirmer')) {
+      f.querySelector('.bouton').classList.add('confirmer');
+      dire(res, false, T('Changer la clé du canal principal : ', 'Changing the primary channel key: ') + T(RISQUES.reseau[0], RISQUES.reseau[1]) + T(' Toucher encore.', ' Tap again.'));
+      return;
+    }
+    ordre('canal', p).then(function (r) { dire(res, true, apresEcriture(r)); edite = null; setTimeout(charger, 3000); }).catch(function (e) { dire(res, false, e.message); });
+  };
+  return f;
+}
+
+// ===================================================================== MeshCore
+function pageMeshCore() {
+  var z = $('contenu'); z.innerHTML = '';
+  titreAvecAide(z, 'Canaux', 'Channels', 'Un canal MeshCore : un nom et un secret. « Public » est commun à tous ; un nom qui commence par « # » (#secours) a un secret tiré de son nom : tous ceux qui tapent le même nom se retrouvent.', 'A MeshCore channel: a name and a secret. « Public » is shared by all; a name starting with « # » (#rescue) has a secret derived from its name: everyone typing the same name meets.');
+  var l = el('div', 'lignes'); z.appendChild(l);
+  var pris = lu.canaux.filter(function (c) { return c.nom; });
+  pris.forEach(function (c) {
+    var li = el('div', 'ligne-m'), h = el('div', 'haut');
+    h.appendChild(el('span', 'nom', c.nom)); h.appendChild(el('span', 'quand', '#' + c.index)); li.appendChild(h);
+    li.appendChild(el('div', 'infos', c.nom.charAt(0) === '#' ? T('secret tiré du nom', 'secret derived from the name') : c.index === 0 ? T('canal public', 'public channel') : T('secret privé', 'private secret')));
+    var sec = el('div', 'secret complet-seul'), i = el('input', 'champ'); i.type = 'password'; i.readOnly = true; i.value = c.secret;
+    var v = el('button', 'bouton secondaire', T('Afficher', 'Show')); v.type = 'button'; v.onclick = function () { i.type = i.type === 'password' ? 'text' : 'password'; };
+    sec.appendChild(i); sec.appendChild(v); li.appendChild(sec);
+    var liens = el('div', 'liens'), res = el('p', 'note');
+    var b = el('button', 'lien', T('Modifier', 'Edit')); b.type = 'button'; b.onclick = function () { edite = edite === c.index ? null : c.index; pageMeshCore(); };
+    liens.appendChild(b);
+    if (c.index) {
+      var s = el('button', 'lien danger', T('Supprimer', 'Delete')); s.type = 'button';
+      deuxTemps(s, T('Toucher encore pour supprimer', 'Tap again to delete'), function () {
+        ordre('canal', { index: c.index, supprimer: true }).then(function (r) { dire(res, true, apresEcriture(r)); setTimeout(charger, 2000); }).catch(function (e) { dire(res, false, e.message); });
+      });
+      liens.appendChild(s);
+    }
+    li.appendChild(liens); li.appendChild(res);
+    if (edite === c.index) li.appendChild(formMeshCore(c));
+    l.appendChild(li);
+  });
+  var libre = lu.canaux.filter(function (c) { return !c.nom; })[0];
+  if (libre) {
+    var n = el('button', 'bouton secondaire', T('Ajouter un canal', 'Add a channel')); n.type = 'button';
+    n.onclick = function () { edite = edite === 'nouveau' ? null : 'nouveau'; pageMeshCore(); };
+    z.appendChild(n);
+    if (edite === 'nouveau') z.appendChild(formMeshCore({ index: libre.index, nom: '', secret: '' }));
+  }
+}
+function formMeshCore(c) {
+  var f = el('form', 'form');
+  f.innerHTML = '<label>' + T('Nom (commencez par # pour un canal ouvert à qui connaît le nom)', 'Name (start with # for a channel open to whoever knows the name)') + '</label><input class="champ" name="nom" maxlength="31" autocomplete="off">' +
+    '<label>' + T('Secret', 'Secret') + '</label><select class="champ" name="genre"><option value="garder">' + T('Garder', 'Keep') + '</option><option value="aleatoire">' + T('Nouveau secret au hasard', 'New random secret') + '</option><option value="saisie">' + T('Secret donné (32 caractères hexadécimaux)', 'Given secret (32 hex characters)') + '</option></select>' +
+    '<input class="champ" name="secret" placeholder="0123456789abcdef0123456789abcdef" hidden autocomplete="off">' +
+    '<div class="bas-form"><p class="erreur" name="res"></p><button class="bouton">' + T('Enregistrer', 'Save') + '</button></div>';
+  f.nom.value = c.nom;
+  if (!c.nom) f.genre.value = 'aleatoire';
+  f.genre.onchange = function () { f.secret.hidden = f.genre.value !== 'saisie'; };
+  var res = f.querySelector('[name=res]');
+  f.onsubmit = function (ev) {
+    ev.preventDefault();
+    var nom = f.nom.value.trim(), secret = f.genre.value === 'garder' ? c.secret : f.genre.value === 'aleatoire' ? 'aleatoire' : f.secret.value.trim();
+    ordre('canal', { index: c.index, nom: nom, secret: secret }).then(function (r) { dire(res, true, apresEcriture(r)); edite = null; setTimeout(charger, 2000); }).catch(function (e) { dire(res, false, e.message); });
+  };
+  return f;
+}
+charger();
+</script>
+</body>
+</html>

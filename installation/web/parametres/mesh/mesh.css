@@ -1,0 +1,153 @@
+/* Prometheus Station - section Mesh (plan Mesh, 19/10/2026). Meme parti pris que style.css : du texte, des filets,
+   du blanc ; l'accent seulement pour ce qui se touche. Repris de l'ancienne page Radio. */
+main { max-width: 760px; }
+.navmesh { display: flex; gap: 2px 16px; flex-wrap: wrap; border-bottom: 1px solid var(--trait); margin: 2px 0 6px; padding-bottom: 8px; }
+.navmesh a { font-size: .92rem; color: var(--gris); padding: 4px 0; border-bottom: 2px solid transparent; }
+.navmesh a:hover { color: var(--encre); }
+.navmesh a.ici { color: var(--encre); font-weight: 650; border-bottom-color: var(--encre); }
+
+.barre-mode { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 4px; }
+.reseau { color: var(--gris); margin: 0; font-size: .95rem; }
+.mode { display: inline-flex; border: 1px solid var(--trait); border-radius: 999px; overflow: hidden; flex: none; }
+.mode button { font: inherit; font-size: .8rem; font-weight: 600; padding: 5px 12px; border: 0; background: none; color: var(--gris); cursor: pointer; }
+.mode button.choisi { background: var(--encre); color: var(--fond); }
+/* Version legere : ce qui ne sert que rarement est cache (la complete montre tout, chaque element garde son affichage) */
+body:not(.complet) .complet-seul { display: none !important; }
+body.complet .leger-seul { display: none !important; }
+[hidden] { display: none !important; }
+
+/* Etat : un tableau de deux colonnes, separe par des filets */
+.etat { margin: 0; border-top: 1px solid var(--encre); }
+.etat div { display: flex; justify-content: space-between; gap: 16px; padding: 11px 2px; border-bottom: 1px solid var(--trait); }
+.etat dt { color: var(--gris); }
+.etat dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bien { color: #2b8a3e; } .alerte { color: #c92a2a; font-weight: 600; }
+.etat dd.bien { color: #2b8a3e; } .etat dd.alerte { color: #c92a2a; font-weight: 600; }
+
+/* Listes de lignes (noeuds, messages, canaux, sauvegardes) */
+.lignes { border-top: 1px solid var(--encre); }
+.ligne-m { padding: 13px 2px; border-bottom: 1px solid var(--trait); }
+.ligne-m .haut { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ligne-m .nom { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ligne-m .court { color: var(--pale); font-weight: 400; margin-left: 4px; }
+.ligne-m .quand { color: var(--gris); font-size: .85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ligne-m .infos { color: var(--gris); font-size: .88rem; margin-top: 2px; overflow-wrap: anywhere; }
+.ligne-m.ancien .nom, .ligne-m.ancien .infos { color: var(--pale); }
+.ligne-m .texte { white-space: pre-wrap; overflow-wrap: break-word; margin-top: 2px; }
+.ligne-m .signal { color: var(--pale); font-size: .8rem; margin-top: 3px; }
+button.ligne-m { display: block; width: 100%; font: inherit; color: inherit; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--trait); cursor: pointer; }
+button.ligne-m:hover .nom { color: var(--accent); }
+.mot { font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gris); border: 1px solid var(--trait); border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.heure { color: var(--pale); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.compte { color: var(--pale); font-weight: 400; letter-spacing: 0; margin-left: 6px; }
+.rien { color: var(--gris); padding: 14px 2px; border-bottom: 1px solid var(--trait); }
+.statut { font-size: .8rem; color: var(--gris); }
+.statut.bien { color: #2b8a3e; } .statut.alerte { color: #c92a2a; }
+.lien { font: inherit; font-size: .85rem; color: var(--gris); background: none; border: 0; border-bottom: 1px solid var(--trait); padding: 0; cursor: pointer; }
+.lien:hover { color: var(--encre); border-color: var(--encre); }
+.lien.danger { color: #c92a2a; }
+.liens { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; }
+
+/* Formulaires */
+.form label, .form .etiq { display: block; font-size: .85rem; font-weight: 600; color: var(--gris); margin: 12px 2px 6px; }
+.form label.case { display: flex; align-items: center; gap: 8px; font-weight: 400; color: var(--encre); margin: 6px 2px 8px; cursor: pointer; font-size: 1rem; }
+.form label.case input, input.case { width: 18px; height: 18px; accent-color: var(--encre); margin: 0; flex: none; }
+select.champ { -webkit-appearance: none; appearance: none; background: var(--carte) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%2398a2b0' stroke-width='1.6'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 14px center; padding-right: 36px; }
+textarea.champ { resize: vertical; min-height: 64px; }
+.deux { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.trois { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.deux > *, .trois > * { min-width: 0; }
+.cartes-liste label { overflow-wrap: anywhere; }
+.bas-form { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bas-form .bouton { width: auto; padding: 12px 26px; margin: 8px 0 0 auto; }
+.bouton.petit { width: auto; display: inline-block; padding: 9px 16px; font-size: .9rem; margin: 6px 6px 0 0; }
+.bouton.confirmer { background: #c92a2a; border-color: #c92a2a; color: #fff; }
+.compte-octets { color: var(--pale); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.compte-octets.trop { color: #c92a2a; font-weight: 600; }
+.erreur { color: #c92a2a; font-size: .88rem; margin: 8px 2px 0; min-height: 0; }
+.note { color: var(--gris); font-size: .86rem; margin: 8px 2px 0; }
+.recherche-champ { margin: 0 0 10px; }
+
+/* Configuration generee : un champ par ligne, son nom, son explication */
+.section-config { margin: 0 0 6px; }
+.section-config > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 2px; border-bottom: 1px solid var(--trait); }
+.section-config > summary::-webkit-details-marker { display: none; }
+.section-config > summary b { font-weight: 650; }
+.section-config > summary span { color: var(--pale); font-size: .85rem; }
+.section-config > summary::after { content: "›"; color: var(--pale); transition: transform .15s ease; }
+.section-config[open] > summary::after { transform: rotate(90deg); }
+.champ-cfg { padding: 10px 2px 12px; border-bottom: 1px solid var(--trait); }
+.champ-cfg .tete { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.champ-cfg .tete label { font-weight: 600; font-size: .95rem; margin: 0; color: var(--encre); }
+.champ-cfg .code { color: var(--pale); font: .72rem ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.champ-cfg .explique { color: var(--gris); font-size: .86rem; margin: 2px 0 6px; }
+.champ-cfg .champ { margin: 4px 0 0; font-size: 1rem; padding: 10px 13px; }
+.champ-cfg.change { background: var(--accent-pale); }
+.champ-cfg .risque { color: #c92a2a; font-size: .82rem; font-weight: 600; margin: 4px 0 0; }
+.champ-cfg.bascule { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.champ-cfg.bascule .tete { flex: 1; }
+.sous-groupe { margin: 6px 0 0 12px; padding-left: 12px; border-left: 1px solid var(--trait); }
+.drapeaux { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.drapeaux label { display: flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--encre); margin: 0; font-weight: 400; }
+.secret { display: flex; gap: 6px; }
+.secret .champ { flex: 1; min-width: 0; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .85rem; }
+.secret .bouton { width: auto; margin: 4px 0 0; padding: 0 12px; font-size: .82rem; }
+.barre-ecrire { position: sticky; bottom: 0; background: var(--fond); border-top: 1px solid var(--encre); padding: 10px 0 12px; margin-top: 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.barre-ecrire .bouton { width: auto; margin: 0 0 0 auto; padding: 12px 22px; }
+.barre-ecrire .bouton.secondaire { margin-left: 0; }
+
+/* Aide « ? » */
+h2.avec-aide { display: flex; align-items: center; gap: 8px; }
+.aide-bouton { width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 1px solid var(--pale); background: none; color: var(--gris); font: 600 .7rem/1 system-ui, sans-serif; cursor: pointer; letter-spacing: 0; flex: none; }
+.aide-bouton[aria-expanded="true"] { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+.aide { margin: 0 2px 14px; color: var(--gris); font-size: .92rem; }
+
+/* Outil radio (operations longues : flashage, changement de reseau, remise d'une sauvegarde) */
+.consigne { margin: 16px 0 0; padding: 14px 2px; border-top: 1px solid var(--encre); border-bottom: 1px solid var(--trait); font-weight: 650; }
+.console { margin: 14px 0 0; padding: 12px 14px; max-height: 380px; overflow: auto; background: var(--carte); border: 1px solid var(--trait); border-radius: var(--rayon); font: .76rem/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--gris); white-space: pre-wrap; overflow-wrap: anywhere; }
+.resultat-outil { margin: 18px 2px 0; font-weight: 600; }
+.resultat-outil.bien { color: #2b8a3e; } .resultat-outil.alerte { color: #c92a2a; }
+.lien-detail { display: block; margin: 14px auto 0; font: inherit; font-size: .9rem; color: var(--gris); background: none; border: 0; border-bottom: 1px solid var(--trait); padding: 0; cursor: pointer; }
+.code-ble { margin: 16px 0 0; padding: 14px 0 0; border-top: 1px solid var(--encre); }
+.code-ble label { display: block; font-weight: 600; margin: 0 2px 8px; }
+.ligne-code { display: flex; gap: 8px; }
+.ligne-code .champ { margin: 0; font-size: 1.3rem; letter-spacing: .2em; font-variant-numeric: tabular-nums; }
+.ligne-code .bouton { width: auto; margin: 0; padding: 0 22px; }
+.actions-radio { display: flex; gap: 8px; margin-top: 8px; }
+.actions-radio .champ { flex: 1; margin: 0; padding-top: 9px; padding-bottom: 9px; font-size: .95rem; }
+.actions-radio .bouton { width: auto; margin: 0; padding: 9px 16px; font-size: .9rem; }
+
+/* Fiche d'une radio, resultats */
+.fiche-noeud { margin-top: 8px; padding-top: 2px; }
+.resultat { padding: 10px 2px; border-bottom: 1px solid var(--trait); font-size: .92rem; }
+.resultat b { font-weight: 600; }
+.chemin { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .8rem; overflow-wrap: anywhere; }
+
+/* Statistiques : petits graphiques, une mesure chacun, a l'encre du theme */
+.graphe { position: relative; margin: 6px 0 2px; }
+.graphe svg { display: block; width: 100%; height: 150px; overflow: visible; }
+.graphe .axe { stroke: var(--trait); stroke-width: 1; }
+.graphe .limite { stroke: #c92a2a; stroke-width: 1; stroke-dasharray: 4 4; }
+.graphe .courbe { fill: none; stroke: var(--encre); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.graphe .barre { fill: var(--encre); }
+.graphe text { fill: var(--gris); font-size: 11px; font-variant-numeric: tabular-nums; }
+.graphe .viseur { stroke: var(--pale); stroke-width: 1; }
+.graphe .point { fill: var(--encre); stroke: var(--fond); stroke-width: 2; }
+.bulle { position: absolute; pointer-events: none; background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 5px 9px; font-size: .8rem; white-space: nowrap; transform: translate(-50%, -110%); }
+.titre-graphe { display: flex; justify-content: space-between; gap: 10px; font-size: .9rem; margin-top: 18px; }
+.titre-graphe span { color: var(--gris); font-variant-numeric: tabular-nums; }
+table.tableau { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
+table.tableau th { text-align: left; font-weight: 600; color: var(--gris); border-bottom: 1px solid var(--encre); padding: 6px 4px; }
+table.tableau td { border-bottom: 1px solid var(--trait); padding: 7px 4px; overflow-wrap: anywhere; }
+table.tableau td.n, table.tableau th.n { text-align: right; }
+
+/* Journal technique */
+.paquet { padding: 7px 2px; border-bottom: 1px solid var(--trait); font-size: .84rem; }
+.paquet .haut { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.paquet .det { color: var(--gris); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .76rem; overflow-wrap: anywhere; margin-top: 2px; }
+
+@media (max-width: 480px) {
+  .deux, .trois { grid-template-columns: 1fr; }
+  .barre-mode { flex-wrap: wrap; }
+}

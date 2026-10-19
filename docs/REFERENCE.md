@@ -14,7 +14,7 @@ A Raspberry Pi with a large memory card that creates its own Wi-Fi bubble. Anyon
 
 It runs on a USB power bank, and is built to be safe when the power cuts. When it finds internet again, it updates itself.
 
-**Long-range radio (phase 2, working):** a LoRa radio plugged into the station puts the message board on the air: people without a radio write from their phone, handheld radios kilometres away answer ([chapters 15 and 16](15-meshtastic-radios.md)). The keeper's **Radio page** shows every channel, sends direct messages, sets the radio, and switches it in one tap between the two big free networks, **Meshtastic** and **MeshCore**, keeping each network's settings and identity ([chapter 17](17-radio-page.md)).
+**Long-range radio (phase 2, working):** a LoRa radio plugged into the station puts the message board on the air: people without a radio write from their phone, handheld radios kilometres away answer ([chapters 15 and 16](15-meshtastic-radios.md)). The keeper's **Radio page** shows every channel, sends direct messages, sets the radio, and switches it in one tap between the two big free networks, **Meshtastic** and **MeshCore**, keeping each network's settings and identity ([chapter 17](17-radio-page.md)). Behind it, the **Mesh section** makes the station a complete mesh-radio post: every node and what to ask it, channels and keys, every one of the radio's settings with a safety net, statistics kept 90 days, a workshop that installs any supported board without internet, and remote administration of other radios ([chapter 18](18-mesh-section.md)).
 
 **What it is not, yet:** it is not solar-powered (see *Status*).
 
@@ -72,7 +72,8 @@ Prometheus Station keeps a copy of that knowledge close at hand, readable by any
 | Password, settings, messages, register, mutual aid, clock | `prometheus-admin` (Python, no extra module) | listens only on the station itself (127.0.0.1:8091) |
 | Settings actions needing the administrator | `prometheus-commande`, `prometheus-ssid`, `prometheus-nom`, `prometheus-sobre` | the pages drop a request file; a system service carries it out. No page ever runs a program itself |
 | Radio | `prometheus-radio` (Python, Meshtastic and MeshCore libraries in `/opt/prometheus-radio`) | links the message board and the Radio page to the T-Beam: by USB on Meshtastic, by Bluetooth on MeshCore; off until turned on in the Settings |
-| Radio tool | `prometheus-radio-outil` (run by `prometheus-commande`) | saves and sets the radio, switches networks, fetches and installs the radios' software ([chapter 17](17-radio-page.md)) |
+| Radio tool | `prometheus-radio-outil` (run by `prometheus-commande`) | saves and sets the radio, switches networks, fetches and installs the radios' software, puts a backup back, recognises and installs any board ([chapters 17](17-radio-page.md) and [18](18-mesh-section.md)) |
+| Mesh section | pages in `/parametres/mesh/`, orders through `prometheus-admin` to `prometheus-radio`, history in SQLite | every node, channel and setting, statistics, workshop, remote administration ([chapter 18](18-mesh-section.md)) |
 | Wi-Fi | NetworkManager + watchdog `prometheus-wifi-auto` | captive portal: every web address leads to the station |
 | Remote access | Tailscale | optional |
 | E-ink screen | `prometheus-ecran` (Python) | Waveshare 2.13" V4 |
@@ -129,6 +130,7 @@ The script and program names are in French; the guide gives each one's role.
 - **Meshtastic radio** (phase 2): a T-Beam on the station, two T-Echo handhelds, all on the same Meshtastic version; the message board on the air both ways, the e-ink screen showing radio messages, long ones scrolling ([chapters 15 and 16](15-meshtastic-radios.md)). Tested indoors only.
 - **The Radio page** (October 2026): every channel, direct messages delivered and acknowledged, radio settings, the radios' software fetched and installed with their settings kept, and **two full round trips Meshtastic → MeshCore → Meshtastic**, with each network's identity kept and checked ([chapter 17](17-radio-page.md)). On MeshCore, sending and receiving tested with a second radio one metre away; range to the neighbouring MeshCore repeaters not reached yet with the short antenna indoors.
 - **The radios' software managed from the station**: the latest versions of both networks fetched every day when there is internet; the T-Beam and the T-Echo installed, updated or switched between Meshtastic (full screen or the simpler InkHUD screen), MeshCore for a phone and MeshCore for the station, each radio's settings and identity kept and checked.
+- **The Mesh section** (19 October 2026): every Meshtastic and MeshCore setting read and written with a backup before each change, a safety net that puts the previous settings back by itself when the radio does not come back, nodes and requests by radio (traceroute, metrics), channels, statistics, remote administration of a T-Echo over the air, and a workshop that recognised and updated a T-Echo through its general path, identity unchanged ([chapter 18](18-mesh-section.md)). Not yet tried on other boards (ESP32, RP2040) nor with a MeshCore repeater.
 - **System updates with their details on screen**, as they run.
 
 **Built, not yet tested in real conditions**

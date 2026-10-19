@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Journal technique · Mesh</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/communaute.css">
+<link rel="stylesheet" href="mesh.css">
+<script src="/langue.js"></script>
+<script src="mesh.js"></script>
+</head>
+<body>
+<main>
+  <div id="entete"></div>
+  <h2 class="avec-aide"><span data-en="Packets, live">Paquets en direct</span><button class="aide-bouton" type="button" data-aide="aide-paquets">?</button></h2>
+  <p class="aide" id="aide-paquets" hidden data-en="Every packet the station's radio hears or sends, decoded when possible: who, to whom, what kind, signal, hops. Keys and passwords never appear here.">Chaque paquet que la radio de la station entend ou envoie, décodé quand c’est possible : qui, à qui, quel genre, signal, relais. Les clés et mots de passe n’y apparaissent jamais.</p>
+  <div class="deux"><select class="champ" id="f-genre"><option value="" data-en="All kinds">Tous les genres</option></select>
+    <input class="champ" id="f-radio" placeholder="Radio (numéro ou nom)" data-en-ph="Radio (number or name)" autocomplete="off"></div>
+  <div class="liens"><button class="lien" id="pause" type="button" data-en="Pause">Pause</button>
+    <button class="lien" id="exporter" type="button" data-en="Export the last 24 h (JSON)">Exporter les dernières 24 h (JSON)</button>
+    <span class="heure" id="compte"></span></div>
+  <div class="lignes" id="paquets"></div>
+
+  <h2 data-en="Last operation of the radio tool">Dernière opération de l’outil radio</h2>
+  <div id="outil"></div>
+  <div class="liens"><a class="lien" href="/ajouter/radio-chercher.txt" target="_blank" data-en="Daily software search log">Journal de la recherche quotidienne des logiciels</a></div>
+</main>
+<script>
+// Journal technique : les paquets de l'historique, en direct.
+entete('technique', 'Journal technique', 'Technical log');
+aides();
+blocOutil($('outil'));
+var paquets = [], pause = false, genres = {};
+function resume(p) {
+  var r = p.resume || {}, t = [];
+  if (r.texte) t.push('« ' + r.texte + ' »');
+  if (r.latitude) t.push(virgule(r.latitude, 5) + ', ' + virgule(r.longitude, 5) + (r.altitude ? ' · ' + r.altitude + ' m' : ''));
+  if (r.longName) t.push(r.longName + (r.shortName ? ' (' + r.shortName + ')' : '') + (r.hwModel ? ' · ' + r.hwModel : ''));
+  if (r.errorReason) t.push(r.errorReason === 'NONE' ? T('accusé de réception', 'ack') : r.errorReason);
+  if (r.deviceMetrics) t.push(Object.keys(r.deviceMetrics).map(function (k) { return k + '=' + (typeof r.deviceMetrics[k] === 'number' ? Math.round(r.deviceMetrics[k] * 100) / 100 : r.deviceMetrics[k]); }).join(' '));
+  if (r.localStats) t.push(Object.keys(r.localStats).map(function (k) { return k + '=' + r.localStats[k]; }).join(' '));
+  if (r.environmentMetrics) t.push(JSON.stringify(r.environmentMetrics));
+  if (r.route) t.push(T('chemin ', 'route ') + r.route.join(' → '));
+  if (r.voisins) t.push(T('voisins : ', 'neighbors: ') + r.voisins.map(function (v) { return v.nodeId + (v.snr !== undefined ? ' (' + virgule(v.snr) + ')' : ''); }).join(', '));
+  if (r.adv_name) t.push(T('annonce de ', 'advert from ') + r.adv_name + (r.adv_lat ? ' · ' + virgule(r.adv_lat, 4) + ', ' + virgule(r.adv_lon, 4) : ''));
+  if (r.route_typename) t.push(r.route_typename + (r.path ? ' · ' + T('chemin ', 'path ') + r.path : ''));
+  if (r.demande) t.push(T('demande : ', 'request: ') + r.demande);
+  if (r.chan_name) t.push(T('canal ', 'channel ') + r.chan_name);
+  return t.join(' · ');
+}
+function afficher() {
+  var g = $('f-genre').value, q = $('f-radio').value.trim().toLowerCase(), z = $('paquets');
+  var l = paquets.filter(function (p) { return (!g || p.port === g) && (!q || ((p.de || '') + ' ' + (p.nom || '') + ' ' + (p.a || '')).toLowerCase().indexOf(q) >= 0); });
+  $('compte').textContent = l.length + T(' paquets', ' packets');
+  z.innerHTML = '';
+  if (!l.length) { z.appendChild(el('p', 'rien', T('Aucun paquet.', 'No packet.'))); return; }
+  l.slice(0, 300).forEach(function (p) {
+    var d = el('div', 'paquet'), h = el('div', 'haut');
+    h.appendChild(el('span', 'heure', heureSec(p.heure)));
+    h.appendChild(el('span', 'mot', p.sens === 'emis' ? T('émis', 'sent') : T('reçu', 'heard')));
+    h.appendChild(el('b', '', p.port));
+    h.appendChild(el('span', '', (p.sens === 'emis' ? T('station', 'station') : (p.nom || p.de || '?')) + ' → ' + (p.a === '^all' || !p.a ? T('tous', 'all') : p.a)));
+    var sig = [];
+    if (typeof p.snr === 'number') sig.push('SNR ' + virgule(p.snr));
+    if (p.rssi) sig.push('RSSI ' + p.rssi);
+    if (typeof p.sauts === 'number') sig.push(sauts(p.sauts));
+    if (p.relais) sig.push(T('relayé par ', 'relayed by ') + p.relais);
+    if (typeof p.canal === 'number' && p.canal) sig.push(T('canal ', 'channel ') + p.canal);
+    if (sig.length) h.appendChild(el('span', 'heure', sig.join(' · ')));
+    d.appendChild(h);
+    var r = resume(p); if (r) d.appendChild(el('div', 'det', r));
+    z.appendChild(d);
+  });
+}
+function charger() {
+  if (pause) return;
+  api('/mesh/historique?quoi=paquets&limite=1000&depuis=' + (maintenant() - 6 * 3600)).then(function (r) {
+    paquets = r.donnees;
+    paquets.forEach(function (p) {
+      if (genres[p.port]) return;
+      genres[p.port] = 1; var o = el('option', '', p.port); o.value = p.port; $('f-genre').appendChild(o);
+    });
+    afficher();
+  }).catch(function () {});
+}
+$('f-genre').onchange = afficher; $('f-radio').oninput = afficher;
+$('pause').onclick = function () { pause = !pause; this.textContent = pause ? T('Reprendre', 'Resume') : T('Pause', 'Pause'); if (!pause) charger(); };
+$('exporter').onclick = function () {
+  api('/mesh/historique?quoi=paquets&limite=5000&depuis=' + (maintenant() - 86400)).then(function (r) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(r.donnees, null, 1)], { type: 'application/json' }));
+    a.download = 'paquets-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+};
+chargerStation().catch(function () {});
+charger();
+setInterval(charger, 3000);
+</script>
+</body>
+</html>

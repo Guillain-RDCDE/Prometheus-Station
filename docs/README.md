@@ -29,6 +29,7 @@ Start here: **[0. Before you start](00-before-you-start.md)**
 | 15 | [Meshtastic radios](15-meshtastic-radios.md) — the T-Beam, the T-Echo, their buttons, settings and updates | `10-radio.sh` |
 | 16 | [Radio and message board](16-radio-message-board.md) — the board on the air, both ways | — |
 | 17 | [The Radio page](17-radio-page.md) — every channel, direct messages, settings, switching between Meshtastic and MeshCore, updating the radios | — |
+| 18 | [The Mesh section](18-mesh-section.md) — every node, channel and setting, statistics, a workshop for any board, remote administration, in a light and a full version | — |
 
 How it works inside, and what comes next: **[Reference](REFERENCE.md)**. The hardware: **[HARDWARE.md](../HARDWARE.md)**.
 

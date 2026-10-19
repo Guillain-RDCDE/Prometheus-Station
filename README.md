@@ -58,7 +58,7 @@ Join the open Wi-Fi with any phone: the home page opens by itself. No app, no ac
 <td align="center" valign="top"><img src="docs/images/poster.png" width="200" alt="A poster to print, with the Wi-Fi QR code"><br><sub>A poster to print, with the Wi-Fi QR code</sub></td>
 </tr>
 <tr>
-<td align="center" valign="top"><img src="docs/images/radio-page.png" width="200" alt="The Radio page: every channel, direct messages, Meshtastic or MeshCore"><br><sub>The Radio page: every channel, direct messages, Meshtastic or MeshCore</sub></td>
+<td align="center" valign="top"><img src="docs/images/mesh-node.png" width="200" alt="The Mesh section: every node, what to ask it, its signal over a week"><br><sub>The Mesh section: every node, what to ask it, its signal over a week</sub></td>
 <td align="center" valign="top"><img src="docs/images/radio-techo-board-message.jpg" width="200" alt="A board message on a handheld Meshtastic radio"><br><sub>A board message on a handheld Meshtastic radio</sub></td>
 <td align="center" valign="top"><img src="docs/images/radio-eink-message.png" width="200" alt="A radio message on the station's e-ink screen"><br><sub>A radio message on the station's e-ink screen</sub></td>
 </tr>
@@ -75,7 +75,7 @@ Join the open Wi-Fi with any phone: the home page opens by itself. No app, no ac
 - **[Hardware](HARDWARE.md)** — what it is made of, why, and what it costs.
 - **[Reference](docs/REFERENCE.md)** — what is inside, how it works, and the project status.
 
-**Status (October 2026):** the knowledge station works and passed its crisis test (on battery, phone in airplane mode, no internet). **Phase 2 is well under way:** a LoRa radio puts the message board on the air, both ways, with handheld radios ([chapters 15 and 16](docs/15-meshtastic-radios.md)), and the keeper's Radio page switches it in one tap between the two big free mesh networks, **Meshtastic** and **MeshCore**, keeping each one's settings and identity ([chapter 17](docs/17-radio-page.md)). Range tests come next. Solar power and a rugged case follow.
+**Status (October 2026):** the knowledge station works and passed its crisis test (on battery, phone in airplane mode, no internet). **Phase 2 is well under way:** a LoRa radio puts the message board on the air, both ways, with handheld radios ([chapters 15 and 16](docs/15-meshtastic-radios.md)), and the keeper's Radio page switches it in one tap between the two big free mesh networks, **Meshtastic** and **MeshCore**, keeping each one's settings and identity ([chapter 17](docs/17-radio-page.md)). The **Mesh section** makes it a complete mesh-radio post: every node, channel and setting, statistics, a workshop that installs any supported board without internet, remote administration ([chapter 18](docs/18-mesh-section.md)). Range tests come next. Solar power and a rugged case follow.
 
 ## 🏥 Medical disclaimer
 

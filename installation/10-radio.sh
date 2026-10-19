@@ -21,6 +21,11 @@ install -d -o prometheus -g prometheus -m 755 /srv/prometheus/radio \
 # Logiciels des radios (telecharges par l'outil) et sauvegardes des reglages (identite des radios : root seulement)
 install -d -m 755 /srv/prometheus/radio/logiciels
 install -d -m 700 /srv/prometheus/radio/sauvegardes
+# Section Mesh : ordres de la page a la radio, reponses, sauvegardes prises avant chaque changement (cles : station seulement)
+install -d -o prometheus -g prometheus -m 755 /srv/prometheus/radio/ordres /srv/prometheus/radio/reponses
+install -d -o prometheus -g prometheus -m 700 /srv/prometheus/radio/mesh-sauvegardes
+# Garde-fou : prometheus-radio peut demander a l'outil radio de remettre une sauvegarde (comme le fait la page)
+chgrp prometheus /srv/prometheus/commande && chmod 2775 /srv/prometheus/commande
 
 cat > /etc/systemd/system/prometheus-radio.service <<'EOF'
 [Unit]

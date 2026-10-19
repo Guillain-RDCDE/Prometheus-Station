@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesh</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="mesh.css">
+<script src="/langue.js"></script>
+<script src="mesh.js"></script>
+</head>
+<body>
+<main>
+  <div id="entete"></div>
+  <p class="alerte" id="garde-fou" hidden></p>
+  <h2 data-en="State">État</h2>
+  <dl class="etat" id="etat"></dl>
+
+  <h2><span data-en="Heard recently">Entendues récemment</span><span class="compte" id="nb-noeuds"></span></h2>
+  <div class="lignes" id="noeuds"></div>
+  <div class="liens"><a class="lien" href="noeuds.html" data-en="All nodes →">Tous les nœuds →</a></div>
+
+  <h2 data-en="Latest messages">Derniers messages</h2>
+  <div class="lignes" id="messages"></div>
+  <div class="liens"><a class="lien" href="messages.html" data-en="Write, all messages →">Écrire, tous les messages →</a></div>
+
+  <h2 class="avec-aide"><span data-en="Network">Réseau</span><button class="aide-bouton" type="button" data-aide="aide-reseau">?</button></h2>
+  <p class="aide" id="aide-reseau" hidden data-en="Meshtastic and MeshCore are two radio networks that cannot hear each other: the station uses one at a time. Switching saves the settings of the current network, installs the other one and puts back its own settings (one to three minutes without radio).">Meshtastic et MeshCore sont deux réseaux radio qui ne s’entendent pas : la station en utilise un à la fois. Changer sauvegarde les réglages du réseau actuel, installe l’autre et remet ses propres réglages (une à trois minutes sans radio).</p>
+  <dl class="etat" id="reseau-etat"></dl>
+  <button class="bouton secondaire" id="b-reseau" type="button" data-outil="1"></button>
+  <button class="bouton secondaire" id="b-maj-station" type="button" data-outil="1" hidden></button>
+  <div class="liens"><a class="lien" href="atelier.html" data-en="Radio software, other radios: Workshop →">Logiciels des radios, autres radios : Atelier →</a></div>
+  <div id="outil"></div>
+</main>
+<script>
+// Vue d'ensemble de la section Mesh : l'etat de la radio de la station, ce qu'elle entend, le reseau en service.
+entete('index', 'Mesh', 'Mesh');
+aides();
+blocOutil($('outil'));
+finOutil = function () { charger(); };
+
+function afficherEtat() {
+  var e = station.etat, d = station.details || {}, moi = d.moi || {}, z = $('etat');
+  z.innerHTML = '';
+  var ETATS = { ok: [T('Connectée', 'Connected'), 'bien'], absente: [T('Pas branchée', 'Not plugged in'), 'alerte'],
+                muette: [T('Ne répond pas', 'Not responding'), 'alerte'], eteinte: [T('Désactivée', 'Turned off'), ''] };
+  var et = ETATS[e.etat] || [e.etat, ''];
+  z.appendChild(ligneEtat(T('Radio', 'Radio'), e.nom ? e.nom + ' · ' + et[0] : et[0], et[1]));
+  var connue = e.etat === 'ok' && d.heure;
+  if (connue) {
+    if (d.depuis) z.appendChild(ligneEtat(T('Connectée depuis', 'Connected for'), duree(maintenant() - d.depuis)));
+    if (typeof moi.batterie === 'number') z.appendChild(ligneEtat(T('Batterie de la radio', 'Radio battery'), moi.batterie > 100 ? T('sur secteur', 'external power') : moi.batterie + ' %'));
+    if (typeof moi.occupation === 'number') z.appendChild(ligneEtat(T('Occupation du canal', 'Channel use'), virgule(moi.occupation) + ' %'));
+    if (typeof moi.emission === 'number') z.appendChild(ligneEtat(T('Temps d’émission (dernière heure)', 'Airtime (last hour)'), virgule(moi.emission) + ' % ' + T('sur 10 % permis', 'of 10 % allowed'), moi.emission > 8 ? 'alerte' : ''));
+    if (moi.materiel) z.appendChild(ligneEtat(T('Matériel', 'Hardware'), moi.materiel + (moi.version ? ' · ' + moi.version : '')));
+    var c = el('div', 'complet-seul'); c.appendChild(el('dt', '', T('Numéro de la radio', 'Radio number'))); c.appendChild(el('dd', 'mono', moi.id || '')); z.appendChild(c);
+  }
+  z.appendChild(ligneEtat(T('Messages en attente d’envoi', 'Messages waiting to leave'), String(e.attente)));
+  var g = station.garde_fou;
+  $('garde-fou').hidden = !g;
+  if (g) $('garde-fou').textContent = T('Réglage risqué écrit ', 'Risky setting written ') + ilya(g.heure) + ' (' + g.raison + T(') : si la radio ne revient pas, la station remet seule ses réglages d’avant.', '): if the radio does not come back, the station puts its previous settings back by itself.');
+}
+function afficherNoeuds() {
+  var d = station.details || {}, moi = d.moi || {}, z = $('noeuds'), l = d.noeuds || [];
+  z.innerHTML = '';
+  $('nb-noeuds').textContent = l.length ? l.length + T(' connues', ' known') : '';
+  var recents = l.filter(function (n) { return n.vu; }).slice(0, MODE === 'complet' ? 10 : 5);
+  if (!recents.length) { z.appendChild(el('p', 'rien', T('Aucune radio entendue pour l’instant.', 'No radio heard yet.'))); return; }
+  recents.forEach(function (n) {
+    var a = el('a', 'ligne-m' + (maintenant() - n.vu > 86400 ? ' ancien' : '')); a.href = 'noeuds.html?id=' + encodeURIComponent(n.id); a.style.display = 'block';
+    var h = el('div', 'haut'), nom = el('span', 'nom', n.nom);
+    if (n.court && n.court !== n.nom) nom.appendChild(el('span', 'court', n.court));
+    h.appendChild(nom); h.appendChild(el('span', 'quand', ilya(n.vu))); a.appendChild(h);
+    var infos = [];
+    if (typeof n.snr === 'number' && n.sauts === 0) infos.push('SNR ' + virgule(n.snr) + ' dB');
+    var s = sauts(n.sauts); if (s) infos.push(s);
+    if (n.lat && n.lon && moi.lat && moi.lon) infos.push(distance(moi, n));
+    if (infos.length) a.appendChild(el('div', 'infos', infos.join(' · ')));
+    z.appendChild(a);
+  });
+}
+function afficherMessages() {
+  var z = $('messages'), j = (station.journal || []).slice(-5).reverse();
+  z.innerHTML = '';
+  if (!j.length) { z.appendChild(el('p', 'rien', T('Aucun message radio pour l’instant.', 'No radio message yet.'))); return; }
+  j.forEach(function (m) {
+    var c = el('div', 'ligne-m'), h = el('div', 'haut');
+    h.appendChild(el('b', '', m.sens === 'emis' ? T('La station', 'The station') + (m.direct ? ' → ' + (m.nom_a || m.a) : '') : m.nom));
+    h.appendChild(el('span', 'heure', heure(m.heure)));
+    if (m.direct) h.appendChild(el('span', 'mot', T('direct', 'direct')));
+    c.appendChild(h); c.appendChild(el('div', 'texte', m.texte)); z.appendChild(c);
+  });
+}
+function versionNum(v) { return String(v || '').replace(/^v/, '').split(/[.-]/).map(function (x) { return parseInt(x, 10) || 0; }); }
+function plusRecente(a, b) { var x = versionNum(a), y = versionNum(b); for (var i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; }
+function afficherReseau() {
+  var r = reseauActuel(), autre = r === 'meshtastic' ? 'meshcore' : 'meshtastic';
+  var o = station.outil || {}, s = o.sauvegardes || {}, z = $('reseau-etat'), moi = (station.details || {}).moi || {};
+  z.innerHTML = '';
+  z.appendChild(ligneEtat(T('Réseau en service', 'Network in use'), RESEAUX[r], 'bien'));
+  z.appendChild(ligneEtat(T('Réglages Meshtastic gardés', 'Meshtastic settings kept'), dateCourte(s.meshtastic)));
+  z.appendChild(ligneEtat(T('Réglages MeshCore gardés', 'MeshCore settings kept'), dateCourte(s.meshcore)));
+  if (moi.version) z.appendChild(ligneEtat(T('Logiciel de la radio', 'Radio firmware'), RESEAUX[r] + ' ' + String(moi.version).replace(/^v/, '')));
+  var b = $('b-reseau');
+  if (!b.classList.contains('confirmer')) b.textContent = T('Passer sur ', 'Switch to ') + RESEAUX[autre];
+  b.dataset.cible = autre;
+  b.dataset.bloque = ((o.versions || {})[autre] || []).length ? '0' : '1';
+  var neuve = ((o.versions || {})[r] || [])[0], m = $('b-maj-station');
+  m.hidden = !(neuve && moi.version && plusRecente(neuve, moi.version));
+  m.textContent = T('Mettre à jour la radio de la station (', 'Update the station radio (') + (neuve || '') + ')';
+  boutonsOutil();
+}
+deuxTemps($('b-reseau'), T('Toucher encore : la radio sera coupée 1 à 3 minutes', 'Tap again: the radio will be off for 1 to 3 minutes'), function () { lancerOutil('reseau', $('b-reseau').dataset.cible); });
+$('b-maj-station').onclick = function () { lancerOutil('installer', JSON.stringify({ radio: 'station' })); };
+function charger() {
+  chargerStation().then(function () { afficherEtat(); afficherNoeuds(); afficherMessages(); afficherReseau(); }).catch(function () {});
+}
+document.addEventListener('mode', function () { if (station) afficherNoeuds(); });
+charger();
+setInterval(charger, 15000);
+</script>
+</body>
+</html>

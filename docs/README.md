@@ -31,6 +31,12 @@ Start here: **[0. Before you start](00-before-you-start.md)**
 | 17 | [The Radio page](17-radio-page.md) — every channel, direct messages, settings, switching between Meshtastic and MeshCore, updating the radios | — |
 | 18 | [The Mesh section](18-mesh-section.md) — every node, channel and setting, statistics, a workshop for any board, remote administration, in a light and a full version | — |
 
+**Towards the case**
+
+| | Step | Script |
+|---|---|---|
+| 19 | [A screen and a keyboard on the station](19-screen-and-keyboard.md) — the station's pages full screen, without a phone | `11-ecran-local.sh` |
+
 How it works inside, and what comes next: **[Reference](REFERENCE.md)**. The hardware: **[HARDWARE.md](../HARDWARE.md)**.
 
 ## How this guide was written

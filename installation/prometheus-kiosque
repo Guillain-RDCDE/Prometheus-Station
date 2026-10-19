@@ -1,0 +1,29 @@
+#!/bin/bash
+# Prometheus Station - ecran de la station : lance dans « cage » (service prometheus-kiosque, utilisateur kiosque).
+# Met l'ecran en veille apres le delai choisi dans Parametres > Ecran et clavier (il se rallume au toucher ou a
+# une touche), puis ouvre les pages de la station en plein ecran. ?kiosque=1 fait apparaitre, sur chaque page,
+# les deux boutons « Retour » et « Accueil » qui remplacent ceux du navigateur.
+# Veille : « cage » ne connait pas le protocole de mise en veille des ecrans (wlopm refuse, vu le 19/10/2026) ;
+# on eteint donc les sorties d'image (wlr-randr --off), ce qui coupe aussi le retroeclairage de l'ecran officiel
+if [ "$1" = veille ] || [ "$1" = reveil ]; then
+  for SORTIE in $(wlr-randr | awk '/^[^ ]/ {print $1}'); do
+    wlr-randr --output "$SORTIE" "$([ "$1" = veille ] && echo --off || echo --on)"
+  done
+  exit 0
+fi
+VEILLE=$(python3 -c "import json; print(int(json.load(open('/srv/prometheus/communaute/reglages.json')).get('ecran', {}).get('veille', 5)))" 2>/dev/null || echo 5)
+if [ "$VEILLE" -gt 0 ] 2>/dev/null; then
+  swayidle -w timeout $((VEILLE * 60)) "$0 veille" resume "$0 reveil" &
+fi
+PROFIL=/var/lib/prometheus-kiosque/chromium
+# Un arret brutal (coupure, redemarrage) ne doit pas laisser de bandeau « restaurer les pages ? »
+mkdir -p "$PROFIL/Default"
+if [ -f "$PROFIL/Default/Preferences" ]; then
+  sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/; s/"exited_cleanly":false/"exited_cleanly":true/' "$PROFIL/Default/Preferences"
+fi
+# En francais par defaut (sinon Chromium part en anglais et les pages le suivent) ; le drapeau de l'accueil change la langue
+export LANGUAGE=fr_FR:fr
+exec chromium --kiosk --ozone-platform=wayland --user-data-dir="$PROFIL" --lang=fr --accept-lang=fr-FR,fr \
+  --no-first-run --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic \
+  --disable-features=Translate,MediaRouter --check-for-update-interval=31536000 --disk-cache-size=50000000 \
+  --overscroll-history-navigation=0 'http://localhost/?kiosque=1'

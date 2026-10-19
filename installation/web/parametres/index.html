@@ -199,6 +199,10 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
       <span class="icone" style="background:#2f9e44"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4M9.5 10v4"/></svg></span>
       <span class="nom" data-en="Energy">Énergie</span><span class="valeur" id="val-energie">…</span><span class="chevron">›</span>
     </button>
+    <button class="ligne" data-vue="ecran">
+      <span class="icone" style="background:#495057"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8"/><path d="M12 16v4"/></svg></span>
+      <span class="nom" data-en="Screen and keyboard">Écran et clavier</span><span class="valeur" id="val-ecran">…</span><span class="chevron">›</span>
+    </button>
     <button class="ligne" data-vue="radio">
       <span class="icone" style="background:#c2255c"><svg viewBox="0 0 24 24"><path d="M12 13v8"/><circle cx="12" cy="11" r="2"/><path d="M8.5 7.5a5 5 0 0 0 0 7"/><path d="M15.5 7.5a5 5 0 0 1 0 7"/><path d="M5.6 4.6a9 9 0 0 0 0 12.8"/><path d="M18.4 4.6a9 9 0 0 1 0 12.8"/></svg></span>
       <span class="nom" data-en="Radio">Radio</span><span class="valeur" id="val-radio">…</span><span class="chevron">›</span>
@@ -502,7 +506,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
       <button class="aide-bouton" aria-controls="aide-sobre" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button>
       <input type="checkbox" class="interrupteur" id="sobre">
     </div>
-    <div class="aide" id="aide-sobre"><div><p data-en="The station uses a little less power, so the battery lasts a little longer. In return, searching the encyclopedias is a bit slower and USB ports stop working (unless the radio is turned on).">La station consomme un peu moins, la batterie tient donc un peu plus longtemps. En échange, la recherche dans les encyclopédies est un peu plus lente et les prises USB ne marchent plus (sauf si la radio est activée).</p></div></div>
+    <div class="aide" id="aide-sobre"><div><p data-en="The station uses a little less power, so the battery lasts a little longer. In return, searching the encyclopedias is a bit slower and USB ports stop working (unless the radio or the station screen is turned on).">La station consomme un peu moins, la batterie tient donc un peu plus longtemps. En échange, la recherche dans les encyclopédies est un peu plus lente et les prises USB ne marchent plus (sauf si la radio ou l’écran de la station est activé).</p></div></div>
   </div>
   <h2 class="avec-aide"><span data-en="Automatic shutdown">Extinction automatique</span><button class="aide-bouton" aria-controls="aide-extinction" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
   <div class="aide seule" id="aide-extinction"><div><p data-en="If nobody connects for that long, the station switches itself off to save the battery. To switch it back on, unplug the battery and plug it in again: it then starts with no shutdown planned.">Si personne ne se connecte pendant ce temps, la station s’éteint toute seule pour garder la batterie. Pour la rallumer, débranchez puis rebranchez la batterie : elle repart alors sans extinction prévue.</p></div></div>
@@ -514,6 +518,20 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <button class="ligne" data-minutes="480"><span class="nom" data-en="After 8 hours without visitors">Après 8 h sans visiteur</span><span class="coche">✓</span></button>
   </div>
   <p class="note" id="note-extinction"></p>
+</section>
+
+<!-- ===== Ecran et clavier branches sur la station (etape 11, la « mallette ») ===== -->
+<section class="vue" id="vue-ecran" hidden>
+  <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
+  <h1 class="avec-aide-titre"><span data-en="Screen and keyboard">Écran et clavier</span><button class="aide-bouton" aria-controls="aide-ecran" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h1>
+  <div class="aide seule" id="aide-ecran"><div><p data-en="A screen (HDMI, or the official touch screen) and a USB keyboard plugged into the station show its pages full screen: messages, radio, encyclopedias, without a phone. The screen goes to sleep by itself and wakes up with a touch or a key.">Un écran (HDMI, ou l’écran tactile officiel) et un clavier USB branchés sur la station affichent ses pages en plein écran : messages, radio, encyclopédies, sans téléphone. L’écran se met en veille tout seul et se rallume d’un toucher ou d’une touche.</p></div></div>
+  <p class="note" id="ecran-absent" hidden data-en="Not installed yet: run step 11 on the station (sudo bash 11-ecran-local.sh, internet needed).">Pas encore installé : lancez l’étape 11 sur la station (sudo bash 11-ecran-local.sh, avec internet).</p>
+  <div class="groupe">
+    <div class="ligne"><label class="nom" for="ecran-active" data-en="Turned on">Activé</label><input type="checkbox" class="interrupteur" id="ecran-active"></div>
+  </div>
+  <h2 data-en="Screen goes to sleep after">Mise en veille de l’écran après</h2>
+  <div class="puces" id="ecran-veille"></div>
+  <p class="note" data-en="On the station's screen, the administrator password is asked once, then remembered for 90 days. Two round buttons, bottom left, replace the browser's: Back and Home.">Sur l’écran de la station, le mot de passe de l’administrateur est demandé une fois, puis retenu 90 jours. Deux boutons ronds, en bas à gauche, remplacent ceux d’un navigateur : Retour et Accueil.</p>
 </section>
 
 <!-- ===== Etat de la station ===== -->
@@ -905,6 +923,7 @@ function duree(s) {
 }
 function afficherEnergie(d) {
   $('sobre').checked = d.sobre;
+  $('ecran-absent').hidden = d.ecran_installe !== false;
   $('val-energie').textContent = (d.sobre ? T('Sobre', 'Low power') : T('Normal', 'Normal')) +
     (d.extinction ? ' · ' + T('extinction ', 'shutdown ') + duree(d.extinction * 60) : '');
   document.querySelectorAll('[data-minutes]').forEach(function (b) { b.classList.toggle('choisi', +b.dataset.minutes === d.extinction); });
@@ -986,6 +1005,11 @@ function afficherCommunaute() {
     function (v) { return v === ra.delai; }, function (v) { regler('radio', { delai: v }); });
   puces($('radio-ecran'), [[0, T('Non', 'No')], [1, '1 min'], [2, '2 min'], [5, '5 min'], [15, '15 min']],
     function (v) { return v === ra.ecran_minutes; }, function (v) { regler('radio', { ecran_minutes: v }); });
+  var ec = reg.ecran || { active: false, veille: 5 };
+  $('ecran-active').checked = ec.active;
+  $('val-ecran').textContent = ec.active ? T('Activé', 'On') : T('Désactivé', 'Off');
+  puces($('ecran-veille'), [[2, '2 min'], [5, '5 min'], [15, '15 min'], [60, '1 h'], [0, T('Jamais', 'Never')]],
+    function (v) { return v === ec.veille; }, function (v) { regler('ecran', { veille: v }); });
   var me = reg.mesh || { historique_jours: 90, distance: false, toutes_cartes: false };
   puces($('mesh-histo'), [[30, T('30 jours', '30 days')], [90, T('90 jours', '90 days')], [365, T('1 an', '1 year')], [0, T('Toujours', 'Forever')]],
     function (v) { return v === me.historique_jours; }, function (v) { regler('mesh', { historique_jours: v }); });
@@ -1025,7 +1049,7 @@ function communaute() {
 [['annonce-active', 'annonce', 'active'], ['annonce-defile', 'annonce', 'defile'], ['annonce-ecran', 'annonce', 'ecran'],
  ['registre-active', 'registre', 'active'], ['registre-lieu', 'registre', 'lieu'],
  ['entraide-active', 'entraide', 'active'], ['urgence-active', 'urgence', 'active'], ['radio-active', 'radio', 'active'],
- ['mesh-distance', 'mesh', 'distance'], ['mesh-toutes', 'mesh', 'toutes_cartes']].forEach(function (x) {
+ ['mesh-distance', 'mesh', 'distance'], ['mesh-toutes', 'mesh', 'toutes_cartes'], ['ecran-active', 'ecran', 'active']].forEach(function (x) {
   $(x[0]).onchange = function () { var v = {}; v[x[2]] = this.checked; regler(x[1], v); };
 });
 // Texte de l'annonce : bouton Enregistrer

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Prometheus Station - mode sobre (Parametres > Energie).
-# Actif : voyants eteints, processeur au ralenti, prises USB coupees (sauf si la radio est activee). Inactif : tout revient a la normale.
+# Actif : voyants eteints, processeur au ralenti, prises USB coupees (sauf si la radio ou l ecran de la station est active). Inactif : tout revient a la normale.
 # Le choix (oui / non) est garde dans /srv/prometheus/.admin/sobre et reapplique a chaque demarrage.
 # La page depose sa demande dans /srv/prometheus/.admin/sobre-demande (ecrite par prometheus-admin).
 CHOIX=/srv/prometheus/.admin/sobre
@@ -21,10 +21,10 @@ if [ "$(cat "$CHOIX" 2>/dev/null)" = oui ]; then
     echo 0 > /sys/class/leds/$L/brightness
   done
   for G in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo powersave > "$G"; done
-  # La radio Meshtastic est branchee en USB : quand elle est activee, on laisse les prises allumees
-  if python3 -c "import json,sys; sys.exit(0 if json.load(open('/srv/prometheus/communaute/reglages.json')).get('radio',{}).get('active') is True else 1)" 2>/dev/null; then
+  # La radio et le clavier de l'ecran de la station sont branches en USB : quand l'un des deux est active, on laisse les prises allumees
+  if python3 -c "import json,sys; r=json.load(open('/srv/prometheus/communaute/reglages.json')); sys.exit(0 if r.get('radio',{}).get('active') is True or r.get('ecran',{}).get('active') is True else 1)" 2>/dev/null; then
     [ -e "$XHCI/$USB" ] || echo "$USB" > "$XHCI/bind"
-    echo "Mode sobre actif : voyants eteints, processeur au ralenti (USB garde pour la radio)"
+    echo "Mode sobre actif : voyants eteints, processeur au ralenti (USB garde pour la radio ou le clavier)"
   else
     [ -e "$XHCI/$USB" ] && echo "$USB" > "$XHCI/unbind"
     echo "Mode sobre actif : voyants eteints, processeur au ralenti, USB coupe"

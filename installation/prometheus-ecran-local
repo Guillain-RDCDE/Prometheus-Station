@@ -1,0 +1,32 @@
+#!/bin/bash
+# Prometheus Station - applique le reglage « Ecran et clavier » des Parametres (lance a chaque changement des
+# reglages et au demarrage). Allume ou eteint l'ecran de la station ; ne relance le navigateur que si l'ecran
+# vient d'etre active ou si le delai de veille a change (un autre reglage ne le derange pas).
+REGLAGES=/srv/prometheus/communaute/reglages.json
+APPLIQUE=/run/prometheus/ecran-applique
+mkdir -p /run/prometheus
+VOULU=$(python3 -c "
+import json
+try:
+    e = json.load(open('$REGLAGES')).get('ecran', {})
+except (OSError, ValueError):
+    e = {}
+print('oui' if e.get('active') is True else 'non', int(e.get('veille', 5)))" 2>/dev/null || echo "non 5")
+AVANT=$(cat "$APPLIQUE" 2>/dev/null)
+if [ "${VOULU%% *}" = oui ]; then
+  if [ "$VOULU" != "$AVANT" ] || ! systemctl is-active --quiet prometheus-kiosque; then
+    echo "Ecran de la station : allume (veille apres ${VOULU#* } min, 0 = jamais)"
+    systemctl restart prometheus-kiosque
+  fi
+else
+  if systemctl is-active --quiet prometheus-kiosque; then
+    echo "Ecran de la station : eteint"
+    systemctl stop prometheus-kiosque
+  fi
+fi
+# Le mode sobre coupe les prises USB, sauf pour la radio et pour le clavier de l'ecran : on le lui fait reappliquer
+if [ "${VOULU%% *}" != "${AVANT%% *}" ] && [ -x /usr/local/bin/prometheus-sobre ]; then
+  /usr/local/bin/prometheus-sobre >/dev/null
+fi
+echo "$VOULU" > "$APPLIQUE"
+exit 0

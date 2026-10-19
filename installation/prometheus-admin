@@ -89,10 +89,12 @@ DEFAUT = {
     # Section Mesh : duree de l'historique (jours, 0 = toujours), administration a distance des autres radios,
     # logiciels de toutes les cartes gardes sur la station (sinon : seulement les cartes deja vues ou cochees)
     'mesh': {'historique_jours': 90, 'distance': False, 'toutes_cartes': False},
+    # Ecran et clavier branches sur la station (etape 11, la « mallette ») : veille en minutes, 0 = jamais
+    'ecran': {'active': False, 'veille': 5},
 }
 CHOIX = {'couleur': ('info', 'important', 'urgent'), 'vitesse': ('lente', 'normale', 'rapide'), 'duree': (0, 24, 72, 168),
          'qui': ('tous', 'admin'), 'delai': (30, 60, 300), 'ecran_minutes': (0, 1, 2, 5, 15),
-         'historique_jours': (0, 30, 90, 365)}
+         'historique_jours': (0, 30, 90, 365), 'veille': (0, 2, 5, 15, 60)}
 # Ordres de la section Mesh compris par prometheus-radio (Meshtastic et/ou MeshCore)
 ORDRES_MESH = ('config-lire', 'config-ecrire', 'canal', 'canaux-lien', 'proprietaire', 'position', 'messages-prets',
                'noeud', 'demande', 'action', 'distant')
@@ -355,6 +357,8 @@ def energie():
     m = lire_fichier(EXTINCTION, '0')
     r = lire_fichier(EXTINCTION_RESTANT)
     return {'sobre': (demande or lire_fichier(SOBRE, 'non')) == 'oui',
+            # l'etape 11 (ecran et clavier sur la station) est-elle installee ?
+            'ecran_installe': os.path.exists('/etc/systemd/system/prometheus-kiosque.service'),
             'extinction': int(m) if m.isdigit() else 0,
             'restant': int(r) if r.lstrip('-').isdigit() else None}
 

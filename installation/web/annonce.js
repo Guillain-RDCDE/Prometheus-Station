@@ -71,3 +71,37 @@
   setInterval(charger, 60000);   // une nouvelle annonce arrive sans recharger la page
   addEventListener('pageshow', function (e) { if (e.persisted) charger(); });
 })();
+
+// Ecran de la station (etape 11, navigateur en plein ecran, sans barre) : deux boutons ronds en bas a gauche,
+// Retour et Accueil. Seulement sur cet ecran : il ouvre l'accueil avec ?kiosque=1, que le navigateur retient.
+// Le meme bloc est dans langue.js (pages de la station) et annonce.js (articles des encyclopedies).
+(function () {
+  if (window.prometheusKiosque) return;
+  window.prometheusKiosque = true;
+  var oui = false;
+  try {
+    if (/[?&]kiosque=1/.test(location.search)) localStorage.setItem('kiosque', '1');
+    oui = localStorage.getItem('kiosque') === '1';
+  } catch (e) {}
+  if (!oui) return;
+  function poser() {
+    if (document.getElementById('prometheus-kiosque')) return;
+    var en = (document.documentElement.lang || '').slice(0, 2) === 'en';
+    var z = document.createElement('div');
+    z.id = 'prometheus-kiosque';
+    z.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:2147483646;display:flex;gap:12px';
+    [['M15 5l-7 7 7 7', en ? 'Back' : 'Retour', function () { history.back(); }],
+     ['M4 11l8-7 8 7M6 9.5V20h12V9.5', en ? 'Home' : 'Accueil', function () { location.href = '/'; }]].forEach(function (b) {
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.setAttribute('aria-label', b[1]);
+      x.title = b[1];
+      x.style.cssText = 'width:56px;height:56px;border-radius:28px;border:0;background:#111;opacity:.82;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0';
+      x.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="' + b[0] + '"/></svg>';
+      x.onclick = b[2];
+      z.appendChild(x);
+    });
+    document.body.appendChild(z);
+  }
+  if (document.body) poser(); else document.addEventListener('DOMContentLoaded', poser);
+})();

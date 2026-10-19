@@ -79,6 +79,7 @@ Below, the settings are grouped by who they are for. The community features (ann
 <img src="images/settings-address.png" width="190" alt="Station address">
 
 - **Radio** *(phase 2)*: link the message board to the radio ([chapter 16](16-radio-message-board.md)), and open the **Mesh section**: the station's radio up close, every node and channel, direct messages, every setting, statistics, switching between Meshtastic and MeshCore, and installing any radio ([chapters 17](17-radio-page.md) and [18](18-mesh-section.md)). The same view also sets how long the radio history is kept, remote administration and the software of every board.
+- **Screen and keyboard**: turn on a screen and a keyboard plugged into the station, which then shows its pages full screen, without a phone; and its sleep delay ([chapter 19](19-screen-and-keyboard.md)).
 - **Energy**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
 - **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*), time since switch-on and people connected. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
 - **Software**: the system updates waiting, by name, **Update**, and **Restart** when an update needs it. Your settings are kept. While it runs, the details scroll in a window (what is downloaded, installed, and any error), then a line says *Update finished* or *The update failed*; *Show the details of the last update* brings them back later.

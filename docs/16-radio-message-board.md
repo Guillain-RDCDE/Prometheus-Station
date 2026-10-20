@@ -74,6 +74,8 @@ What deleting does: a message **not yet sent** by radio is taken out of the queu
 
 ## The beacon
 
+<img src="images/settings-radio-beacon.png" width="240" alt="Settings › Radio, with the beacon at the bottom">
+
 **Settings › Radio › Beacon.** Every few hours the station sends a ready-made message by radio, on its own, so that people who have a radio but don't know the station learn that it exists, where it is, and how to join it. Off at first.
 
 - **Message**: write it yourself; the buttons insert fields the station fills in when sending: `{nom}` (the radio's name), `{position}` (its fixed position, set in the Mesh section › Settings; empty without one), `{wifi}` (the station's Wi-Fi name), `{heure}` (the time), `{batterie}` (the radio's battery). At first, in French: `{nom} : station de savoir hors ligne et messages. Wifi ouvert « {wifi} ». {position}` (*offline knowledge station and messages, open Wi-Fi…*). Under it, the station shows **exactly what will be sent** and its size (228 bytes on Meshtastic, about 140 on MeshCore; a longer text is cut at the end).

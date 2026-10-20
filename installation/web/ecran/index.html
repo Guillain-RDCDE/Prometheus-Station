@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prometheus Station</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<style>
+  /* Accueil de l'ecran de la mallette (maquette du 20/10/2026) : de gros paves a toucher du doigt ou a choisir au
+     clavier (fleches, Entree, Echap). Meme parti pris que le reste : du texte, des filets fins, pas de cartes ni
+     d'ombres ; l'accent seulement pour le pave choisi. Pense pour un 7 pouces couche (1280 x 720), marche partout. */
+  html, body { height: 100%; }
+  body { overflow: hidden; }
+  .ecran { height: 100%; display: flex; flex-direction: column; }
+  .haut { display: flex; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid var(--encre); flex: none; }
+  .retour-grand { flex: none; width: 64px; height: 56px; display: flex; align-items: center; justify-content: center; font: inherit; color: var(--encre); background: none; border: 1px solid var(--trait); border-radius: var(--rayon); cursor: pointer; }
+  .retour-grand[hidden] { display: none; }
+  .retour-grand:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .titre-ecran { flex: 1; min-width: 0; }
+  .titre-ecran b { display: block; font-size: 1.5rem; font-weight: 650; letter-spacing: -.015em; line-height: 1.1; }
+  .titre-ecran span { color: var(--gris); font-size: .95rem; }
+  .heure-ecran { flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+  .heure-ecran b { display: block; font-size: 1.6rem; font-weight: 600; line-height: 1.1; }
+  .heure-ecran span { color: var(--gris); font-size: .9rem; }
+  /* La grille : des cases separees par des filets, qui remplissent l'ecran */
+  .paves { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 1fr; min-height: 0; }
+  .pave { position: relative; display: flex; flex-direction: column; justify-content: space-between; padding: 22px 24px; min-height: 0;
+          border-right: 1px solid var(--trait); border-bottom: 1px solid var(--trait); color: var(--encre); background: none;
+          font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; }
+  .pave:nth-child(4n) { border-right: 0; }
+  .pave svg { width: 40px; height: 40px; stroke: var(--encre); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .pave .nom { font-size: 1.45rem; font-weight: 650; letter-spacing: -.012em; line-height: 1.15; }
+  .pave .info { color: var(--gris); font-size: .95rem; margin-top: 4px; min-height: 1.4em; }
+  .pave .info.alerte { color: var(--rouge-urgence); font-weight: 600; }
+  .pave:active { background: var(--accent-pale); }
+  .pave:focus { outline: none; }
+  .pave:focus-visible, .pave.choisi { box-shadow: inset 0 0 0 3px var(--accent); }
+  .pave.eteint .nom, .pave.eteint svg { opacity: .45; }
+  .pave.urgence svg { stroke: var(--rouge-urgence); }
+  .pave.urgence.allume .nom { color: var(--rouge-urgence); }
+  .aide-clavier { flex: none; color: var(--pale); font-size: .82rem; padding: 8px 22px 10px; border-top: 1px solid var(--trait); }
+  /* Ecran vertical ou telephone : deux colonnes, on fait defiler */
+  @media (max-aspect-ratio: 1/1), (max-width: 640px) {
+    body { overflow: auto; }
+    .ecran { height: auto; min-height: 100%; }
+    .paves { grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(150px, auto); }
+    .pave:nth-child(4n) { border-right: 1px solid var(--trait); }
+    .pave:nth-child(2n) { border-right: 0; }
+    .pave .nom { font-size: 1.2rem; }
+    .aide-clavier { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="ecran">
+  <div class="haut">
+    <button class="retour-grand" id="retour" type="button" hidden aria-label="Retour" data-en-aria="Back"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="titre-ecran"><b id="titre">Prometheus Station</b><span id="sous-titre"></span></div>
+    <div class="heure-ecran"><b id="heure">--:--</b><span id="date"></span></div>
+  </div>
+  <div class="paves" id="paves" role="menu"></div>
+  <div class="aide-clavier" data-en="Keyboard: arrows to choose, Enter to open, Escape to go back.">Au clavier : flèches pour choisir, Entrée pour ouvrir, Échap pour revenir.</div>
+</div>
+<script>
+function $(id) { return document.getElementById(id); }
+// Icones : un trait, a l'encre du theme
+var I = {
+  messages: '<path d="M4 5h16v11H9l-5 4z"/>', radio: '<path d="M12 13v8"/><circle cx="12" cy="11" r="2"/><path d="M8.5 7.5a5 5 0 0 0 0 7M15.5 7.5a5 5 0 0 1 0 7M5.6 4.6a9 9 0 0 0 0 12.8M18.4 4.6a9 9 0 0 1 0 12.8"/>',
+  livre: '<path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/>', globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  urgence: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>', proches: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20a6 6 0 0 1 12 0M14 20a4.5 4.5 0 0 1 7 0"/>',
+  station: '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/>', reglages: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  ecrire: '<path d="M4 20h4L19 9l-4-4L4 16z"/>', noeuds: '<circle cx="5" cy="12" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 11l10-4M7 13l10 4"/>',
+  canaux: '<path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/>', reseau: '<path d="M4 7h13l-3-3M20 17H7l3 3"/>', stats: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  atelier: '<rect x="7" y="7" width="10" height="10" rx="1"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/>', balise: '<path d="M12 3v4M5 8l2 2M19 8l-2 2"/><path d="M8 21l4-11 4 11"/>',
+  energie: '<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2M6 10v4M9.5 10v4"/>', wifi: '<path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M1.5 9a15 15 0 0 1 21 0"/>',
+  annonce: '<path d="M3 10v4h4l6 4V6L7 10z"/><path d="M17 9a4 4 0 0 1 0 6"/>', maj: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/>',
+  cle: '<circle cx="8" cy="14" r="4"/><path d="M11 11l9-9M17 5l3 3"/>', sauvegarde: '<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>',
+  sante: '<path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>', panneau: '<path d="M4 4h16v12H4zM8 20h8M12 16v4"/>'
+};
+// Les trois ecrans. Chaque pave : [cle, nom FR, nom EN, icone, lien (ou ecran #...), info en direct]
+var ECRANS = {
+  accueil: { titre: ['Prometheus Station', 'Prometheus Station'], paves: [
+    ['messages', 'Messages', 'Messages', 'messages', '/messages/'],
+    ['radio', 'Radio', 'Radio', 'radio', '#radio'],
+    ['encyclopedies', 'Encyclopédies', 'Encyclopedias', 'globe', '/encyclopedies/'],
+    ['bibliotheque', 'Bibliothèque', 'Library', 'livre', '/bibliotheque/'],
+    ['urgence', 'Urgence', 'Emergency', 'urgence', '/urgence/'],
+    ['proches', 'Retrouver ses proches', 'Find your loved ones', 'proches', '/registre/'],
+    ['station', 'État de la station', 'Station health', 'sante', '/parametres/#sante'],
+    ['reglages', 'Réglages', 'Settings', 'reglages', '#reglages']] },
+  radio: { titre: ['Radio', 'Radio'], paves: [
+    ['r-ecrire', 'Écrire par radio', 'Write by radio', 'ecrire', '/parametres/mesh/messages.html'],
+    ['r-noeuds', 'Radios entendues', 'Radios heard', 'noeuds', '/parametres/mesh/noeuds.html'],
+    ['r-canaux', 'Canaux', 'Channels', 'canaux', '/parametres/mesh/canaux.html'],
+    ['r-reglages', 'Réglages de la radio', 'Radio settings', 'reglages', '/parametres/mesh/config.html'],
+    ['r-reseau', 'Réseau et état', 'Network and state', 'reseau', '/parametres/mesh/'],
+    ['r-stats', 'Statistiques', 'Statistics', 'stats', '/parametres/mesh/stats.html'],
+    ['r-atelier', 'Atelier (autres radios)', 'Workshop (other radios)', 'atelier', '/parametres/mesh/atelier.html'],
+    ['r-balise', 'Balise et tableau', 'Beacon and board', 'balise', '/parametres/#radio']] },
+  reglages: { titre: ['Réglages', 'Settings'], paves: [
+    ['p-radio', 'Radio', 'Radio', 'radio', '/parametres/#radio'],
+    ['p-ecran', 'Écran et clavier', 'Screen and keyboard', 'station', '/parametres/#ecran'],
+    ['p-energie', 'Énergie', 'Energy', 'energie', '/parametres/#energie'],
+    ['p-wifi', 'Wi-Fi', 'Wi-Fi', 'wifi', '/parametres/#wifi'],
+    ['p-annonce', 'Annonce', 'Announcement', 'annonce', '/parametres/#annonce'],
+    ['p-urgence', 'Page Urgence', 'Emergency page', 'urgence', '/parametres/#urgence'],
+    ['p-panneau', 'Panneau d’accueil', 'Welcome board', 'panneau', '/parametres/#panneau'],
+    ['p-maj', 'Mises à jour', 'Updates', 'maj', '/parametres/#logiciels'],
+    ['p-sauvegarde', 'Sauvegarde', 'Backup', 'sauvegarde', '/parametres/#sauvegarde'],
+    ['p-mdp', 'Mot de passe', 'Password', 'cle', '/parametres/#motdepasse'],
+    ['p-sante', 'État de la station', 'Station health', 'sante', '/parametres/#sante'],
+    ['p-tout', 'Tous les paramètres', 'All settings', 'reglages', '/parametres/']] }
+};
+var infos = {};   // cle du pave -> [texte, classe]
+
+function ecranCourant() { var h = location.hash.slice(1); return ECRANS[h] ? h : 'accueil'; }
+function dessiner() {
+  var e = ecranCourant(), d = ECRANS[e], z = $('paves');
+  $('titre').textContent = T(d.titre[0], d.titre[1]);
+  $('retour').hidden = e === 'accueil';
+  z.innerHTML = '';
+  // 8 paves = 4 x 2 ; 12 = 4 x 3
+  z.style.gridTemplateRows = matchMedia('(max-aspect-ratio: 1/1), (max-width: 640px)').matches ? '' : 'repeat(' + Math.ceil(d.paves.length / 4) + ', 1fr)';
+  d.paves.forEach(function (p) {
+    var a = document.createElement('a');
+    a.className = 'pave'; a.href = p[4]; a.setAttribute('role', 'menuitem'); a.dataset.cle = p[0];
+    a.innerHTML = '<svg viewBox="0 0 24 24">' + I[p[3]] + '</svg><div><div class="nom"></div><div class="info"></div></div>';
+    a.querySelector('.nom').textContent = T(p[1], p[2]);
+    if (p[4].charAt(0) === '#') a.onclick = function (ev) { ev.preventDefault(); location.hash = p[4].slice(1); };
+    z.appendChild(a);
+  });
+  majInfos();
+  var premier = z.querySelector('.pave'); if (premier && !matchMedia('(hover: none)').matches) premier.focus();
+}
+function majInfos() {
+  document.querySelectorAll('.pave').forEach(function (a) {
+    var i = infos[a.dataset.cle] || ['', ''], x = a.querySelector('.info');
+    x.textContent = i[0]; x.className = 'info' + (i[1] === 'alerte' ? ' alerte' : '');
+    a.classList.toggle('eteint', i[1] === 'eteint');
+    if (a.dataset.cle === 'urgence' || a.dataset.cle === 'p-urgence') { a.classList.add('urgence'); a.classList.toggle('allume', i[1] === 'alerte'); }
+  });
+}
+$('retour').onclick = function () { location.hash = ''; };
+addEventListener('hashchange', dessiner);
+
+// Clavier : fleches pour se deplacer dans la grille, Entree pour ouvrir, Echap pour revenir
+addEventListener('keydown', function (ev) {
+  var paves = [].slice.call(document.querySelectorAll('.pave')), i = paves.indexOf(document.activeElement);
+  var col = getComputedStyle($('paves')).gridTemplateColumns.split(' ').length;
+  var pas = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: col, ArrowUp: -col }[ev.key];
+  if (pas) {
+    ev.preventDefault();
+    var j = i < 0 ? 0 : Math.min(paves.length - 1, Math.max(0, i + pas));
+    paves[j].focus();
+  } else if (ev.key === 'Escape' || ev.key === 'Backspace') {
+    if (ecranCourant() !== 'accueil') { ev.preventDefault(); location.hash = ''; }
+  }
+});
+
+// L'heure, en grand
+function horloge() {
+  var d = new Date(), loc = LANGUE === 'en' ? 'en-GB' : 'fr-FR';
+  $('heure').textContent = d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
+  $('date').textContent = d.toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'long' });
+}
+horloge(); setInterval(horloge, 15000);
+
+// Les infos en direct (seulement ce que tout visiteur peut lire ; l'etat de la station si l'administrateur est connecte)
+function lire(u) { return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw r.status; return r.json(); }); }
+function charger() {
+  lire('/api/messages').then(function (d) {
+    var auj = new Date(); auj.setHours(0, 0, 0, 0);
+    var n = (d.messages || []).filter(function (m) { return m.heure * 1000 >= auj.getTime(); }).length;
+    infos.messages = [n ? n + T(' aujourd’hui', ' today') : T('Aucun aujourd’hui', 'None today'), ''];
+    var r = d.radio || {};
+    var etat = !r.active ? [T('Désactivée', 'Turned off'), 'eteint'] : r.etat === 'ok' ? [(r.reseau === 'meshcore' ? 'MeshCore' : 'Meshtastic') + T(' · connectée', ' · connected'), '']
+             : [T('Ne répond pas', 'Not answering'), 'alerte'];
+    infos.radio = etat; infos['p-radio'] = etat;
+    infos['r-ecrire'] = r.attente ? [r.attente + T(' en attente d’envoi', ' waiting to leave'), ''] : ['', ''];
+    majInfos();
+  }).catch(function () {});
+  lire('/api/reglages').then(function (g) {
+    infos.urgence = g.urgence && g.urgence.active ? [T('Allumée', 'On'), 'alerte'] : [T('Éteinte', 'Off'), 'eteint'];
+    infos['p-urgence'] = infos.urgence;
+    infos.proches = g.registre && g.registre.active ? ['', ''] : [T('Désactivé', 'Turned off'), 'eteint'];
+    infos['p-annonce'] = g.annonce && g.annonce.active && g.annonce.texte ? [T('Affichée', 'Shown'), ''] : [T('Aucune', 'None'), ''];
+    infos['r-balise'] = g.balise && g.balise.active ? [T('Balise activée', 'Beacon on'), ''] : ['', ''];
+    infos['p-ecran'] = g.ecran && g.ecran.active ? [T('Activé', 'On'), ''] : [T('Désactivé', 'Off'), ''];
+    majInfos();
+  }).catch(function () {});
+  lire('/admin-api/sante').then(function (s) {
+    var t = [];
+    if (s.temperature !== null) t.push(s.temperature + ' °C');
+    if (s.personnes !== undefined) t.push(s.personnes + T(' connecté(s)', ' connected'));
+    var mauvais = s.tension === 'basse' || (s.temperature || 0) > 80;
+    infos.station = [t.join(' · ') + (s.tension === 'basse' ? T(' · alimentation faible', ' · power low') : ''), mauvais ? 'alerte' : ''];
+    infos['p-sante'] = infos.station;
+    $('sous-titre').textContent = t.join(' · ');
+    majInfos();
+  }).catch(function () { $('sous-titre').textContent = T('Station de savoir et de radio', 'Knowledge and radio station'); });
+}
+dessiner(); charger(); setInterval(charger, 30000);
+</script>
+</body>
+</html>

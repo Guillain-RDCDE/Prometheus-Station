@@ -85,13 +85,14 @@
   } catch (e) {}
   if (!oui) return;
   function poser() {
-    if (document.getElementById('prometheus-kiosque')) return;
+    // L'accueil en paves (/ecran/) a son propre bouton retour
+    if (document.getElementById('prometheus-kiosque') || location.pathname.indexOf('/ecran') === 0) return;
     var en = (document.documentElement.lang || '').slice(0, 2) === 'en';
     var z = document.createElement('div');
     z.id = 'prometheus-kiosque';
     z.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:2147483646;display:flex;gap:12px';
     [['M15 5l-7 7 7 7', en ? 'Back' : 'Retour', function () { history.back(); }],
-     ['M4 11l8-7 8 7M6 9.5V20h12V9.5', en ? 'Home' : 'Accueil', function () { location.href = '/'; }]].forEach(function (b) {
+     ['M4 11l8-7 8 7M6 9.5V20h12V9.5', en ? 'Home' : 'Accueil', function () { location.href = '/ecran/'; }]].forEach(function (b) {
       var x = document.createElement('button');
       x.type = 'button';
       x.setAttribute('aria-label', b[1]);

@@ -31,6 +31,9 @@ cp "$ICI/web/parametres/index.html" "$ICI/web/parametres/affiche.html" "$ICI/web
 # Section Mesh (plan Mesh, 19/10/2026) : la station Meshtastic / MeshCore complete
 mkdir -p "$WEB/parametres/mesh"
 cp "$ICI"/web/parametres/mesh/* "$WEB/parametres/mesh/"
+# Accueil en gros paves de l'ecran de la mallette (etape 11) : maquette, sans lien depuis les autres pages
+mkdir -p "$WEB/ecran"
+cp "$ICI/web/ecran/index.html" "$WEB/ecran/"
 mkdir -p "$WEB/messages"
 cp "$ICI/web/messages/index.html" "$WEB/messages/"
 mkdir -p "$WEB/encyclopedies"

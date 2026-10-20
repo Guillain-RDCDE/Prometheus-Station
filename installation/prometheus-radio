@@ -18,6 +18,7 @@
 #   historique.db           SQLite : paquets entendus, statistiques, telemetrie (90 jours par defaut)
 #   mesh-sauvegardes/       reglages gardes avant chaque changement fait depuis la section Mesh
 #   garde-fou.json          un reglage risque vient d'etre ecrit : si la radio ne revient pas, on remet la sauvegarde
+#   balise.json             dernier envoi de la balise (Parametres > Radio > Balise)
 # Avant d'utiliser l'outil « meshtastic » a la main : sudo systemctl stop prometheus-radio (un seul programme a la fois).
 import asyncio, base64, glob, json, os, secrets, sqlite3, threading, time
 
@@ -186,6 +187,64 @@ def message_parti(f, m):
 
 def nettoyer(s, n):
     return ' '.join(str(s).split())[:n]
+
+
+# =====================================================================  Balise (Parametres > Radio > Balise)
+# Un message tout fait, envoye tout seul sur un canal a intervalle regulier (3 h par defaut), au depart seulement
+# quand la page Urgence est allumee : pour que ceux qui ont une radio apprennent que la station existe et ou elle est.
+# Il passe par la meme file que les messages du tableau (meme ecart entre deux emissions, meme journal).
+BALISE = os.path.join(DOSSIER, 'balise.json')        # {derniere: heure du dernier envoi, texte: dernier texte envoye}
+balise_ssid = [0, '']                                # le nom du wifi, relu toutes les 10 minutes
+
+
+def nom_wifi():
+    if time.time() - balise_ssid[0] > 600:
+        try:
+            import subprocess
+            balise_ssid[1] = subprocess.run(['nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', 'prometheus-wifi'],
+                                            capture_output=True, text=True, timeout=10).stdout.strip()
+        except Exception:
+            pass
+        balise_ssid[0] = time.time()
+    return balise_ssid[1]
+
+
+def rendre_balise(texte, maxi):
+    """Le texte de la balise, cases remplies : {nom} {position} {wifi} {heure} {batterie}. Le meme calcul est fait
+    par prometheus-admin pour l'apercu des Parametres (garder les deux pareils)."""
+    moi = lire(DETAILS, {}).get('moi', {})
+    pos = '%.4f, %.4f' % (moi['lat'], moi['lon']) if moi.get('lat') and moi.get('lon') else ''
+    bat = moi.get('batterie')
+    valeurs = {'nom': moi.get('nom') or lire(ETAT, {}).get('nom', ''), 'position': pos, 'wifi': nom_wifi(),
+               'heure': time.strftime('%H:%M'), 'batterie': '' if bat is None else ('secteur' if bat > 100 else '%d %%' % bat)}
+    t = str(texte)
+    for k, v in valeurs.items():
+        t = t.replace('{%s}' % k, v)
+    t = ' '.join(t.split())
+    while len(t.encode()) > maxi:          # trop long pour le reseau en service : coupe a la fin
+        t = t[:-1]
+    return t
+
+
+def balise():
+    """A chaque tour de boucle : met la balise dans la file quand son heure est venue."""
+    b = reglages_section('balise')
+    if b.get('active') is not True or not str(b.get('texte', '')).strip():
+        return
+    if b.get('urgence_seulement', True) and reglages_section('urgence').get('active') is not True:
+        return
+    etat = lire(BALISE, {})
+    heures = b.get('heures') if b.get('heures') in (1, 3, 6, 12) else 3
+    if time.time() - etat.get('derniere', 0) < heures * 3600:
+        return
+    texte = rendre_balise(b['texte'], lire(ETAT, {}).get('max') or MAX_MESHTASTIC)
+    if not texte:
+        return
+    canal = b.get('canal') if type(b.get('canal')) is int and 0 <= b.get('canal') < 8 else 0
+    ident = 'b' + secrets.token_hex(6)
+    ecrire(os.path.join(A_ENVOYER, '%d-%s.json' % (time.time() * 1000, ident)), {'id': ident, 'texte': texte, 'canal': canal, 'a': ''})
+    ecrire(BALISE, {'derniere': time.time(), 'texte': texte, 'canal': canal})
+    print('Balise mise dans la file :', texte, flush=True)
 
 
 # =====================================================================  Historique (section Mesh)
@@ -1196,6 +1255,7 @@ def boucle_meshtastic():
             fermer()
             continue
         traiter_ordres_meshtastic()
+        balise()
         if time.time() - derniere_photo > PHOTO:
             photographier()
         if time.time() - dernier_releve > RELEVE:
@@ -1798,6 +1858,7 @@ class StationMeshCore:
                 continue
             try:
                 await self.traiter_ordres()
+                balise()
                 if time.time() - derniere_photo > PHOTO:
                     await self.photographier()
                 if time.time() - dernier_releve > RELEVE:

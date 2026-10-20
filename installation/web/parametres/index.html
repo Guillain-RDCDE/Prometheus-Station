@@ -386,6 +386,22 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <div class="ligne"><label class="nom" for="mesh-toutes"><span data-en="Software of every board">Logiciels de toutes les cartes</span><span class="sous valeur" data-en="About 1 GB per version" style="max-width:none">Environ 1 Go par version</span></label><button class="aide-bouton" aria-controls="aide-mesh-toutes" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button><input type="checkbox" class="interrupteur" id="mesh-toutes"></div>
     <div class="aide" id="aide-mesh-toutes"><div><p data-en="With internet, the station keeps the Meshtastic and MeshCore software of every known board, not only those it follows. Then any radio brought by a neighbour can be installed without internet.">Avec internet, la station garde les logiciels Meshtastic et MeshCore de toutes les cartes connues, pas seulement celles qu’elle suit. N’importe quelle radio apportée par un voisin pourra alors être installée sans internet.</p></div></div>
   </div>
+  <!-- Balise : un message tout fait envoye seul par radio (desactivee au depart ; au depart seulement en urgence) -->
+  <h2 class="avec-aide"><span data-en="Beacon">Balise</span><button class="aide-bouton" aria-controls="aide-balise" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
+  <div class="aide seule" id="aide-balise"><div><p data-en="Every few hours the station sends this message by radio by itself, so that people with a radio learn that it exists and where it is. Its position becomes public: radios that relay to the internet may put it on online maps.">Toutes les quelques heures, la station envoie seule ce message par radio, pour que ceux qui ont une radio apprennent qu’elle existe et où elle est. Sa position devient publique : des radios reliées à internet peuvent la mettre sur des cartes en ligne.</p></div></div>
+  <div class="groupe">
+    <div class="ligne"><label class="nom" for="balise-active" data-en="Turned on">Activée</label><input type="checkbox" class="interrupteur" id="balise-active"></div>
+    <div class="ligne"><label class="nom" for="balise-urgence"><span data-en="Only when the Emergency page is on">Seulement quand la page Urgence est allumée</span><span class="sous valeur" data-en="It stops by itself when the crisis is over" style="max-width:none">Elle s’arrête seule quand la crise est passée</span></label><input type="checkbox" class="interrupteur" id="balise-urgence"></div>
+  </div>
+  <h2 data-en="Message">Message</h2>
+  <textarea class="champ" id="balise-texte" rows="3" maxlength="200"></textarea>
+  <div class="puces" id="balise-cases"></div>
+  <p class="note" id="balise-apercu"></p>
+  <button class="bouton" id="balise-enregistrer" disabled data-en="Save the message">Enregistrer le message</button>
+  <h2 data-en="Sent every">Envoyée toutes les</h2>
+  <div class="puces" id="balise-heures"></div>
+  <h2 data-en="On channel">Sur le canal</h2>
+  <div class="puces" id="balise-canal"></div>
 </section>
 
 <!-- ===== Effacer les ecrits des visiteurs ===== -->
@@ -1010,6 +1026,7 @@ function afficherCommunaute() {
   $('val-ecran').textContent = ec.active ? T('Activé', 'On') : T('Désactivé', 'Off');
   puces($('ecran-veille'), [[2, '2 min'], [5, '5 min'], [15, '15 min'], [60, '1 h'], [0, T('Jamais', 'Never')]],
     function (v) { return v === ec.veille; }, function (v) { regler('ecran', { veille: v }); });
+  afficherBalise();
   var me = reg.mesh || { historique_jours: 90, distance: false, toutes_cartes: false };
   puces($('mesh-histo'), [[30, T('30 jours', '30 days')], [90, T('90 jours', '90 days')], [365, T('1 an', '1 year')], [0, T('Toujours', 'Forever')]],
     function (v) { return v === me.historique_jours; }, function (v) { regler('mesh', { historique_jours: v }); });
@@ -1017,6 +1034,54 @@ function afficherCommunaute() {
   $('mesh-toutes').checked = me.toutes_cartes;
   etatRadio();
 }
+// ----- Balise : texte avec des cases remplies par la station, apercu exact (calcule par la station elle-meme)
+var baliseInfo = null;
+function afficherBalise() {
+  var b = reg.balise || { active: false, texte: '', heures: 3, canal: 0, urgence_seulement: true };
+  $('balise-active').checked = b.active;
+  $('balise-urgence').checked = b.urgence_seulement;
+  var z = $('balise-texte');
+  if (document.activeElement !== z && !z.dataset.touche) z.value = b.texte;
+  puces($('balise-heures'), [[1, '1 h'], [3, '3 h'], [6, '6 h'], [12, '12 h']],
+    function (v) { return v === b.heures; }, function (v) { regler('balise', { heures: v }); });
+  var canaux = ((baliseInfo || {}).canaux || []).map(function (c) { return [c.index, c.nom]; });
+  if (!canaux.length) canaux = [[0, T('Canal principal', 'Primary channel')]];
+  puces($('balise-canal'), canaux, function (v) { return v === b.canal; }, function (v) { regler('balise', { canal: v }); });
+  apercuBalise();
+}
+var CASES_BALISE = [['{nom}', T('nom de la station', 'station name')], ['{position}', T('position', 'position')], ['{wifi}', T('nom du wifi', 'Wi-Fi name')],
+                    ['{heure}', T('heure', 'time')], ['{batterie}', T('batterie', 'battery')]];
+CASES_BALISE.forEach(function (c) {
+  var x = document.createElement('button'); x.className = 'puce'; x.type = 'button'; x.textContent = '+ ' + c[1];
+  x.onclick = function () {
+    var z = $('balise-texte'), i = z.selectionStart || z.value.length;
+    z.value = z.value.slice(0, i) + c[0] + z.value.slice(i); z.dataset.touche = '1'; z.focus();
+    $('balise-enregistrer').disabled = false; apercuBalise();
+  };
+  $('balise-cases').appendChild(x);
+});
+var minuteBalise = null;
+function apercuBalise() {
+  clearTimeout(minuteBalise);
+  minuteBalise = setTimeout(function () {
+    fetch('/admin-api/balise?texte=' + encodeURIComponent($('balise-texte').value), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      var premier = !baliseInfo; baliseInfo = d;
+      var t = T('Partira ainsi : « ', 'Will be sent as: « ') + d.apercu + ' » (' + d.octets + ' / ' + d.max + T(' octets', ' bytes') + ')';
+      if (d.coupe) t += T(' — trop long : la fin sera coupée.', ' — too long: the end will be cut.');
+      if (!d.position && $('balise-texte').value.indexOf('{position}') >= 0) t += T(' La station n’a pas de position fixe (section Mesh › Configuration) : la case reste vide.', ' The station has no fixed position (Mesh section › Settings): the field stays empty.');
+      if (d.derniere) t += T(' Dernier envoi : ', ' Last sent: ') + new Date(d.derniere * 1000).toLocaleString(LANGUE === 'en' ? 'en-GB' : 'fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '.';
+      $('balise-apercu').textContent = t;
+      if (premier && reg.balise) afficherBalise();   // les canaux de la radio sont maintenant connus
+    }).catch(function () {});
+  }, 300);
+}
+$('balise-texte').addEventListener('input', function () { this.dataset.touche = '1'; $('balise-enregistrer').disabled = false; apercuBalise(); });
+$('balise-enregistrer').onclick = function () {
+  var b = this;
+  regler('balise', { texte: $('balise-texte').value });
+  delete $('balise-texte').dataset.touche; b.disabled = true;
+};
+
 // Etat de la radio, tenu a jour par le programme prometheus-radio
 function etatRadio() {
   fetch('/api/radio', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
@@ -1049,7 +1114,8 @@ function communaute() {
 [['annonce-active', 'annonce', 'active'], ['annonce-defile', 'annonce', 'defile'], ['annonce-ecran', 'annonce', 'ecran'],
  ['registre-active', 'registre', 'active'], ['registre-lieu', 'registre', 'lieu'],
  ['entraide-active', 'entraide', 'active'], ['urgence-active', 'urgence', 'active'], ['radio-active', 'radio', 'active'],
- ['mesh-distance', 'mesh', 'distance'], ['mesh-toutes', 'mesh', 'toutes_cartes'], ['ecran-active', 'ecran', 'active']].forEach(function (x) {
+ ['mesh-distance', 'mesh', 'distance'], ['mesh-toutes', 'mesh', 'toutes_cartes'], ['ecran-active', 'ecran', 'active'],
+ ['balise-active', 'balise', 'active'], ['balise-urgence', 'balise', 'urgence_seulement']].forEach(function (x) {
   $(x[0]).onchange = function () { var v = {}; v[x[2]] = this.checked; regler(x[1], v); };
 });
 // Texte de l'annonce : bouton Enregistrer

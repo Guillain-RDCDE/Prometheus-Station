@@ -72,6 +72,19 @@ Deleting a message on the board, or *Delete all messages*, **does not delete it 
 
 What deleting does: a message **not yet sent** by radio is taken out of the queue and will never leave. Before you confirm, the Settings warn you: *Warning: 2 message(s) not yet sent by radio will not be sent. Those already sent by radio stay on the radios.* The same goes for *Erase what visitors wrote*.
 
+## The beacon
+
+**Settings › Radio › Beacon.** Every few hours the station sends a ready-made message by radio, on its own, so that people who have a radio but don't know the station learn that it exists, where it is, and how to join it. Off at first.
+
+- **Message**: write it yourself; the buttons insert fields the station fills in when sending: `{nom}` (the radio's name), `{position}` (its fixed position, set in the Mesh section › Settings; empty without one), `{wifi}` (the station's Wi-Fi name), `{heure}` (the time), `{batterie}` (the radio's battery). At first, in French: `{nom} : station de savoir hors ligne et messages. Wifi ouvert « {wifi} ». {position}` (*offline knowledge station and messages, open Wi-Fi…*). Under it, the station shows **exactly what will be sent** and its size (228 bytes on Meshtastic, about 140 on MeshCore; a longer text is cut at the end).
+- **Sent every** 1, 3 (at first), 6 or 12 hours, **on the channel** you choose.
+- **Only when the Emergency page is on** (ticked at first): the beacon only runs during a crisis and stops by itself when the Emergency page is turned off. In ordinary times an automatic message on the public channel is unwelcome: on MeshCore every repeater passes it across the whole area.
+- It joins the same queue as the board's messages (same spacing, same radio journal). One short message every 3 hours is about a second or two on the air, far below the European limit.
+
+**Its position becomes public**: radios that relay what they hear to the internet (« MQTT observers ») can put it on online maps. Give a landmark (*near the town hall*) rather than your home's exact address.
+
+> Tested: off, or on with the Emergency page off, nothing leaves; on without the emergency condition, one message left on MeshCore's *Public* channel, and no second one a minute later; with the Emergency page on (checked on test settings, so as not to show the Emergency page to visitors), it leaves at once, then waits 3 hours; a text too long for the network is cut to its size.
+
 ## Low-power mode
 
 The low-power mode (*Settings › Energy*) normally switches the USB ports off. **When the radio is turned on, it leaves them on**, so the T-Beam keeps working.

@@ -91,10 +91,14 @@ DEFAUT = {
     'mesh': {'historique_jours': 90, 'distance': False, 'toutes_cartes': False},
     # Ecran et clavier branches sur la station (etape 11, la « mallette ») : veille en minutes, 0 = jamais
     'ecran': {'active': False, 'veille': 5},
+    # Balise : un message tout fait envoye seul par radio (toutes les 3 h ; au depart seulement si Urgence est allumee)
+    'balise': {'active': False, 'texte': '{nom} : station de savoir hors ligne et messages. Wifi ouvert « {wifi} ». {position}',
+               'heures': 3, 'canal': 0, 'urgence_seulement': True},
 }
 CHOIX = {'couleur': ('info', 'important', 'urgent'), 'vitesse': ('lente', 'normale', 'rapide'), 'duree': (0, 24, 72, 168),
          'qui': ('tous', 'admin'), 'delai': (30, 60, 300), 'ecran_minutes': (0, 1, 2, 5, 15),
-         'historique_jours': (0, 30, 90, 365), 'veille': (0, 2, 5, 15, 60)}
+         'historique_jours': (0, 30, 90, 365), 'veille': (0, 2, 5, 15, 60),
+         'heures': (1, 3, 6, 12), 'canal': tuple(range(8))}
 # Ordres de la section Mesh compris par prometheus-radio (Meshtastic et/ou MeshCore)
 ORDRES_MESH = ('config-lire', 'config-ecrire', 'canal', 'canaux-lien', 'proprietaire', 'position', 'messages-prets',
                'noeud', 'demande', 'action', 'distant')
@@ -318,6 +322,32 @@ def historique(q):
         return []
     finally:
         db.close()
+
+
+def apercu_balise(texte):
+    """Le texte de la balise tel que la radio l'enverra (meme calcul que rendre_balise dans prometheus-radio)."""
+    moi = lire_json(os.path.join(RADIO, 'details.json'), {}).get('moi', {})
+    etat = lire_json(os.path.join(RADIO, 'etat.json'), {})
+    try:
+        wifi = subprocess.run(['nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', 'prometheus-wifi'],
+                              capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception:
+        wifi = ''
+    bat = moi.get('batterie')
+    valeurs = {'nom': moi.get('nom') or etat.get('nom', ''), 'wifi': wifi, 'heure': time.strftime('%H:%M'),
+               'position': '%.4f, %.4f' % (moi['lat'], moi['lon']) if moi.get('lat') and moi.get('lon') else '',
+               'batterie': '' if bat is None else ('secteur' if bat > 100 else '%d %%' % bat)}
+    t = str(texte)
+    for k, v in valeurs.items():
+        t = t.replace('{%s}' % k, v)
+    t = ' '.join(t.split())
+    maxi = etat.get('max') or MAX_RADIO
+    entier = t
+    while len(t.encode()) > maxi:
+        t = t[:-1]
+    return {'apercu': t, 'octets': len(entier.encode()), 'max': maxi, 'coupe': t != entier, 'position': bool(valeurs['position']),
+            'derniere': lire_json(os.path.join(RADIO, 'balise.json'), {}).get('derniere'),
+            'canaux': lire_json(os.path.join(RADIO, 'details.json'), {}).get('canaux', [])}
 
 
 def port_station():
@@ -557,6 +587,14 @@ class Admin(BaseHTTPRequestHandler):
                                            'ports': [os.path.basename(p) for p in sorted(glob.glob('/dev/serial/by-id/*'))],
                                            'maintenant': time.time()})
             return self.repondre(404)
+        if self.path.startswith('/balise'):
+            # Parametres > Radio > Balise : apercu du texte tel qu'il partira (?texte= : un texte pas encore enregistre)
+            if not self.connecte():
+                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+            from urllib.parse import urlsplit, parse_qs
+            q = parse_qs(urlsplit(self.path).query)
+            texte = q.get('texte', [reglages()['balise']['texte']])[0][:400]
+            return self.repondre(200, apercu_balise(texte))
         if self.path == '/radio':
             if not self.connecte():
                 return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})

@@ -780,20 +780,25 @@ function couleurs(actuel) {
 function suivre() {
   lire().then(function (e) {
     afficher(e);
-    if (e.telechargement || (e.systeme && e.systeme.en_cours)) setTimeout(function () { ordre('verifier'); setTimeout(suivre, 8000); }, 52000);
+    if (e.telechargement || (e.systeme && e.systeme.en_cours)) setTimeout(function () { ordreEtSuivre('verifier'); }, 50000);
   }).catch(function () { setTimeout(suivre, 3000); });
 }
-function verifier() {
-  var avant = null;
-  lire().then(function (e) { avant = e.horodatage; afficher(e); }).catch(function () {});
-  ordre('verifier').then(function () {
+// Un ordre, puis on attend que la station ait recalcule son etat (etat.json : horodatage nouveau) avant de le montrer.
+// Le recalcul prend une dizaine de secondes (la station interroge Kiwix pour chaque contenu) : relire trop tot
+// montrait l'etat d'avant, et le bouton « Tout mettre a jour » se reproposait alors que le telechargement tournait (23/10/2026).
+function ordreEtSuivre(nom, fini) {
+  var avant = etat ? etat.horodatage : null;
+  ordre(nom).then(function () {
     var essais = 0;
     (function attendre() {
       lire().then(function (e) {
-        if (e.horodatage !== avant || ++essais > 20) suivre(); else setTimeout(attendre, 2000);
+        if (e.horodatage !== avant || ++essais > 45) { if (fini) fini(); suivre(); } else setTimeout(attendre, 2000);
       }).catch(function () { setTimeout(attendre, 2000); });
     })();
-  });
+  }).catch(function () { if (fini) fini(); suivre(); });
+}
+function verifier() {
+  lire().then(function (e) { afficher(e); ordreEtSuivre('verifier'); }).catch(function () { ordreEtSuivre('verifier'); });
 }
 
 // ----- Messages : nombre, et tout effacer (en deux temps pour eviter une fausse manoeuvre)
@@ -834,8 +839,9 @@ compterMessages();
 
 // ----- Boutons
 $('bouton-contenus').onclick = function () {
+  // Le bouton reste sur « Lancement… » jusqu'a ce que la station dise que le telechargement tourne
   this.disabled = true; this.textContent = T('Lancement…', 'Starting…');
-  ordre('mettre-a-jour').then(function () { setTimeout(suivre, 8000); });
+  ordreEtSuivre('mettre-a-jour');
 };
 // ----- Mise a jour du systeme : le detail defile pendant qu'elle tourne (fichier ecrit par prometheus-commande)
 var suiviMaj = false;
@@ -1180,9 +1186,8 @@ setInterval(sante, 60000);
 $('bouton-sauvegarder').onclick = function () {
   var b = this;
   b.disabled = true; b.textContent = T('Sauvegarde…', 'Backing up…');
-  ordre('sauvegarder').then(function () {
-    setTimeout(function () { verifier(); b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now'); }, 3000);
-  });
+  // L'etat est recalcule a la fin de la sauvegarde : le bouton revient a ce moment-la, pas avant
+  ordreEtSuivre('sauvegarder', function () { b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now'); });
 };
 
 // ----- Sujets les plus cherches, et ceux epingles sur l'accueil

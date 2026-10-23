@@ -117,6 +117,9 @@ User=prometheus
 Nice=10
 IOSchedulingClass=idle
 ExecStart=/usr/local/bin/prometheus-telecharger
+# A la fin (reussie ou non), l'etat montre par Parametres > Encyclopedies est recalcule (en root : le « + ») ;
+# sans ca, la page restait sur « en cours » apres un telechargement fini (23/10/2026)
+ExecStopPost=+/usr/local/bin/prometheus-etat
 EOF
 
 echo "== Reprise automatique : 5 min apres chaque demarrage, puis chaque jour"

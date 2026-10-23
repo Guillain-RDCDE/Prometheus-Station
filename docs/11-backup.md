@@ -17,7 +17,7 @@ Pi$ sudo bash 09-sauvegarde.sh
 
 ## Download it
 
-**Settings > System > Backup**: the date of the last backup, a **Download** button and a **Back up now** button. Keep the file somewhere safe — and private, since it holds your Wi-Fi passwords.
+**Settings > System > Backup**: the date of the last backup, a **Download** button and a **Back up now** button (a line under it says *Backing up…*, then shows a green check with the time once the new backup is there). Keep the file somewhere safe — and private, since it holds your Wi-Fi passwords.
 
 ## Put it back
 

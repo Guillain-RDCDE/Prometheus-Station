@@ -32,7 +32,7 @@ Pi$ journalctl -b -1 -e
 ## The downloads seem stuck, or "Checksum error detected"
 
 - `[ERROR] Checksum error detected` at the start of a file is normal (see step 4).
-- Follow them: `journalctl -fu prometheus-telechargement`.
+- Follow them: `journalctl -fu prometheus-telechargement`. When a download ends, the service recomputes what the Settings show (`prometheus-etat`, run by the service itself): the Encyclopedias page no longer stays on *in progress*.
 - After a power cut, they resume by themselves 5 minutes after the restart.
 - To wait for the end of the downloads in a script, don't use `systemctl is-active`: while downloading, the service is *activating*, not *active*. Use `systemctl show -p ActiveState --value prometheus-telechargement` and wait for `inactive`.
 

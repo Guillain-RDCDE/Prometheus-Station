@@ -33,6 +33,15 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .entete { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
   .entete button { font: inherit; color: var(--accent); background: none; border: 0; padding: 4px 0; cursor: pointer; font-size: 1rem; }
   .note { color: var(--gris); font-size: .88rem; margin: 10px 4px 0; }
+  /* Ligne d'etat sous un bouton d'action : ce que la station fait en ce moment, puis le resultat */
+  .suivi { margin: 12px 4px 0; font-size: .95rem; font-weight: 600; color: var(--encre); }
+  .suivi[hidden] { display: none; }
+  .suivi .texte-suivi { display: flex; align-items: center; gap: 10px; }
+  .suivi .roue { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--trait); border-top-color: var(--accent); animation: tourne .8s linear infinite; }
+  .suivi svg { flex: none; width: 18px; height: 18px; }
+  .suivi.fini { color: #2f9e44; } .suivi.echec { color: #c92a2a; }
+  .suivi .jauge { margin: 8px 0 0; }
+  @keyframes tourne { to { transform: rotate(360deg); } }
   .jauge { height: 10px; border-radius: 5px; background: var(--trait); overflow: hidden; margin: 6px 0 4px; }
   .jauge i { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
 
@@ -258,7 +267,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
   <h1 data-en="Encyclopedias">Encyclopédies</h1>
   <button class="bouton" id="bouton-contenus" disabled data-en="Checking…">Vérification…</button>
-  <p class="note" id="note-contenus"></p>
+  <div class="suivi" id="suivi-contenus" hidden aria-live="polite"></div>
   <h2 data-en="Installed content">Contenus installés</h2>
   <div class="groupe" id="liste-contenus"></div>
 </section>
@@ -573,6 +582,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   </div>
   <a class="bouton" id="bouton-telecharger" hidden data-en="Download">Télécharger</a>
   <button class="bouton secondaire" id="bouton-sauvegarder" data-en="Back up now">Sauvegarder maintenant</button>
+  <div class="suivi" id="suivi-sauvegarde" hidden aria-live="polite"></div>
   <p class="note" data-en="The file contains your Wi-Fi passwords: keep it private.">Le fichier contient vos mots de passe wifi : gardez-le pour vous.</p>
 
   <h2 class="avec-aide"><span data-en="Restore a backup">Remettre une sauvegarde</span><button class="aide-bouton" aria-controls="aide-restaurer" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
@@ -635,6 +645,42 @@ document.querySelectorAll('[data-vue]').forEach(function (b) { b.onclick = funct
 document.querySelectorAll('[data-retour]').forEach(function (b) { b.onclick = function () { history.replaceState(null, '', location.pathname); montrer(); }; });
 montrer();
 
+// ----- Ligne d'etat sous un bouton : « travail » (une roue qui tourne), « fini » (coche verte), « echec » (rouge)
+function suivi(id, genre, texte, pourcent) {
+  var z = $(id); z.hidden = false; z.className = 'suivi' + (genre === 'travail' ? '' : ' ' + genre); z.innerHTML = '';
+  var t = el('div', 'texte-suivi');
+  if (genre === 'travail') t.appendChild(el('span', 'roue'));
+  else if (genre === 'fini') t.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>');
+  t.appendChild(el('span', '', texte)); z.appendChild(t);
+  if (typeof pourcent === 'number') { var j = el('div', 'jauge'), i = el('i'); i.style.width = Math.max(2, Math.min(100, pourcent)) + '%'; j.appendChild(i); z.appendChild(j); }
+}
+// Ce qu'on suit apres « Tout mettre a jour » (ou en ouvrant la page pendant un telechargement) :
+// {avant: version installee de chaque contenu au depart, vu: un telechargement a ete vu}
+var suiviContenus = null;
+function versionsInstallees(e) { var v = {}; (e.contenus || []).forEach(function (c) { v[c.nom] = c.installe; }); return v; }
+function suivreContenus(e) {
+  if (!suiviContenus && e.telechargement) suiviContenus = { avant: versionsInstallees(e), vu: true, apres: 0 };   // page ouverte pendant un telechargement
+  if (!suiviContenus) return;
+  // Un etat d'avant le demarrage du telechargement (une verification lancee plus tot) ne dit rien du resultat
+  if (!e.telechargement && (suiviContenus.apres === undefined || e.horodatage < suiviContenus.apres)) return;
+  if (e.telechargement) {
+    suiviContenus.vu = true;
+    var c = e.contenus.filter(function (x) { return x.etat === 'en_cours'; })[0];
+    if (c) {
+      var p = (c.progression || '').split(' — '), pct = parseInt(p[0], 10);
+      suivi('suivi-contenus', 'travail', T('Téléchargement de ', 'Downloading ') + (NOMS[c.nom] || c.nom) + (p[0] ? ' : ' + p[0] : '…') +
+            (p[1] ? ', ' + p[1].replace('encore', T('encore', 'remaining')) : ''), isNaN(pct) ? undefined : pct);
+    } else suivi('suivi-contenus', 'travail', T('La station vérifie les encyclopédies en ligne…', 'The station checks the encyclopedias online…'));
+    return;
+  }
+  // Fini : ce qui a change depuis le clic
+  var faits = e.contenus.filter(function (x) { return x.installe && x.installe !== suiviContenus.avant[x.nom]; });
+  if (faits.length) suivi('suivi-contenus', 'fini', T('Terminé : ', 'Done: ') + faits.map(function (x) { return (NOMS[x.nom] || x.nom) + ' (' + date(x.installe) + ')'; }).join(', ') + T(faits.length > 1 ? ' mis à jour.' : ' mis à jour.', ' updated.'));
+  else if (e.contenus.some(function (x) { return x.etat === 'nouvelle'; })) suivi('suivi-contenus', 'echec', T('Le téléchargement s’est arrêté avant la fin : réessayez plus tard.', 'The download stopped before the end: try again later.'));
+  else suivi('suivi-contenus', 'fini', suiviContenus.vu ? T('Terminé : tout est à jour.', 'Done: everything is up to date.') : T('Tout était déjà à jour.', 'Everything was already up to date.'));
+  suiviContenus = null;
+}
+
 // ----- Affichage de l'etat
 var etat = null;
 function afficher(e) {
@@ -666,6 +712,7 @@ function afficher(e) {
   else if (aFaire) { b.textContent = T('Tout mettre à jour (', 'Update all (') + aFaire + ')'; b.disabled = false; }
   else { b.textContent = T('Tout est à jour', 'Everything is up to date'); b.disabled = true; }
   var enCours = e.contenus.filter(function (c) { return c.etat === 'en_cours'; })[0];
+  suivreContenus(e);
   $('val-contenus').textContent = enCours ? '↓ ' + ((enCours.progression || '').split(' — ')[0] || '…') : aFaire ? aFaire + T(' à faire', ' to do') : T('À jour', 'Up to date');
   $('val-contenus').className = 'valeur' + (enCours || aFaire ? ' alerte' : '');
 
@@ -780,22 +827,28 @@ function couleurs(actuel) {
 function suivre() {
   lire().then(function (e) {
     afficher(e);
-    if (e.telechargement || (e.systeme && e.systeme.en_cours)) setTimeout(function () { ordreEtSuivre('verifier'); }, 50000);
+    if (e.telechargement || (e.systeme && e.systeme.en_cours)) setTimeout(function () { ordreEtSuivre('verifier'); }, 25000);
   }).catch(function () { setTimeout(suivre, 3000); });
 }
 // Un ordre, puis on attend que la station ait recalcule son etat (etat.json : horodatage nouveau) avant de le montrer.
 // Le recalcul prend une dizaine de secondes (la station interroge Kiwix pour chaque contenu) : relire trop tot
 // montrait l'etat d'avant, et le bouton « Tout mettre a jour » se reproposait alors que le telechargement tournait (23/10/2026).
-function ordreEtSuivre(nom, fini) {
+// marge : secondes apres l'ordre avant lesquelles un etat ne compte pas. Un etat calcule juste apres l'ordre peut venir
+// d'une verification lancee avant (a l'ouverture de la page) : il ne sait encore rien du telechargement qui demarre.
+function ordreEtSuivre(nom, fini, marge, suivi_, pret) {
   var avant = etat ? etat.horodatage : null;
-  ordre(nom).then(function () {
-    var essais = 0;
+  ordre(nom).then(function (r) {
+    // L'heure de la station au moment ou elle a recu l'ordre (en-tete Date du serveur ; celle du telephone peut differer)
+    var t0 = Date.parse(r.headers.get('Date') || '') / 1000 || 0, essais = 0;
+    if (suivi_) suivi_.apres = t0 + (marge || 0);   // la ligne d'etat ne conclut que sur un etat a partir de cette heure
     (function attendre() {
       lire().then(function (e) {
-        if (e.horodatage !== avant || ++essais > 45) { if (fini) fini(); suivre(); } else setTimeout(attendre, 2000);
+        // pret(e, t0) : une preuve que l'ordre est fait (ex. un nouveau fichier de sauvegarde), a la place de la marge
+        var nouveau = e.horodatage !== avant && (pret ? pret(e, t0) : (!t0 || e.horodatage >= t0 + (marge || 0)));
+        if (nouveau || ++essais > 45) { if (fini) fini(); suivre(); } else setTimeout(attendre, 2000);
       }).catch(function () { setTimeout(attendre, 2000); });
     })();
-  }).catch(function () { if (fini) fini(); suivre(); });
+  }).catch(function () { if (fini) fini(false); suivre(); });
 }
 function verifier() {
   lire().then(function (e) { afficher(e); ordreEtSuivre('verifier'); }).catch(function () { ordreEtSuivre('verifier'); });
@@ -839,9 +892,16 @@ compterMessages();
 
 // ----- Boutons
 $('bouton-contenus').onclick = function () {
-  // Le bouton reste sur « Lancement… » jusqu'a ce que la station dise que le telechargement tourne
+  // Le bouton reste sur « Lancement… » jusqu'a ce que la station dise que le telechargement tourne ;
+  // la ligne en dessous dit ce qui se passe, etape par etape, puis le resultat
   this.disabled = true; this.textContent = T('Lancement…', 'Starting…');
-  ordreEtSuivre('mettre-a-jour');
+  suiviContenus = { avant: versionsInstallees(etat || {}), vu: false };
+  suivi('suivi-contenus', 'travail', T('Demande envoyée à la station…', 'Request sent to the station…'));
+  setTimeout(function () { if (suiviContenus && !suiviContenus.vu) suivi('suivi-contenus', 'travail', T('La station vérifie les encyclopédies en ligne…', 'The station checks the encyclopedias online…')); }, 2500);
+  // La station demarre le telechargement, attend 5 s, puis recalcule son etat (prometheus-commande) : marge de 7 s
+  ordreEtSuivre('mettre-a-jour', function (ok) {
+    if (ok === false) { suiviContenus = null; suivi('suivi-contenus', 'echec', T('La station ne répond pas : réessayez dans un moment.', 'The station does not respond: try again in a moment.')); }
+  }, 7, suiviContenus);
 };
 // ----- Mise a jour du systeme : le detail defile pendant qu'elle tourne (fichier ecrit par prometheus-commande)
 var suiviMaj = false;
@@ -1186,8 +1246,18 @@ setInterval(sante, 60000);
 $('bouton-sauvegarder').onclick = function () {
   var b = this;
   b.disabled = true; b.textContent = T('Sauvegarde…', 'Backing up…');
+  suivi('suivi-sauvegarde', 'travail', T('Sauvegarde en cours…', 'Backing up…'));
   // L'etat est recalcule a la fin de la sauvegarde : le bouton revient a ce moment-la, pas avant
-  ordreEtSuivre('sauvegarder', function () { b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now'); });
+  var fichierAvant = ((etat || {}).sauvegarde || {}).fichier;
+  ordreEtSuivre('sauvegarder', function (ok) {
+    b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now');
+    if (ok === false) suivi('suivi-sauvegarde', 'echec', T('La station ne répond pas : réessayez dans un moment.', 'The station does not respond: try again in a moment.'));
+    else suivi('suivi-sauvegarde', 'fini', T('Sauvegarde faite à ', 'Backed up at ') + new Date().toLocaleTimeString(LANGUE === 'en' ? 'en-GB' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }) + '.');
+  }, 0, null, function (e, t0) {
+    // Fait : un nouveau fichier de sauvegarde, ou (deux sauvegardes dans la meme minute ont le meme nom) un etat
+    // recalcule apres la sauvegarde (la station sauvegarde puis recalcule son etat, environ 6 s)
+    return ((e.sauvegarde || {}).fichier || '') !== (fichierAvant || '') || !t0 || e.horodatage >= t0 + 6;
+  });
 };
 
 // ----- Sujets les plus cherches, et ceux epingles sur l'accueil

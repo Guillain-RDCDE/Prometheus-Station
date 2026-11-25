@@ -17,7 +17,7 @@ cp "$ICI"/web/themes/*.css "$WEB/themes/"
 THEME=$(cat /srv/prometheus/.admin/theme 2>/dev/null || cat /srv/prometheus/.theme 2>/dev/null || echo neutre)
 [ -f "$WEB/themes/$THEME.css" ] || THEME=neutre
 cp "$WEB/themes/$THEME.css" "$WEB/theme.css"
-cp "$ICI/web/index.html" "$ICI/web/style.css" "$ICI/web/logo.svg" "$ICI/web/connexion.html" "$ICI/web/langue.js" "$ICI/web/panneau.js" "$ICI/web/annonce.js" "$ICI/web/communaute.css" "$ICI/web/apple-touch-icon.png" "$WEB/"
+cp "$ICI/web/index.html" "$ICI/web/style.css" "$ICI/web/logo.svg" "$ICI/web/connexion.html" "$ICI/web/langue.js" "$ICI/web/panneau.js" "$ICI/web/annonce.js" "$ICI/web/communaute.css" "$ICI/web/apple-touch-icon.png" "$ICI/web/favicon.svg" "$ICI/web/favicon.ico" "$WEB/"
 # Annonce, Retrouver ses proches, Entraide, Urgence (eteintes au depart, Parametres > Communaute)
 for P in registre entraide urgence; do mkdir -p "$WEB/$P"; cp "$ICI/web/$P/index.html" "$WEB/$P/"; done
 mkdir -p "$WEB/panneau"

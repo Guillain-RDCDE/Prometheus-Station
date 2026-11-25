@@ -21,7 +21,7 @@ The pages are deliberately plain: text, thin lines, white space, and colour only
 | Page | What you do there |
 |---|---|
 | **Encyclopedias** | type a subject: results come from every collection at once. Tap one to read it; the round magnifier brings you back to the search |
-| **Library** | the list of books; tap one to read it (EPUB pages turn, PDFs open) |
+| **Library** | the list of books; tap one to read it. **EPUB**: pages turn, the *Contents* menu and every link inside the book (its own contents page, cross-references) open the right chapter. **PDF**: pages scroll; *Contents* lists the PDF's bookmarks and jumps to the exact heading; links inside the PDF work; *Page* jumps to any page (for a printed contents page with no links); 🔍 searches a word through the whole book, lists every hit with its page and highlights it (scanned PDFs have no text: the reader says so); A-/A+ zoom. Both readers remember where you stopped |
 | **Messages** | write a message (500 characters at most), with your name if you want. Newest at the bottom, one heading per day, the name and time above each message. One message every 20 seconds per device. With the radio turned on, a box *Also send by radio* sends it to the radios too, and messages that went through the radio are marked **RADIO** ([chapter 16](16-radio-message-board.md)) |
 | **The lighthouse** (logo), or *About and rules* | the welcome board written by the station's keeper |
 | **Flags** | French or English, for this phone only |

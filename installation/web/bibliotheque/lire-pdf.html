@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-en="Reading">Lecture</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/langue.js"></script>
+<script src="/annonce.js"></script>
+<script>
+// Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
+addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
+</script>
+<style>
+  /* Liseuse PDF : pdf.js (gardé sur la station, hors ligne). Sommaire du livre, liens internes, aller à une page,
+     chercher un mot dans tout le livre, page retenue, zoom. */
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  .barre { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--trait); background: var(--carte); flex-wrap: wrap; }
+  .barre a.retour-livres { font-size: 1.3rem; padding: 0 6px; color: var(--encre); }
+  .barre select { flex: 1 1 140px; min-width: 0; font: inherit; font-size: .95rem; padding: 8px; border-radius: 10px; border: 1px solid var(--trait); background: var(--fond); color: var(--encre); }
+  .barre button { font: inherit; font-size: .95rem; font-weight: 600; padding: 8px 11px; border: 1px solid var(--trait); border-radius: 10px; background: var(--fond); color: var(--encre); cursor: pointer; }
+  .barre button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent, #fff); }
+  .aller { display: flex; align-items: center; gap: 4px; font-size: .95rem; color: var(--gris); }
+  .aller input { width: 4.2em; font: inherit; font-size: .95rem; padding: 7px 6px; text-align: center; border-radius: 10px; border: 1px solid var(--trait); background: var(--fond); color: var(--encre); }
+  #pages { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; background: var(--fond); padding: 10px 0 40px; }
+  .page { position: relative; margin: 0 auto 10px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .page canvas { display: block; width: 100%; height: 100%; }
+  .page canvas ~ .numero { display: none; }
+  .page .numero { position: absolute; left: 0; right: 0; top: 50%; text-align: center; color: #9aa4b2; font-size: .9rem; }
+  .page a.lien { position: absolute; display: block; }
+  .page a.lien:active { background: rgba(255, 212, 0, .35); }
+  .page mark.trouve { position: absolute; background: rgba(255, 200, 0, .45); pointer-events: none; }
+  .etat { padding: 40px 20px; text-align: center; color: var(--gris); }
+  /* Recherche dans le livre */
+  #panneau { display: none; border-bottom: 1px solid var(--trait); background: var(--carte); padding: 10px 12px; max-height: 45vh; overflow: auto; }
+  #panneau.ouvert { display: block; }
+  #panneau form { display: flex; gap: 8px; }
+  #panneau input { flex: 1; min-width: 0; font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--trait); background: var(--fond); color: var(--encre); }
+  #panneau button { font: inherit; font-weight: 600; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: var(--sur-accent, #fff); }
+  #avancement { font-size: .88rem; color: var(--gris); margin: 8px 2px 4px; }
+  #resultats { list-style: none; margin: 0; padding: 0; }
+  #resultats li { padding: 9px 4px; border-top: 1px solid var(--trait); cursor: pointer; font-size: .92rem; line-height: 1.4; }
+  #resultats li b.p { color: var(--accent); margin-right: 6px; white-space: nowrap; }
+  #resultats li mark { background: rgba(255, 200, 0, .5); color: inherit; border-radius: 2px; }
+</style>
+</head>
+<body>
+  <div class="barre">
+    <a class="retour-livres" href="/bibliotheque/" aria-label="Bibliothèque" data-en-aria="Library">←</a>
+    <select id="sommaire" aria-label="Sommaire" data-en-aria="Contents"><option value="" data-en="Contents">Sommaire</option></select>
+    <form class="aller" id="aller"><span data-en="Page">Page</span><input id="numero" type="number" inputmode="numeric" min="1" value="1" aria-label="Aller à la page" data-en-aria="Go to page"><span id="total">/ …</span></form>
+    <button id="chercher" aria-pressed="false" aria-label="Chercher dans le livre" data-en-aria="Search the book">🔍</button>
+    <button id="moins" aria-label="Plus petit" data-en-aria="Smaller">A-</button>
+    <button id="plus" aria-label="Plus grand" data-en-aria="Larger">A+</button>
+  </div>
+  <div id="panneau">
+    <form id="form-chercher"><input id="mot" type="search" placeholder="Un mot dans tout le livre" data-en-ph="A word in the whole book" autocomplete="off"><button data-en="Search">Chercher</button></form>
+    <p id="avancement"></p>
+    <ul id="resultats"></ul>
+  </div>
+  <div id="pages"><p class="etat" id="etat" data-en="Loading the book…">Chargement du livre…</p></div>
+
+<script type="module">
+import * as pdfjsLib from '/vendor/pdfjs/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs';
+
+var fichier = new URLSearchParams(location.search).get('f') || '';
+var cle = 'pdf:' + fichier;
+var $ = function (id) { return document.getElementById(id); };
+var zone = $('pages');
+var doc = null, largeurPage = 1, hauteurPage = 1.4, zoom = 1, pages = [], rendues = new Map(), courante = 1;
+var textes = {};          // texte de chaque page (pour la recherche), garde une fois lu
+var surlignes = {};       // page -> mot a surligner
+
+try { zoom = +(localStorage.getItem('pdf-zoom') || 1) || 1; } catch (e) {}
+
+function sansAccent(t) { return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function largeurDispo() { return Math.min(zone.clientWidth - 16, 1000) * zoom; }
+
+// ----- Ouverture : le fichier est lu par morceaux (la station sert les octets demandes), meme un PDF de 100 Mo
+var tache = pdfjsLib.getDocument({
+  url: '/bibliotheque/livres/' + encodeURIComponent(fichier),
+  cMapUrl: '/vendor/pdfjs/cmaps/', cMapPacked: true,
+  standardFontDataUrl: '/vendor/pdfjs/standard_fonts/',
+  wasmUrl: '/vendor/pdfjs/wasm/',
+  isEvalSupported: false, enableXfa: false, disableAutoFetch: true
+});
+tache.promise.then(function (d) {
+  doc = d;
+  $('total').textContent = '/ ' + doc.numPages;
+  $('numero').max = doc.numPages;
+  d.getMetadata().then(function (m) { var t = m.info && m.info.Title; document.title = t && t.trim() ? t : fichier.replace(/\.pdf$/i, ''); }).catch(function () {});
+  return doc.getPage(1);
+}).then(function (p) {
+  var v = p.getViewport({ scale: 1 });
+  largeurPage = v.width; hauteurPage = v.height;
+  $('etat').remove();
+  construire();
+  var memoire = 1;
+  try { memoire = +(localStorage.getItem(cle) || 1); } catch (e) {}
+  aller(memoire, true);
+  sommaire();
+}).catch(function (e) {
+  $('etat').textContent = T('Ce PDF ne s’ouvre pas dans la liseuse (', 'This PDF does not open in the reader (') + (e && e.message || e) + '). ';
+  var a = document.createElement('a'); a.href = '/bibliotheque/livres/' + encodeURIComponent(fichier);
+  a.textContent = T('L’ouvrir avec le lecteur du téléphone', 'Open it with the phone’s reader');
+  $('etat').appendChild(a);
+});
+
+// ----- Une case par page, a la taille de la page ; on ne dessine que celles qui sont pres de l'ecran
+var observateur = new IntersectionObserver(function (vus) {
+  vus.forEach(function (v) { if (v.isIntersecting) dessiner(+v.target.dataset.n); });
+}, { root: zone, rootMargin: '1200px 0px' });
+var reperage = new IntersectionObserver(function (vus) {
+  vus.forEach(function (v) { if (v.isIntersecting) { courante = +v.target.dataset.n; afficherNumero(); } });
+}, { root: zone, rootMargin: '-45% 0px -45% 0px' });
+
+function construire() {
+  zone.querySelectorAll('.page').forEach(function (p) { p.remove(); });
+  rendues.forEach(function (r) { if (r.tache) r.tache.cancel(); });
+  rendues.clear(); pages = [];
+  var w = largeurDispo(), h = w * hauteurPage / largeurPage;
+  for (var n = 1; n <= doc.numPages; n++) {
+    var d = document.createElement('div');
+    d.className = 'page'; d.dataset.n = n;
+    d.style.width = w + 'px'; d.style.height = h + 'px';
+    var num = document.createElement('span'); num.className = 'numero'; num.textContent = n;
+    d.appendChild(num);
+    zone.appendChild(d); pages.push(d);
+    observateur.observe(d); reperage.observe(d);
+  }
+}
+
+function dessiner(n) {
+  if (rendues.has(n)) return;
+  var d = pages[n - 1], r = {};
+  rendues.set(n, r);
+  doc.getPage(n).then(function (p) {
+    var w = largeurDispo(), v1 = p.getViewport({ scale: 1 });
+    var echelle = w / v1.width, vue = p.getViewport({ scale: echelle });
+    d.style.height = vue.height + 'px';   // une page d'un autre format garde ses proportions
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var c = document.createElement('canvas');
+    c.width = Math.floor(vue.width * dpr); c.height = Math.floor(vue.height * dpr);
+    r.tache = p.render({ canvasContext: c.getContext('2d'), viewport: vue, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null });
+    return r.tache.promise.then(function () {
+      if (rendues.get(n) !== r) return;
+      d.querySelectorAll('canvas, a.lien, mark.trouve').forEach(function (x) { x.remove(); });
+      d.insertBefore(c, d.firstChild);
+      liens(p, vue, d);
+      if (surlignes[n]) surligner(n, p, vue, d);
+      menage(n);
+    });
+  }).catch(function () { rendues.delete(n); });
+}
+
+// Au plus une trentaine de pages dessinees a la fois : un telephone n'a pas la memoire d'un livre entier
+function menage(n) {
+  if (rendues.size <= 30) return;
+  rendues.forEach(function (r, k) {
+    if (Math.abs(k - n) > 15) {
+      if (r.tache) r.tache.cancel();
+      var d = pages[k - 1];
+      d.querySelectorAll('canvas, a.lien, mark.trouve').forEach(function (x) { x.remove(); });
+      rendues.delete(k);
+    }
+  });
+}
+
+// Rectangle du PDF -> rectangle a l'ecran (la fonction de pdf.js qui le faisait n'existe plus en version 6)
+function versEcran(vue, r) {
+  var t = vue.transform;
+  function pt(x, y) { return [t[0] * x + t[2] * y + t[4], t[1] * x + t[3] * y + t[5]]; }
+  var a = pt(r[0], r[1]), b = pt(r[2], r[3]);
+  return [a[0], a[1], b[0], b[1]];
+}
+// ----- Liens du PDF : vers une autre page du livre, ou vers le web (nouvel onglet)
+function liens(p, vue, d) {
+  p.getAnnotations({ intent: 'display' }).then(function (annots) {
+    annots.forEach(function (a) {
+      if (a.subtype !== 'Link' || (!a.dest && !a.url && !a.unsafeUrl)) return;
+      var r = versEcran(vue, a.rect);
+      var x = Math.min(r[0], r[2]), y = Math.min(r[1], r[3]);
+      var l = document.createElement('a'); l.className = 'lien';
+      l.style.left = x + 'px'; l.style.top = y + 'px';
+      l.style.width = Math.abs(r[2] - r[0]) + 'px'; l.style.height = Math.abs(r[3] - r[1]) + 'px';
+      if (a.dest) {
+        l.href = '#';
+        l.onclick = function (e) { e.preventDefault(); versDestination(a.dest); };
+      } else {
+        l.href = a.url || a.unsafeUrl; l.target = '_blank'; l.rel = 'noopener';
+      }
+      d.appendChild(l);
+    });
+  }).catch(function () {});
+}
+function versDestination(dest) {
+  (typeof dest === 'string' ? doc.getDestination(dest) : Promise.resolve(dest)).then(function (d) {
+    if (!d) return;
+    var ref = d[0];
+    // Destination « XYZ » : un point precis de la page (le titre vise) ; on s'y place, pas seulement en haut de page
+    var haut = d[1] && d[1].name === 'XYZ' && typeof d[3] === 'number' ? d[3] : null;
+    return (typeof ref === 'number' ? Promise.resolve(ref) : doc.getPageIndex(ref)).then(function (i) {
+      aller(i + 1);
+      if (haut === null) return;
+      return doc.getPage(i + 1).then(function (p) {
+        var v = p.getViewport({ scale: largeurDispo() / p.getViewport({ scale: 1 }).width });
+        var y = versEcran(v, [0, haut, 0, haut])[1];
+        zone.scrollTop += Math.max(0, y - 12);
+      });
+    });
+  }).catch(function () {});
+}
+
+// ----- Aller a une page ; numero affiche et retenu
+function aller(n, sansAnimation) {
+  n = Math.max(1, Math.min(doc.numPages, Math.round(+n) || 1));
+  courante = n; afficherNumero();
+  pages[n - 1].scrollIntoView({ block: 'start' });
+  dessiner(n);
+}
+function afficherNumero() {
+  if (document.activeElement !== $('numero')) $('numero').value = courante;
+  try { localStorage.setItem(cle, courante); } catch (e) {}
+}
+$('aller').addEventListener('submit', function (e) { e.preventDefault(); aller($('numero').value); $('numero').blur(); });
+$('numero').addEventListener('change', function () { aller(this.value); });
+
+// ----- Sommaire : les signets du PDF, avec leur niveau ; sinon on le dit
+function sommaire() {
+  doc.getOutline().then(function (o) {
+    var choix = $('sommaire');
+    if (!o || !o.length) {
+      choix.options[0].textContent = T('Pas de sommaire dans ce PDF : utilisez « Page » ou 🔍', 'No contents in this PDF: use “Page” or 🔍');
+      return;
+    }
+    var dests = [];
+    (function ajouter(liste, niveau) {
+      liste.forEach(function (it) {
+        var op = document.createElement('option');
+        op.value = dests.length;
+        op.textContent = ' '.repeat(Math.min(niveau, 4)) + (it.title || '').trim();
+        dests.push(it.dest);
+        choix.appendChild(op);
+        if (it.items && it.items.length) ajouter(it.items, niveau + 1);
+      });
+    })(o, 0);
+    choix.addEventListener('change', function () {
+      if (choix.value === '') return;
+      versDestination(dests[+choix.value]);
+      choix.value = '';
+    });
+  }).catch(function () {});
+}
+
+// ----- Zoom : la largeur des pages, puis on redessine autour de la page lue
+function zoomer(f) {
+  var n = courante;
+  zoom = Math.max(.6, Math.min(3, zoom * f));
+  try { localStorage.setItem('pdf-zoom', zoom); } catch (e) {}
+  construire(); aller(n, true);
+}
+$('plus').onclick = function () { zoomer(1.25); };
+$('moins').onclick = function () { zoomer(1 / 1.25); };
+var largeurAvant = zone.clientWidth;
+addEventListener('resize', function () {
+  if (!doc || Math.abs(zone.clientWidth - largeurAvant) < 40) return;
+  largeurAvant = zone.clientWidth; var n = courante; construire(); aller(n, true);
+});
+
+// ----- Chercher un mot dans tout le livre : page par page, resultats au fur et a mesure
+$('chercher').onclick = function () {
+  var ouvert = $('panneau').classList.toggle('ouvert');
+  this.setAttribute('aria-pressed', ouvert);
+  if (ouvert) $('mot').focus();
+};
+var recherche = 0;
+$('form-chercher').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var mot = sansAccent($('mot').value.trim());
+  if (mot.length < 2 || !doc) return;
+  var id = ++recherche, trouves = 0, vides = 0;
+  $('resultats').innerHTML = '';
+  surlignes = {};
+  (function page(n) {
+    if (id !== recherche) return;
+    if (n > doc.numPages) {
+      $('avancement').textContent = trouves
+        ? trouves + T(' résultat', ' result') + (trouves > 1 ? 's' : '') + T(' dans le livre.', ' in the book.')
+        : vides === doc.numPages ? T('Ce PDF est fait d’images (pages scannées) : aucun texte à chercher. Utilisez « Page ».', 'This PDF is made of images (scanned pages): no text to search. Use “Page”.')
+        : T('Aucun résultat.', 'No result.');
+      return;
+    }
+    if (n % 10 === 1) $('avancement').textContent = T('Recherche… page ', 'Searching… page ') + n + ' / ' + doc.numPages + (trouves ? ' · ' + trouves + T(' trouvé(s)', ' found') : '');
+    lireTexte(n).then(function (t) {
+      if (!t.trim()) vides++;
+      // Le mot cherche au debut d'un mot du livre (« iode » trouve « iodé », pas « période »)
+      var s = sansAccent(t), k = 0, m;
+      var motif = new RegExp('(^|[^a-z0-9])(' + mot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'g');
+      while ((m = motif.exec(s)) && k < 5 && trouves < 300) {
+        resultat(n, t, m.index + m[1].length, mot.length);
+        surlignes[n] = mot; trouves++; k++;
+      }
+      if (trouves >= 300) { $('avancement').textContent = T('Plus de 300 résultats : précisez le mot.', 'More than 300 results: be more precise.'); return; }
+      setTimeout(function () { page(n + 1); }, 0);
+    });
+  })(1);
+});
+function lireTexte(n) {
+  if (textes[n] !== undefined) return Promise.resolve(textes[n]);
+  return doc.getPage(n).then(function (p) { return p.getTextContent(); }).then(function (c) {
+    textes[n] = c.items.map(function (x) { return x.str + (x.hasEOL ? ' ' : ''); }).join('');
+    return textes[n];
+  }).catch(function () { return ''; });
+}
+function resultat(n, t, i, l) {
+  var li = document.createElement('li');
+  var b = document.createElement('b'); b.className = 'p'; b.textContent = 'p. ' + n;
+  li.appendChild(b);
+  var avant = t.slice(Math.max(0, i - 50), i), mot = t.slice(i, i + l), apres = t.slice(i + l, i + l + 70);
+  li.appendChild(document.createTextNode((i > 50 ? '…' : '') + avant));
+  var m = document.createElement('mark'); m.textContent = mot; li.appendChild(m);
+  li.appendChild(document.createTextNode(apres + '…'));
+  li.onclick = function () {
+    if (matchMedia('(max-width: 700px)').matches) { $('panneau').classList.remove('ouvert'); $('chercher').setAttribute('aria-pressed', 'false'); }
+    var r = rendues.get(n); if (r) { rendues.delete(n); }
+    aller(n);
+  };
+  $('resultats').appendChild(li);
+}
+// Surligne le mot cherche sur la page (d'apres la position du texte dans le PDF)
+function surligner(n, p, vue, d) {
+  var mot = surlignes[n];
+  p.getTextContent().then(function (c) {
+    c.items.forEach(function (x) {
+      var m = new RegExp('(^|[^a-z0-9])' + mot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).exec(sansAccent(x.str));
+      if (!m || !x.str.length) return;
+      var i = m.index + m[1].length;
+      var tr = pdfjsLib.Util.transform(vue.transform, x.transform);
+      var hauteur = Math.hypot(tr[2], tr[3]), largeur = x.width * vue.scale;
+      var parCar = largeur / x.str.length;
+      var m = document.createElement('mark'); m.className = 'trouve';
+      m.style.left = (tr[4] + parCar * i) + 'px'; m.style.top = (tr[5] - hauteur) + 'px';
+      m.style.width = (parCar * mot.length) + 'px'; m.style.height = (hauteur * 1.15) + 'px';
+      d.appendChild(m);
+    });
+  }).catch(function () {});
+}
+window.liseuse = { aller: aller, courante: function () { return courante; }, doc: function () { return doc; } };   // pour les essais
+</script>
+</body>
+</html>

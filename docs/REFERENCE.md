@@ -68,6 +68,7 @@ Prometheus Station keeps a copy of that knowledge close at hand, readable by any
 | Operating system | Raspberry Pi OS Lite 64-bit (Debian 13 "Trixie") | set up at first boot by cloud-init |
 | Web pages | **nginx**, port 80 | static pages in `/var/www/prometheus`, in French and English |
 | Encyclopedias | **Kiwix** (`kiwix-serve` 3.7), service `prometheus-kiwix` | listens only on the station itself, behind nginx at `/encyclopedies` |
+| Library readers | **epub.js** 0.3 + jszip (EPUB), **pdf.js** 6.5 legacy (PDF), in `/var/www/prometheus/vendor/` | read in the phone's browser, offline; PDF: bookmarks, links, go to page, search, highlight |
 | Downloads | `prometheus-telecharger` (aria2), daily timer | always the newest version, checked, resumed, 5 GB safety margin |
 | Password, settings, messages, register, mutual aid, clock | `prometheus-admin` (Python, no extra module) | listens only on the station itself (127.0.0.1:8091) |
 | Settings actions needing the administrator | `prometheus-commande`, `prometheus-ssid`, `prometheus-nom`, `prometheus-sobre` | the pages drop a request file; a system service carries it out. No page ever runs a program itself |

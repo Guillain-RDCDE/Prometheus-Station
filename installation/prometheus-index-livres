@@ -40,7 +40,7 @@ for nom in sorted(os.listdir(LIVRES)) if os.path.isdir(LIVRES) else []:
                        'lien': '/bibliotheque/lire.html?f=' + quote(nom)})
     elif ext == '.pdf':
         livres.append({'titre': titre_depuis_nom(nom), 'auteur': '', 'format': 'PDF',
-                       'lien': '/bibliotheque/livres/' + quote(nom)})
+                       'lien': '/bibliotheque/lire-pdf.html?f=' + quote(nom)})   # liseuse PDF (pdf.js)
 livres.sort(key=lambda l: l['titre'].lower())
 
 gutenberg = []

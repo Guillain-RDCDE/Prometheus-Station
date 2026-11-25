@@ -23,7 +23,7 @@ for P in registre entraide urgence; do mkdir -p "$WEB/$P"; cp "$ICI/web/$P/index
 mkdir -p "$WEB/panneau"
 cp "$ICI/web/panneau/index.html" "$WEB/panneau/"
 rm -f "$WEB/logo.png"   # ancien logo sur fond blanc, remplace par logo.svg
-cp "$ICI/web/bibliotheque/index.html" "$ICI/web/bibliotheque/lire.html" "$WEB/bibliotheque/"
+cp "$ICI/web/bibliotheque/index.html" "$ICI/web/bibliotheque/lire.html" "$ICI/web/bibliotheque/lire-pdf.html" "$WEB/bibliotheque/"
 cp "$ICI/web/ajouter/index.html" "$WEB/ajouter/"
 rm -f "$WEB/ajouter/maj.html"   # remplacee par /parametres/
 mkdir -p "$WEB/parametres"
@@ -43,6 +43,15 @@ curl -fsSL -o "$WEB/vendor/epub.min.js" https://cdn.jsdelivr.net/npm/epubjs@0.3.
 curl -fsSL -o "$WEB/vendor/jszip.min.js" https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 # QR code de l'affiche a imprimer (Parametres > Affiche), lui aussi garde sur la station
 curl -fsSL -o "$WEB/vendor/qrcode.js" https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js
+# Liseuse PDF de la bibliotheque : pdf.js (Mozilla, licence Apache 2.0), version « legacy » pour les telephones
+# un peu anciens, avec ses polices, ses tables de caracteres et ses decodeurs d'images (PDF scannes) : environ 6 Mo
+PDFJS=6.5.438
+rm -rf /tmp/pdfjs && mkdir -p /tmp/pdfjs
+curl -fsSL https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-$PDFJS.tgz | tar xz -C /tmp/pdfjs
+rm -rf "$WEB/vendor/pdfjs" && mkdir -p "$WEB/vendor/pdfjs"
+cp /tmp/pdfjs/package/legacy/build/pdf.min.mjs /tmp/pdfjs/package/legacy/build/pdf.worker.min.mjs /tmp/pdfjs/package/LICENSE "$WEB/vendor/pdfjs/"
+cp -r /tmp/pdfjs/package/cmaps /tmp/pdfjs/package/standard_fonts /tmp/pdfjs/package/wasm "$WEB/vendor/pdfjs/"
+rm -rf /tmp/pdfjs
 chown -R root:root "$WEB"
 chown prometheus:prometheus "$WEB/bibliotheque"
 find "$WEB" -type f -exec chmod 644 {} +
@@ -206,6 +215,12 @@ server {
     location /bibliotheque/livres/ {
         alias /srv/prometheus/bibliotheque/;
         types { application/epub+zip epub; application/pdf pdf; }
+    }
+
+    # pdf.js est fait de modules (.mjs) : le navigateur ne les charge que s'ils sont annonces comme du JavaScript
+    location /vendor/pdfjs/ {
+        types { application/javascript mjs js; application/wasm wasm; }
+        default_type application/octet-stream;
     }
 
     location /ajouter/ {

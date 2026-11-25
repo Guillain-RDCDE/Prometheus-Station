@@ -13,7 +13,7 @@ Pi$ sudo bash 03-wifi-accueil.sh
 
 - **Home**: three big doors, *Encyclopedias*, *Library*, *Messages*; French and English flags; a gear for the settings; the lighthouse logo opens the station's welcome board.
 - **Encyclopedias**: one search box that searches *all* the collections while you type, and the list of collections. Articles open full screen, with a round magnifier button to come back to the search.
-- **Library**: the EPUB and PDF books, read directly in the phone's browser. The e-book reader (epub.js and jszip) is stored on the station, so it works offline.
+- **Library**: the EPUB and PDF books, read directly in the phone's browser. Both readers are stored on the station, so they work offline: epub.js and jszip for EPUB, and Mozilla's pdf.js 6.5 (legacy build, about 6 MB with its fonts, character maps and image decoders for scanned PDFs) for PDF. The web server announces pdf.js's `.mjs` modules as JavaScript (`location /vendor/pdfjs/`), otherwise browsers refuse to load them.
 - **Messages**: a public message board for everyone connected.
 - **Welcome board**: your own text — what the station is, its rules, its hours (you write it in the Settings).
 - **Community pages**, off until you turn them on in the Settings: an **announcement** band on every page, **Emergency** (first-aid shortcuts), **Find your loved ones** (a register of people), **Mutual aid**; plus an A4 **poster** to print. See [step 12](12-using-the-station.md).

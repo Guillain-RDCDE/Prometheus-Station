@@ -52,7 +52,7 @@ When the keeper publishes an **announcement**, it scrolls in a coloured band at 
 
 Protected by the password you chose in step 5.
 
-At the top, a **status card**: the station's name, how many people are connected, the temperature, how long it has been on, and whether the power supply is good (the card turns orange if it is too hot or the power is weak). Tap it for details.
+At the top, a **status card**: the station's name, how many people are connected, the temperature, how long it has been on, whether the power supply is good, and with the X728 battery board the charge of the cells (the card turns orange if it is too hot, the power is weak, or the cells are below 15 % on batteries). Tap it for details.
 
 *People connected*: on the station's Wi-Fi, the phones joined to it; at home, the devices with a station page open in the last 3 minutes.
 
@@ -70,7 +70,7 @@ Below, the settings are grouped by who they are for. The community features (ann
 **Content**
 - **Encyclopedias**: for each collection, the installed version, and whether a newer one exists. **Update all** downloads the new versions (only with internet). A line under the button says what the station is doing, step by step, with a small spinning wheel: *Request sent to the station*, *The station checks the encyclopedias online*, then *Downloading WikEM: 45 %, 2 min left* with a thin progress bar (refreshed every 25 seconds). It ends with a green check and what changed (*Done: WikEM (October 2026) updated*, or *Everything was already up to date*), or in red if the station does not answer. The button stays greyed out meanwhile: no need to tap it again.
 - **Most searched topics**: the articles most often opened from the encyclopedia search, with how many times (only the title and a count are kept, nothing about who read them). **Pin** up to 8 of them: they appear in small on the home page under *Often searched here*, one tap from the article. A button resets the counts; pinned topics stay.
-- **Add files**: drag and drop books (EPUB, PDF) or encyclopedias (ZIM). They are sorted by themselves.
+- **Add files**: drag and drop books (EPUB, PDF) or encyclopedias (ZIM), several at once and of any size (a 100 MB PDF is fine over Wi-Fi, it just takes a few minutes). They are sorted by themselves.
 - **Storage**: how full the card is, and what takes the room, biggest first, each with a **Delete** button (tap twice). A deleted encyclopedia is no longer downloaded.
 
 **Station**
@@ -79,9 +79,9 @@ Below, the settings are grouped by who they are for. The community features (ann
 <img src="images/settings-address.png" width="190" alt="Station address">
 
 - **Radio** *(phase 2)*: link the message board to the radio ([chapter 16](16-radio-message-board.md)), and open the **Mesh section**: the station's radio up close, every node and channel, direct messages, every setting, statistics, switching between Meshtastic and MeshCore, and installing any radio ([chapters 17](17-radio-page.md) and [18](18-mesh-section.md)). The same view also sets how long the radio history is kept, remote administration and the software of every board.
-- **Screen and keyboard**: turn on a screen and a keyboard plugged into the station, which then shows its pages full screen, without a phone; and its sleep delay ([chapter 19](19-screen-and-keyboard.md)).
+- **Screen and keyboard**: turn on a screen and a keyboard plugged into the station, which then shows its pages full screen, without a phone; and its sleep delay ([chapter 19](19-screen-and-keyboard.md)). Below, **Small e-ink screen**: on by default; turn it off when the e-ink screen is not fitted ([step 8](08-eink-screen.md#turning-it-off)).
 - **Energy**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
-- **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*), time since switch-on and people connected. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
+- **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*), with the X728 battery board the **charge of the cells** (*On mains, charging* or *On batteries*, with the time left), time since switch-on and people connected. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
 - **Software**: the system updates waiting, by name, **Update**, and **Restart** when an update needs it. Your settings are kept. While it runs, the details scroll in a window (what is downloaded, installed, and any error), then a line says *Update finished* or *The update failed*; *Show the details of the last update* brings them back later.
 - **Backup**: download the latest settings backup, make one now, or **restore one**: choose the file, tap twice, and the station puts the settings back and restarts (see [step 11](11-backup.md)).
 
@@ -93,7 +93,7 @@ Below, the settings are grouped by who they are for. The community features (ann
 - **Password**: change it (current one, then new one). This signs out every other device.
 - **Erase what visitors wrote**: deletes in one go the message board, the register of people and the mutual-aid posts, however many there are. It shows how many of each will go, then asks a second time in a red box (*Yes, erase it all* or *Cancel*). Settings, your announcement, the welcome board and the books are not touched. It cannot be undone.
 
-**Restart** and **Switch off** (two buttons at the bottom of the Settings): tap twice. *Restart* brings the station back by itself after about two minutes. *Switch off* shuts it down cleanly and the e-ink screen says so; to switch it back on, unplug the battery and plug it in again.
+**Restart** and **Switch off** (two buttons at the bottom of the Settings): tap twice. *Restart* brings the station back by itself after about two minutes. *Switch off* shuts it down cleanly and the e-ink screen says so; to switch it back on, unplug the battery and plug it in again. With the X728 battery board, the board then cuts the power ([step 9](09-power.md#90-the-battery-case-x728)); how it switches back on (mains plugged in, or its button) is being tested.
 
 Most settings have a small **?** that unfolds a short explanation.
 

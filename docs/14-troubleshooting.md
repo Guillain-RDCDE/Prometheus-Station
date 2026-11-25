@@ -40,6 +40,15 @@ Pi$ journalctl -b -1 -e
 
 - Wrong version of the driver: see step 8.
 - `lgpio.error: 'GPIO busy'`: two programs are using the screen at once. Stop the service before any test (`sudo systemctl stop prometheus-ecran`), start it again after.
+- The screen is turned off in *Settings › Screen and keyboard › Small e-ink screen*: turn it back on.
+
+## Adding a book fails with "error 500"
+
+Fixed in November 2026: on stations installed before, every file over 1 MB failed (only small EPUBs went through). The password check applied the web server's default 1 MB limit to the upload. Run step 3 again (`sudo bash 03-wifi-accueil.sh`), or add `client_max_body_size 0;` inside `location = /_auth` in `/etc/nginx/sites-available/prometheus`, then `sudo systemctl reload nginx`. The web server's log says it plainly: `client intended to send too large body ... subrequest: "/_auth"`.
+
+## How long did the batteries last?
+
+With the X728 battery board ([step 9](09-power.md#90-the-battery-case-x728)), nobody needs to watch: `sudo prometheus-batterie --bilan` tells when the station went on batteries, whether it shut down cleanly, the last reading and the battery life. The raw record is `/var/lib/prometheus-batterie/journal.csv`.
 
 ## Forgot the settings password
 
@@ -69,6 +78,7 @@ Each service has its own log. The main ones:
 | `prometheus-wifi-auto` | home Wi-Fi / station Wi-Fi |
 | `prometheus-ecran` | the e-ink screen |
 | `prometheus-tension` | clean shutdown on weak power |
+| `prometheus-batterie` | the X728 battery board: charge, clean shutdown when the cells run low, its button |
 | `prometheus-extinction` | automatic shutdown without visitors |
 | `prometheus-radio` | the radio, Meshtastic or MeshCore *(phase 2)*: see [chapter 16](16-radio-message-board.md#troubleshooting) |
 | `prometheus-radio-outil` | the radio tool behind the Mesh section (network switch, software, backups, workshop): see [chapter 17](17-radio-page.md#troubleshooting) and [chapter 18](18-mesh-section.md#troubleshooting) |

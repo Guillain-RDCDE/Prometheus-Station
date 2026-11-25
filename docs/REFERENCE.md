@@ -77,8 +77,9 @@ Prometheus Station keeps a copy of that knowledge close at hand, readable by any
 | Mesh section | pages in `/parametres/mesh/`, orders through `prometheus-admin` to `prometheus-radio`, history in SQLite | every node, channel and setting, statistics, workshop, remote administration ([chapter 18](18-mesh-section.md)) |
 | Wi-Fi | NetworkManager + watchdog `prometheus-wifi-auto` | captive portal: every web address leads to the station |
 | Remote access | Tailscale | optional |
-| E-ink screen | `prometheus-ecran` (Python) | Waveshare 2.13" V4 |
+| E-ink screen | `prometheus-ecran` (Python) | Waveshare 2.13" V4; can be turned off in the Settings when not fitted |
 | Power | `prometheus-tension`, `prometheus-extinction` | clean shutdown on weak power; optional shutdown without visitors |
+| Battery board | `prometheus-batterie` (Python, step 12) | Geekworm X728 V2.5 and four 18650 cells: charge in the Settings, clean shutdown when the cells run low, power cut afterwards, its button, a log for battery-life tests ([step 9](09-power.md#90-the-battery-case-x728)) |
 | Security | `ufw` firewall | see [step 10](10-security.md) |
 | Backup | `prometheus-sauvegarde` (daily), `prometheus-restaurer` | see [step 11](11-backup.md) |
 
@@ -97,6 +98,7 @@ The script and program names are in French; the guide gives each one's role.
 | `/srv/prometheus/communaute/` | community settings, register of people, mutual-aid posts, most searched topics (title and count only) |
 | `/srv/prometheus/.admin/` | password (scrambled), sessions, chosen colors, low-power mode |
 | `/srv/prometheus/sauvegardes/` | the last 7 settings backups |
+| `/var/lib/prometheus-batterie/journal.csv` | X728 battery board: one reading per minute, each shutdown and start (summed up by `prometheus-batterie --bilan`) |
 | `/run/prometheus/` | live values, emptied at every start (automatic shutdown, voltage) |
 
 ### Network
@@ -117,7 +119,7 @@ The script and program names are in French; the guide gives each one's role.
 | Low-power mode | about 1.9 W |
 | Battery | Anker 737, about 86 Wh — **about one day** (estimate; full discharge not tested yet) |
 
-## Status (October 2026)
+## Status (November 2026)
 
 **Built and tested**
 - installation from an empty card, step by step;
@@ -134,6 +136,7 @@ The script and program names are in French; the guide gives each one's role.
 - **The Mesh section** (19 October 2026): every Meshtastic and MeshCore setting read and written with a backup before each change, a safety net that puts the previous settings back by itself when the radio does not come back, nodes and requests by radio (traceroute, metrics), channels, statistics, remote administration of a T-Echo over the air, and a workshop that recognised and updated a T-Echo through its general path, identity unchanged ([chapter 18](18-mesh-section.md)). Not yet tried on other boards (ESP32, RP2040) nor with a MeshCore repeater.
 - **A radio beacon** (20 October 2026): a ready-made message sent by radio every 3 hours, at first only while the Emergency page is on ([chapter 16](16-radio-message-board.md#the-beacon)).
 - **A screen and a keyboard on the station** (19 October 2026): its pages full screen without a phone, sleep and wake-up, tested with a virtual screen; a real HDMI screen comes next ([chapter 19](19-screen-and-keyboard.md)).
+- **A battery board and a metal case** (25 November 2026): Geekworm X728 with four 18650 cells; charge and mains read, clean-shutdown rule checked in a dry run, charge shown in the Settings. The first full discharge is running; the power cut after shutdown and the board's button are not tested yet ([step 9](09-power.md#90-the-battery-case-x728)). The e-ink screen is set aside: it does not fit in the closed case.
 - **System updates with their details on screen**, as they run.
 
 **Built, not yet tested in real conditions**
@@ -159,4 +162,4 @@ Most useful: field reports, content suggestions (other languages, other ZIM file
 
 **Prometheus Station is a lighthouse when everything burns.**
 
-*Last updated: October 2026.*
+*Last updated: November 2026.*

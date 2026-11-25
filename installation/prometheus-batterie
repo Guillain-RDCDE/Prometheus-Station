@@ -5,6 +5,7 @@
 # - sur accus, quand il ne reste presque plus rien, eteint la station proprement, puis la carte coupe le courant ;
 # - bouton de la carte : appui court = redemarrer, appui long = eteindre ;
 # - note la charge chaque minute (/var/lib/prometheus-batterie/journal.csv) : de quoi mesurer l'autonomie.
+# Bilan d'un essai d'autonomie, en clair : prometheus-batterie --bilan
 # Etat pour les Parametres : /run/prometheus/batterie (JSON). Sans carte X728 : le programme s'arrete sans bruit.
 # Broches de la X728 V2.x : 5 = la carte demande l'extinction (impulsion), 6 = secteur coupe, 12 = « le Pi a demarre »,
 # 26 = demander a la carte d'eteindre (impulsion de 4 s, comme un appui long). Aucune n'est utilisee par l'ecran e-ink.
@@ -93,7 +94,69 @@ def surveiller_bouton(h):
             time.sleep(60)
 
 
+def bilan():
+    """Le dernier passage sur accus : debut, fin (extinction ou retour du secteur), duree, charge au depart et a la fin."""
+    try:
+        lignes = [l.split(',') for l in open(JOURNAL).read().splitlines() if l.count(',') >= 4]
+    except OSError:
+        print('Pas encore de journal.')
+        return 0
+    # Un passage sur accus commence au premier « accus » et finit par une extinction, le retour du secteur ou un
+    # rallumage (la station s'est arretee sans extinction propre). Un « accus » de plus en cours de route (le
+    # programme relance) ne change rien.
+    passages, en_cours = [], None
+    for l in lignes:
+        quoi = l[2]
+        if en_cours is None:
+            if quoi == 'accus' or (quoi == 'demarrage' and l[3] == 'accus'):
+                en_cours = {'debut': l, 'fin': None, 'releve': l}
+                passages.append(en_cours)
+            elif quoi == 'demarrage' and passages and passages[-1].get('rallumee') is None:
+                passages[-1]['rallumee'] = l
+            continue
+        if quoi == 'releve':
+            en_cours['releve'] = l
+        elif quoi in ('extinction', 'secteur', 'demarrage'):
+            en_cours['fin'] = l
+            if quoi == 'demarrage':
+                en_cours['rallumee'] = l
+            en_cours = None
+            if quoi == 'demarrage' and l[3] == 'accus':
+                en_cours = {'debut': l, 'fin': None, 'releve': l}
+                passages.append(en_cours)
+    if not passages:
+        print('Aucun passage sur accus dans le journal.')
+        return 0
+    p = passages[-1]
+    d, r, fin = p['debut'], p['releve'], p['fin']
+    def charge(l):
+        return '%s %%, %s V' % ((l[5], l[4]) if l[2] in ('releve', 'demarrage') else (l[4], l[3]))
+    print('Sur accus depuis : %s (%s)' % (d[1], charge(d)))
+    if fin is None:
+        print('Toujours sur accus, dernier releve : %s (%s)' % (r[1], charge(r)))
+        print('Tenu jusqu\'ici   : %s' % duree(int(r[0]) - int(d[0])))
+        return 0
+    if fin[2] == 'extinction':
+        print('Extinction propre : %s (%s)' % (fin[1], ','.join(fin[3:])))
+    elif fin[2] == 'secteur':
+        print('Secteur rebranche : %s' % fin[1])
+    else:
+        print('Arret SANS extinction propre, apres le dernier releve')
+    print('Dernier releve    : %s (%s)' % (r[1], charge(r)))
+    print('Autonomie         : %s' % duree(int((fin if fin[2] != 'demarrage' else r)[0]) - int(d[0])))
+    if p.get('rallumee'):
+        a = p['rallumee']
+        print('Rallumee          : %s (%s, %s)' % (a[1], charge(a), 'sur secteur' if a[3] == 'secteur' else 'sur accus'))
+    return 0
+
+
+def duree(s):
+    return '%d h %02d min' % (s // 3600, s % 3600 // 60)
+
+
 def main():
+    if sys.argv[1:] == ['--bilan']:
+        return bilan()
     try:
         from smbus2 import SMBus
         bus = SMBus(1)
@@ -108,6 +171,13 @@ def main():
     broche(COUPER, 0)
     broche(BOOT, 1)          # dit a la carte que le Pi a demarre
     threading.Thread(target=surveiller_bouton, args=(h,), daemon=True).start()
+    try:
+        t, pc = lire_jauge(bus)
+        # Seulement au demarrage de la station (pas quand le programme est simplement relance)
+        if float(open('/proc/uptime').read().split()[0]) < 300:
+            noter('demarrage', 'secteur' if lgpio.gpio_read(h, SECTEUR) == 0 else 'accus', t, pc)
+    except (OSError, ValueError):
+        pass
 
     releves = []             # (heure, pourcent) sur accus, pour estimer le temps restant
     bas_depuis = 0

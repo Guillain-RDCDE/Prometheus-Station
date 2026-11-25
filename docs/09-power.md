@@ -43,7 +43,7 @@ The service `prometheus-batterie` reads the X728's charge gauge (I2C address `0x
 - on batteries, when the cells are down to **5 %** or **3.35 V** for 60 seconds in a row, the station **shuts down cleanly**; below 3.20 V it does so whatever the mains pin says;
 - at the very end of any shutdown (not a restart), a 4-second pulse on pin 26 asks the X728 to **cut the power**, so a switched-off station does not keep draining its cells;
 - the X728's button: short press = restart, long press = shut down;
-- one line per minute in `/var/lib/prometheus-batterie/journal.csv` (time, mains or batteries, volts, percent): the record of a battery-life test.
+- one line per minute in `/var/lib/prometheus-batterie/journal.csv` (time, mains or batteries, volts, percent), plus a line at each shutdown and at each start: the record of a battery-life test. Nobody needs to watch: afterwards, `sudo prometheus-batterie --bilan` sums up the last run on batteries in plain words (start, clean shutdown or not, last reading, battery life, charge when switched back on).
 
 X728 V2.x pins: 5 (the board asks for a shutdown), 6 (mains lost = 1), 12 (set high: "the Pi is up"), 26 (ask the board to cut the power). None is used by the e-ink screen. Without an X728, the service stops at once and does nothing.
 

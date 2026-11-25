@@ -1,1 +1,2 @@
-:root { --accent: #5ea8ff; --accent-pale: #1e2f45; --encre: #eef2f7; --gris: #a3adba; --pale: #6f7b8a; --fond: #0f141a; --carte: #18202a; --trait: #263140; --logo-fond: #ffffff; }
+:root { --accent: #5ea8ff; --accent-pale: #1e2f45; --encre: #eef2f7; --gris: #a3adba; --pale: #6f7b8a; --fond: #0f141a; --carte: #18202a; --trait: #263140; --logo-fond: #ffffff;
+  --vert: #3ccf7f; --vert-pale: #12261b; --orange: #ffad4d; --orange-pale: #2a1f10; --rouge-urgence: #ff6b6b; --rouge-pale: #2c1416; --sur-accent: #0f141a; }

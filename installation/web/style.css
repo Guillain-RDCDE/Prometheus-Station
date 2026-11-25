@@ -7,7 +7,9 @@
   --encre: #14202e; --gris: #5f6b7a; --pale: #98a2b0;
   --fond: #f6f9fd; --carte: #ffffff; --trait: #e3e9f1; --logo-fond: transparent;
   --rayon: 8px;
-  --rouge-urgence: #c92a2a;
+  --rouge-urgence: #c92a2a; --rouge-pale: #fde8e8;
+  /* Etats : bon, a surveiller (les themes sombres les eclaircissent) ; texte pose sur la couleur d'accent */
+  --vert: #138a4a; --vert-pale: #e3f5ea; --orange: #b45f06; --orange-pale: #fdf0de; --sur-accent: #ffffff;
   /* compatibilite : l'ancien nom de la couleur d'accent */
   --rouge: var(--accent);
 }

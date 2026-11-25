@@ -10,7 +10,7 @@ Nothing here needs a command: everything happens in a phone or computer browser.
 
 ## For every visitor
 
-The pages are deliberately plain: text, thin lines, white space, and colour only on what you can tap. Six colour themes are available (see *Appearance*).
+The pages are deliberately plain: text, thin lines, white space, and colour only on what you can tap. Eight themes are available, *Neutral* by default (see *Theme* in the Settings).
 
 <p>
 <img src="images/home.png" width="190" alt="Home page">
@@ -52,7 +52,7 @@ When the keeper publishes an **announcement**, it scrolls in a coloured band at 
 
 Protected by the password you chose in step 5.
 
-At the top, a **status card**: the station's name, how many people are connected, the temperature, how long it has been on, whether the power supply is good, and with the X728 battery board the charge of the cells (the card turns orange if it is too hot, the power is weak, or the cells are below 15 % on batteries). Tap it for details.
+At the top, a **dashboard**: the station's name and one line that says *All is well* (or what to check: too hot, weak power, batteries nearly empty), then four tiles — people connected, batteries (charge, gauge and time left; *Power* without a battery board), temperature, radio — that turn orange when something needs a look. Below, four **quick actions**: Emergency page (red when it is on), Announcement, Messages, Energy. A **search box** finds any setting by name or by word (*beacon*, *backup*, *Wi-Fi*…). Then four groups — *For visitors*, *Station*, *Content*, *System and security* — where each line says what it does and shows its state in a pill: green when on, grey when off, orange when something needs a look. On a large screen the groups sit in two columns.
 
 *People connected*: on the station's Wi-Fi, the phones joined to it; at home, the devices with a station page open in the last 3 minutes.
 
@@ -74,22 +74,20 @@ Below, the settings are grouped by who they are for. The community features (ann
 - **Storage**: how full the card is, and what takes the room, biggest first, each with a **Delete** button (tap twice). A deleted encyclopedia is no longer downloaded.
 
 **Station**
-- **Station Wi-Fi**: rename the open Wi-Fi (the e-ink screen follows), and change the **station address**: the name to type in a browser, `http://<name>.local` (lowercase letters, digits and hyphens). Redo the home-screen shortcut after a change.
+- **Wi-Fi and address**: rename the open Wi-Fi (the e-ink screen follows), and change the **station address**: the name to type in a browser, `http://<name>.local` (lowercase letters, digits and hyphens). Redo the home-screen shortcut after a change.
 
 <img src="images/settings-address.png" width="190" alt="Station address">
 
-- **Radio** *(phase 2)*: link the message board to the radio ([chapter 16](16-radio-message-board.md)), and open the **Mesh section**: the station's radio up close, every node and channel, direct messages, every setting, statistics, switching between Meshtastic and MeshCore, and installing any radio ([chapters 17](17-radio-page.md) and [18](18-mesh-section.md)). The same view also sets how long the radio history is kept, remote administration and the software of every board.
-- **Screen and keyboard**: turn on a screen and a keyboard plugged into the station, which then shows its pages full screen, without a phone; and its sleep delay ([chapter 19](19-screen-and-keyboard.md)). Below, **Small e-ink screen**: on by default; turn it off when the e-ink screen is not fitted ([step 8](08-eink-screen.md#turning-it-off)).
-- **Energy**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
+- **Radio and Mesh** *(phase 2)*: link the message board to the radio ([chapter 16](16-radio-message-board.md)), and open the **Mesh section**: the station's radio up close, every node and channel, direct messages, every setting, statistics, switching between Meshtastic and MeshCore, and installing any radio ([chapters 17](17-radio-page.md) and [18](18-mesh-section.md)). The same view also sets how long the radio history is kept, remote administration and the software of every board.
+- **Screens**: turn on a screen and a keyboard plugged into the station, which then shows its pages full screen, without a phone; and its sleep delay ([chapter 19](19-screen-and-keyboard.md)). Below, **Small e-ink screen**: on by default; turn it off when the e-ink screen is not fitted ([step 8](08-eink-screen.md#turning-it-off)).
+- **Energy and batteries**: low-power mode and automatic shutdown (see [step 9](09-power.md)).
 - **Station health**: processor temperature, power supply (*Good*, *Too low right now*, *Has been too low*), with the X728 battery board the **charge of the cells** (*On mains, charging* or *On batteries*, with the time left), time since switch-on and people connected. Above 80 °C the Pi slows itself down: give it shade and air. A power supply that "has been too low" means the battery or its cable is too weak.
-- **Software**: the system updates waiting, by name, **Update**, and **Restart** when an update needs it. Your settings are kept. While it runs, the details scroll in a window (what is downloaded, installed, and any error), then a line says *Update finished* or *The update failed*; *Show the details of the last update* brings them back later.
+
+**System and security**
+- **Updates**: the system updates waiting, by name, **Update**, and **Restart** when an update needs it. Your settings are kept. While it runs, the details scroll in a window (what is downloaded, installed, and any error), then a line says *Update finished* or *The update failed*; *Show the details of the last update* brings them back later.
 - **Backup**: download the latest settings backup, make one now, or **restore one**: choose the file, tap twice, and the station puts the settings back and restarts (see [step 11](11-backup.md)).
-
-**Appearance**
-- **Colors**: six color themes (Ocean, Forest, Ember, Sun, Lavender, Night), for every page and every visitor.
+- **Theme**: eight themes — *Neutral* (the default, plain greys), *High contrast* (black and yellow, to read in full sun or poor conditions), Ocean, Forest, Ember, Sun, Lavender, Night — for every page and every visitor.
 - **Language**: same as the flags.
-
-**Security**
 - **Password**: change it (current one, then new one). This signs out every other device.
 - **Erase what visitors wrote**: deletes in one go the message board, the register of people and the mutual-aid posts, however many there are. It shows how many of each will go, then asks a second time in a red box (*Yes, erase it all* or *Cancel*). Settings, your announcement, the welcome board and the books are not touched. It cannot be undone.
 

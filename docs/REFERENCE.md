@@ -125,7 +125,7 @@ The script and program names are in French; the guide gives each one's role.
 **Built and tested**
 - installation from an empty card, step by step;
 - the nine collections downloaded and searchable (about 200 GB);
-- library, message board, welcome board, settings, two languages, six color themes;
+- library, message board, welcome board, settings, two languages, eight themes (Neutral by default, High contrast);
 - community tools: announcement (pages and e-ink screen), Emergency page (its 28 links all checked), register of people, mutual aid, printable poster (its QR code checked with a reader). Tested on the station's server and on copies of the pages; not yet from several phones at once;
 - automatic switching between home Wi-Fi and the station's Wi-Fi;
 - e-ink screen;

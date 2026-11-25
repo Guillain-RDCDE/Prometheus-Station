@@ -77,18 +77,6 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   h1.avec-aide-titre { display: flex; align-items: center; gap: 10px; }
   a.bouton { text-align: center; }
   .bouton[hidden] { display: none; }
-  /* Carte d'etat, en haut des Parametres */
-  .carte-etat { display: flex; align-items: center; gap: 14px; padding: 16px; margin: 4px 0 6px; border-radius: var(--rayon); background: var(--carte); border: 1px solid var(--trait); box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-  .carte-etat:hover { background: var(--accent-pale); }
-  .carte-phare { flex: none; width: 52px; height: 52px; border-radius: 16px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
-  .carte-phare svg { width: 28px; height: 28px; fill: #fff; stroke: #fff; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
-  .carte-etat.alerte .carte-phare { background: #d9750a; }
-  .carte-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .carte-nom { font-weight: 700; font-size: 1.08rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .carte-personnes { color: var(--gris); font-size: .95rem; }
-  .carte-puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .carte-puces span { font-size: .78rem; font-weight: 600; padding: 3px 9px; border-radius: 10px; background: var(--fond); border: 1px solid var(--trait); color: var(--gris); }
-  .carte-puces span.mauvais { background: #fff4e6; border-color: #ffd8a8; color: #d9480f; }
   .epingle { flex: none; font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--trait); background: var(--carte); color: var(--accent); cursor: pointer; }
   .epingle.oui { background: var(--accent); border-color: var(--accent); color: #fff; }
   .bouton.annuler { color: var(--encre); }
@@ -127,6 +115,89 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .lien-detail { display: block; margin: 12px auto 0; font: inherit; font-size: .9rem; color: var(--gris); background: none; border: 0; border-bottom: 1px solid var(--trait); padding: 0; cursor: pointer; }
   .lien-detail:hover { color: var(--encre); border-color: var(--encre); }
   .editeur { display: block; min-height: 260px; resize: vertical; font-size: 1rem; line-height: 1.5; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  /* ===== Refonte du 25/11/2026 : tableau de bord, lignes qui disent ou elles en sont, cartes nettes ===== */
+  body { background: var(--fond); }
+  main { max-width: 1080px; }
+  .vue > h1, h1.avec-aide-titre { font-size: 1.85rem; letter-spacing: -.025em; margin: 6px 0 14px; }
+  .vue h2 { font-size: .76rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--gris); margin: 26px 4px 8px; }
+  .groupe { border-radius: 14px; box-shadow: 0 1px 2px rgba(15,23,32,.05); }
+  .ligne { padding: 13px 14px; min-height: 58px; gap: 13px; }
+  button.ligne:hover, a.ligne:hover { background: color-mix(in srgb, var(--accent) 6%, var(--carte)); }
+  .ligne .nom { font-weight: 600; }
+  .ligne .nom .sous, .ligne .resume { display: block; font-weight: 400; font-size: .86rem; color: var(--gris); margin-top: 1px; line-height: 1.35; }
+  .icone { width: 38px; height: 38px; border-radius: 11px; background: color-mix(in srgb, var(--c, var(--accent)) 15%, var(--carte)); }
+  .icone svg { width: 20px; height: 20px; stroke: var(--c, var(--accent)); }
+  /* La valeur a droite devient une pastille : verte (en marche), grise (eteint), orange (a regarder) */
+  .ligne .valeur { font-size: .8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--trait); color: var(--gris); max-width: 42%; }
+  .ligne .valeur:empty { display: none; }
+  .ligne .valeur.on, .ligne .valeur.bien { background: var(--vert-pale); color: var(--vert); }
+  .ligne .valeur.alerte { background: var(--orange-pale); color: var(--orange); }
+  .vue:not(#vue-accueil) .ligne .valeur { background: none; padding: 0; font-size: .95rem; font-weight: 600; }
+  .vue:not(#vue-accueil) .ligne .valeur.bien { color: var(--vert); }
+  .vue:not(#vue-accueil) .ligne .valeur.alerte { color: var(--orange); }
+  .interrupteur:checked { background: var(--vert); }
+  .puce.choisie, .epingle.oui { color: var(--sur-accent); }
+  .entete button { font-weight: 600; }
+
+  /* En-tete */
+  .barre-haut { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .barre-haut .retour { margin: 0; }
+  .outils-haut { display: flex; gap: 8px; }
+  .puce-haut { font: inherit; font-size: .85rem; font-weight: 650; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--trait); background: var(--carte); color: var(--encre); cursor: pointer; }
+  .titre-station { font-size: 2rem; letter-spacing: -.03em; line-height: 1.1; margin: 16px 0 6px; overflow-wrap: anywhere; }
+  .etat-general { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; color: var(--gris); font-size: .98rem; }
+  .point { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--vert); box-shadow: 0 0 0 4px var(--vert-pale); }
+  .etat-general.alerte .point { background: var(--orange); box-shadow: 0 0 0 4px var(--orange-pale); }
+  .etat-general.alerte { color: var(--encre); font-weight: 600; }
+
+  /* Tableau de bord : quatre tuiles */
+  .tuiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .tuile { display: flex; flex-direction: column; min-height: 112px; padding: 14px; border-radius: 14px; background: var(--carte); border: 1px solid var(--trait); box-shadow: 0 1px 2px rgba(15,23,32,.05); color: var(--encre); }
+  .tuile:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--trait)); }
+  .tuile-tete { display: flex; align-items: center; gap: 7px; font-size: .74rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--gris); }
+  .tuile-tete svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tuile-chiffre { font-size: 1.9rem; font-weight: 750; letter-spacing: -.02em; line-height: 1.1; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .tuile-chiffre small { font-size: .95rem; font-weight: 650; color: var(--gris); margin-left: 2px; }
+  .tuile-detail { font-size: .84rem; color: var(--gris); line-height: 1.3; margin-top: 2px; }
+  .tuile.bien .tuile-chiffre { color: var(--vert); }
+  .tuile.alerte { border-color: var(--orange); } .tuile.alerte .tuile-chiffre { color: var(--orange); }
+  .tuile-jauge { display: block; height: 6px; border-radius: 3px; background: var(--trait); overflow: hidden; margin-top: auto; }
+  .tuile-jauge[hidden] { display: none; }
+  .tuile-jauge i { display: block; height: 100%; border-radius: 3px; background: var(--vert); }
+  .tuile.alerte .tuile-jauge i { background: var(--orange); }
+
+  /* Actions rapides */
+  .actions-rapides { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0 18px; }
+  .action { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 14px; background: var(--carte); border: 1px solid var(--trait); box-shadow: 0 1px 2px rgba(15,23,32,.05); font: inherit; color: var(--encre); text-align: left; cursor: pointer; min-width: 0; }
+  .action:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--trait)); }
+  .action .icone { width: 36px; height: 36px; }
+  .action-texte { display: flex; flex-direction: column; min-width: 0; font-weight: 650; font-size: .95rem; line-height: 1.25; }
+  .action-etat { font-weight: 500; font-size: .8rem; color: var(--gris); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .action.urgence { border-color: color-mix(in srgb, var(--rouge-urgence) 45%, var(--trait)); }
+  .action.urgence.on { background: var(--rouge-urgence); border-color: var(--rouge-urgence); color: #fff; }
+  .action.urgence.on .action-etat { color: #fff; } .action.urgence.on .icone { background: rgba(255,255,255,.2); } .action.urgence.on .icone svg { stroke: #fff; }
+
+  /* Recherche */
+  .recherche-reglage { position: relative; display: block; margin: 0 0 4px; }
+  .recherche-reglage svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; fill: none; stroke: var(--pale); stroke-width: 2; stroke-linecap: round; }
+  .recherche-reglage input { width: 100%; font: inherit; font-size: 1rem; padding: 12px 14px 12px 42px; border-radius: 12px; border: 1px solid var(--trait); background: var(--carte); color: var(--encre); outline: none; -webkit-appearance: none; }
+  .recherche-reglage input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+  .section[hidden], .ligne[hidden] { display: none; }
+
+  .actions-station .bouton { border-radius: 12px; font-weight: 700; }
+  @media (max-width: 480px) {
+    #vue-accueil .ligne .valeur { max-width: 34%; }
+    .action { gap: 9px; padding: 10px; } .action .icone { width: 32px; height: 32px; } .action-texte { font-size: .9rem; }
+    .action-texte > span:first-child { overflow-wrap: anywhere; hyphens: auto; }
+  }
+  @media (min-width: 760px) {
+    .tuiles, .actions-rapides { grid-template-columns: repeat(4, 1fr); }
+    .sections { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; align-items: start; }
+    .titre-station { font-size: 2.4rem; }
+    #vue-accueil .actions-station { max-width: 520px; margin-left: auto; margin-right: auto; }
+    .vue:not(#vue-accueil) { max-width: 680px; margin: 0 auto; }
+  }
 </style>
 </head>
 <body>
@@ -134,126 +205,133 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
 
 <!-- ===== Ecran principal ===== -->
 <section class="vue" id="vue-accueil">
-  <a class="retour" href="/" data-en="← Home">← Accueil</a>
-  <h1 data-en="Settings">Paramètres</h1>
-  <a class="carte-etat" id="carte-etat" href="#sante">
-    <span class="carte-phare"><svg viewBox="0 0 24 24"><path d="M12 2l-3 2.5h6z"/><path d="M10 6h4l1.5 16h-7z"/><path d="M4 8l-2-1M4 12H2M20 8l2-1M20 12h2"/></svg></span>
-    <span class="carte-texte">
-      <span class="carte-nom" id="carte-nom">Prometheus Station</span>
-      <span class="carte-personnes" id="carte-personnes">…</span>
-      <span class="carte-puces" id="carte-puces"></span>
-    </span>
-    <span class="chevron">›</span>
-  </a>
-
-  <h2 data-en="For visitors">Pour les visiteurs</h2>
-  <div class="groupe">
-    <button class="ligne" data-vue="panneau">
-      <span class="icone" style="background:#e8211c"><svg viewBox="0 0 24 24"><path d="M12 3l-3 2h6z"/><path d="M10 7h4l1 14H9z"/><path d="M5 9l-2-1M5 13H3M19 9l2-1M19 13h2"/></svg></span>
-      <span class="nom" data-en="Welcome board">Panneau d’accueil</span><span class="chevron">›</span>
+  <div class="barre-haut"><a class="retour" href="/" data-en="← Home">← Accueil</a><span class="outils-haut"><button class="puce-haut" data-vue="langue" data-en="Language">Langue</button><button class="puce-haut" data-vue="couleurs" data-en="Theme">Thème</button></span></div>
+  <h1 class="titre-station" id="carte-nom">Prometheus Station</h1>
+  <p class="etat-general" id="etat-general"><span class="point"></span><span id="etat-texte">…</span></p>
+  <div class="tuiles">
+    <a class="tuile" id="tuile-personnes" href="#sante"><span class="tuile-tete"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg><span data-en="Connected">Connectés</span></span><span class="tuile-chiffre">…</span><span class="tuile-detail"></span></a>
+    <a class="tuile" id="tuile-accus" href="#energie"><span class="tuile-tete"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/></svg><span data-en="Batteries">Accus</span></span><span class="tuile-chiffre">…</span><span class="tuile-detail"></span><span class="tuile-jauge" hidden><i></i></span></a>
+    <a class="tuile" id="tuile-temp" href="#sante"><span class="tuile-tete"><svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg><span data-en="Temperature">Température</span></span><span class="tuile-chiffre">…</span><span class="tuile-detail"></span></a>
+    <a class="tuile" id="tuile-radio" href="#radio"><span class="tuile-tete"><svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="2"/><path d="M8.5 7.5a5 5 0 0 0 0 7M15.5 7.5a5 5 0 0 1 0 7M12 13v8"/></svg><span data-en="Radio">Radio</span></span><span class="tuile-chiffre">…</span><span class="tuile-detail"></span></a>
+  </div>
+  <div class="actions-rapides">
+    <button class="action urgence" data-vue="urgence"><span class="icone" style="--c:#c92a2a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span class="action-texte"><span data-en="Emergency page">Page Urgence</span><span class="action-etat" data-copie="val-urgence">…</span></span></button>
+    <button class="action" data-vue="annonce"><span class="icone" style="--c:#e8590c"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg></span><span class="action-texte"><span data-en="Announcement">Annonce</span><span class="action-etat" data-copie="val-annonce">…</span></span></button>
+    <button class="action" data-vue="messages"><span class="icone" style="--c:#be185d"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="action-texte"><span data-en="Messages">Messages</span><span class="action-etat" data-copie="val-messages">…</span></span></button>
+    <button class="action" data-vue="energie"><span class="icone" style="--c:#2f9e44"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4M9.5 10v4"/></svg></span><span class="action-texte"><span data-en="Energy">Énergie</span><span class="action-etat" data-copie="val-energie">…</span></span></button>
+  </div>
+  <label class="recherche-reglage"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="chercher" placeholder="Chercher un réglage : wifi, balise, sauvegarde…" data-en-ph="Find a setting: Wi-Fi, beacon, backup…" autocomplete="off"></label>
+  <p class="note" id="rien-trouve" hidden data-en="No setting matches.">Aucun réglage ne correspond.</p>
+  <div class="sections">
+  <div class="section" data-section>
+    <h2 data-en="For visitors">Pour les visiteurs</h2>
+    <div class="groupe">
+    <button class="ligne" data-vue="urgence" data-mots="urgence secours 112 emergency">
+      <span class="icone" style="--c:#c92a2a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span class="nom"><span data-en="Emergency page">Page Urgence</span><span class="resume" data-en="Numbers and life-saving steps, at the top of the home page">Numéros et gestes qui sauvent, en tête de l’accueil</span></span><span class="valeur" id="val-urgence">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="annonce">
-      <span class="icone" style="background:#e8590c"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg></span>
-      <span class="nom" data-en="Announcement">Annonce</span><span class="valeur" id="val-annonce">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="annonce" data-mots="annonce bandeau message banner">
+      <span class="icone" style="--c:#e8590c"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg></span>
+      <span class="nom"><span data-en="Announcement">Annonce</span><span class="resume" data-en="A banner at the top of every page">Un bandeau en haut de toutes les pages</span></span><span class="valeur" id="val-annonce">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="urgence">
-      <span class="icone" style="background:#c92a2a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-      <span class="nom" data-en="Emergency page">Page Urgence</span><span class="valeur" id="val-urgence">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="panneau" data-mots="panneau accueil bienvenue regles welcome rules">
+      <span class="icone" style="--c:#e8211c"><svg viewBox="0 0 24 24"><path d="M12 3l-3 2h6z"/><path d="M10 7h4l1 14H9z"/><path d="M5 9l-2-1M5 13H3M19 9l2-1M19 13h2"/></svg></span>
+      <span class="nom"><span data-en="Welcome board">Panneau d’accueil</span><span class="resume" data-en="The welcome text and the station’s rules">Le texte de bienvenue et les règles de la station</span></span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="registre">
-      <span class="icone" style="background:#2b8a3e"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 11l2 2 4-4"/></svg></span>
-      <span class="nom" data-en="Find your loved ones">Retrouver ses proches</span><span class="valeur" id="val-registre">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="messages" data-mots="messages tableau board">
+      <span class="icone" style="--c:#be185d"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span class="nom"><span data-en="Messages">Messages</span><span class="resume" data-en="The message board">Le tableau des messages</span></span><span class="valeur" id="val-messages">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="entraide">
-      <span class="icone" style="background:#1971c2"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-9.3-9A5 5 0 0 1 12 6.3 5 5 0 0 1 21.3 12C19 16.6 12 21 12 21z"/></svg></span>
-      <span class="nom" data-en="Mutual aid">Entraide</span><span class="valeur" id="val-entraide">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="registre" data-mots="proches registre famille loved">
+      <span class="icone" style="--c:#2b8a3e"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 11l2 2 4-4"/></svg></span>
+      <span class="nom"><span data-en="Find your loved ones">Retrouver ses proches</span><span class="resume" data-en="Everyone notes they are safe and where">Chacun note qu’il va bien et où il est</span></span><span class="valeur" id="val-registre">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="messages">
-      <span class="icone" style="background:#be185d"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-      <span class="nom" data-en="Messages">Messages</span><span class="valeur" id="val-messages">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="entraide" data-mots="entraide aide besoin offre aid">
+      <span class="icone" style="--c:#1971c2"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-9.3-9A5 5 0 0 1 12 6.3 5 5 0 0 1 21.3 12C19 16.6 12 21 12 21z"/></svg></span>
+      <span class="nom"><span data-en="Mutual aid">Entraide</span><span class="resume" data-en="What people need, what they can offer">Ce dont on a besoin, ce qu’on peut offrir</span></span><span class="valeur" id="val-entraide">…</span><span class="chevron">›</span>
     </button>
-    <a class="ligne" href="/parametres/affiche.html">
-      <span class="icone" style="background:#343a40"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v8H6z"/></svg></span>
-      <span class="nom" data-en="Poster to print">Affiche à imprimer</span><span class="chevron">›</span>
+    <a class="ligne" href="/parametres/affiche.html" data-mots="affiche imprimer qr poster print">
+      <span class="icone" style="--c:#343a40"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v8H6z"/></svg></span>
+      <span class="nom"><span data-en="Poster to print">Affiche à imprimer</span><span class="resume" data-en="The Wi-Fi QR code, for a door or a tree">Le QR code du wifi, pour une porte ou un arbre</span></span><span class="chevron">›</span>
     </a>
+    </div>
   </div>
-
-  <h2 data-en="Content">Contenus</h2>
-  <div class="groupe">
-    <button class="ligne" data-vue="contenus">
-      <span class="icone" style="background:#1d6fd6"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></span>
-      <span class="nom" data-en="Encyclopedias">Encyclopédies</span><span class="valeur" id="val-contenus">…</span><span class="chevron">›</span>
+  <div class="section" data-section>
+    <h2 data-en="Station">Station</h2>
+    <div class="groupe">
+    <button class="ligne" data-vue="energie" data-mots="energie batterie accus sobre extinction power battery">
+      <span class="icone" style="--c:#2f9e44"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4M9.5 10v4"/></svg></span>
+      <span class="nom"><span data-en="Energy and batteries">Énergie et accus</span><span class="resume" data-en="Low-power mode, shutdown without visitors">Mode sobre, extinction sans visiteur</span></span><span class="valeur" id="val-energie">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="sujets">
-      <span class="icone" style="background:#5f3dc4"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
-      <span class="nom" data-en="Most searched topics">Sujets les plus cherchés</span><span class="valeur" id="val-sujets"></span><span class="chevron">›</span>
+    <button class="ligne" data-vue="wifi" data-mots="wifi reseau adresse nom ssid local network">
+      <span class="icone" style="--c:#0a84ff"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5 5 0 0 1 7 0"/><path d="M12 19.5h.01"/><path d="M1.5 9a15 15 0 0 1 21 0"/></svg></span>
+      <span class="nom"><span data-en="Wi-Fi and address">Wi-Fi et adresse</span><span class="resume" data-en="The Wi-Fi name and the station’s address">Le nom du wifi et l’adresse de la station</span></span><span class="valeur" id="val-wifi">…</span><span class="chevron">›</span>
     </button>
-    <a class="ligne" href="/ajouter/">
-      <span class="icone" style="background:#1f8a4c"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-      <span class="nom" data-en="Add files">Ajouter des fichiers</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="radio" data-mots="radio mesh meshtastic meshcore balise lora beacon">
+      <span class="icone" style="--c:#c2255c"><svg viewBox="0 0 24 24"><path d="M12 13v8"/><circle cx="12" cy="11" r="2"/><path d="M8.5 7.5a5 5 0 0 0 0 7"/><path d="M15.5 7.5a5 5 0 0 1 0 7"/><path d="M5.6 4.6a9 9 0 0 0 0 12.8"/><path d="M18.4 4.6a9 9 0 0 1 0 12.8"/></svg></span>
+      <span class="nom"><span data-en="Radio and Mesh">Radio et Mesh</span><span class="resume" data-en="Messages by radio, Mesh section, beacon">Messages par radio, section Mesh, balise</span></span><span class="valeur" id="val-radio">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="ecran" data-mots="ecran clavier eink e-ink kiosque screen keyboard">
+      <span class="icone" style="--c:#495057"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8"/><path d="M12 16v4"/></svg></span>
+      <span class="nom"><span data-en="Screens">Écrans</span><span class="resume" data-en="Screen and keyboard, small e-ink screen">Écran et clavier, petit écran e-ink</span></span><span class="valeur" id="val-ecran">…</span><span class="chevron">›</span>
+    </button>
+    <button class="ligne" data-vue="sante" data-mots="etat sante temperature alimentation tension health">
+      <span class="icone" style="--c:#e67700"><svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
+      <span class="nom"><span data-en="Station health">État de la station</span><span class="resume" data-en="Temperature, power, batteries, people connected">Température, alimentation, accus, connectés</span></span><span class="valeur" id="val-sante">…</span><span class="chevron">›</span>
+    </button>
+    </div>
+  </div>
+  <div class="section" data-section>
+    <h2 data-en="Content">Contenus</h2>
+    <div class="groupe">
+    <button class="ligne" data-vue="contenus" data-mots="encyclopedies wikipedia kiwix zim mise a jour">
+      <span class="icone" style="--c:#1d6fd6"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></span>
+      <span class="nom"><span data-en="Encyclopedias">Encyclopédies</span><span class="resume" data-en="Wikipedia and the others, their updates">Wikipédia et les autres, leurs mises à jour</span></span><span class="valeur" id="val-contenus">…</span><span class="chevron">›</span>
+    </button>
+    <a class="ligne" href="/ajouter/" data-mots="ajouter livres pdf epub zim bibliotheque doublon books">
+      <span class="icone" style="--c:#1f8a4c"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span class="nom"><span data-en="Add files">Ajouter des fichiers</span><span class="resume" data-en="EPUB and PDF books, ZIM encyclopedias, duplicates">Livres EPUB et PDF, encyclopédies ZIM, doublons</span></span><span class="chevron">›</span>
     </a>
-    <button class="ligne" data-vue="stockage">
-      <span class="icone" style="background:#8e44ad"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
-      <span class="nom" data-en="Storage">Stockage</span><span class="valeur" id="val-stockage">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="sujets" data-mots="sujets recherches epingler topics">
+      <span class="icone" style="--c:#5f3dc4"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
+      <span class="nom"><span data-en="Most searched topics">Sujets les plus cherchés</span><span class="resume" data-en="What people read, to pin on the home page">Ce que les gens lisent, à épingler sur l’accueil</span></span><span class="valeur" id="val-sujets">…</span><span class="chevron">›</span>
     </button>
+    <button class="ligne" data-vue="stockage" data-mots="stockage place carte disque supprimer storage">
+      <span class="icone" style="--c:#8e44ad"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+      <span class="nom"><span data-en="Storage">Stockage</span><span class="resume" data-en="What fills the card, and deleting it">Ce qui occupe la carte, et le supprimer</span></span><span class="valeur" id="val-stockage">…</span><span class="chevron">›</span>
+    </button>
+    </div>
   </div>
-
-  <h2 data-en="Station">Station</h2>
-  <div class="groupe">
-    <button class="ligne" data-vue="wifi">
-      <span class="icone" style="background:#0a84ff"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5 5 0 0 1 7 0"/><path d="M12 19.5h.01"/><path d="M1.5 9a15 15 0 0 1 21 0"/></svg></span>
-      <span class="nom" data-en="Station Wi-Fi">Wi-Fi de la station</span><span class="valeur" id="val-wifi">…</span><span class="chevron">›</span>
+  <div class="section" data-section>
+    <h2 data-en="System and security">Système et sécurité</h2>
+    <div class="groupe">
+    <button class="ligne" data-vue="logiciels" data-mots="logiciels mise a jour systeme software update">
+      <span class="icone" style="--c:#6e6e73"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></span>
+      <span class="nom"><span data-en="Updates">Mises à jour</span><span class="resume" data-en="The station’s system and software">Le système et les logiciels de la station</span></span><span class="valeur" id="val-logiciels">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="energie">
-      <span class="icone" style="background:#2f9e44"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4M9.5 10v4"/></svg></span>
-      <span class="nom" data-en="Energy">Énergie</span><span class="valeur" id="val-energie">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="sauvegarde" data-mots="sauvegarde restaurer backup restore">
+      <span class="icone" style="--c:#0b7285"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
+      <span class="nom"><span data-en="Backup">Sauvegarde</span><span class="resume" data-en="Download, make or restore a backup">Télécharger, faire ou remettre une sauvegarde</span></span><span class="valeur" id="val-sauvegarde">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="ecran">
-      <span class="icone" style="background:#495057"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8"/><path d="M12 16v4"/></svg></span>
-      <span class="nom" data-en="Screen and keyboard">Écran et clavier</span><span class="valeur" id="val-ecran">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="couleurs" data-mots="theme couleurs sombre contraste apparence colors dark">
+      <span class="icone" style="--c:#c2410c"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1 0 1.5-.8 1.5-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-4.9-4.5-8.6-10-8.6z"/></svg></span>
+      <span class="nom"><span data-en="Theme">Thème</span><span class="resume" data-en="The colours of every page">Les couleurs de toutes les pages</span></span><span class="valeur" id="val-couleurs">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="radio">
-      <span class="icone" style="background:#c2255c"><svg viewBox="0 0 24 24"><path d="M12 13v8"/><circle cx="12" cy="11" r="2"/><path d="M8.5 7.5a5 5 0 0 0 0 7"/><path d="M15.5 7.5a5 5 0 0 1 0 7"/><path d="M5.6 4.6a9 9 0 0 0 0 12.8"/><path d="M18.4 4.6a9 9 0 0 1 0 12.8"/></svg></span>
-      <span class="nom" data-en="Radio">Radio</span><span class="valeur" id="val-radio">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="langue" data-mots="langue language anglais francais">
+      <span class="icone" style="--c:#0e7490"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/></svg></span>
+      <span class="nom"><span data-en="Langue · Language">Langue · Language</span><span class="resume" data-en="French or English, for each phone">Français ou anglais, propre à chaque téléphone</span></span><span class="valeur" data-en="English">Français</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="sante">
-      <span class="icone" style="background:#e67700"><svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
-      <span class="nom" data-en="Station health">État de la station</span><span class="valeur" id="val-sante">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="motdepasse" data-mots="mot de passe password securite">
+      <span class="icone" style="--c:#d62828"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+      <span class="nom"><span data-en="Password">Mot de passe</span><span class="resume" data-en="Change the administrator password">Changer le mot de passe de l’administrateur</span></span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="logiciels">
-      <span class="icone" style="background:#6e6e73"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></span>
-      <span class="nom" data-en="Software">Logiciels</span><span class="valeur" id="val-logiciels">…</span><span class="chevron">›</span>
+    <button class="ligne" data-vue="effacer" data-mots="effacer vider supprimer messages erase">
+      <span class="icone" style="--c:#d62828"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg></span>
+      <span class="nom"><span data-en="Erase what visitors wrote">Effacer les écrits des visiteurs</span><span class="resume" data-en="Messages, loved ones, mutual aid — never the settings">Messages, proches, entraide — jamais les réglages</span></span><span class="valeur" id="val-effacer">…</span><span class="chevron">›</span>
     </button>
-    <button class="ligne" data-vue="sauvegarde">
-      <span class="icone" style="background:#0b7285"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
-      <span class="nom" data-en="Backup">Sauvegarde</span><span class="valeur" id="val-sauvegarde">…</span><span class="chevron">›</span>
-    </button>
+    </div>
   </div>
-
-  <h2 data-en="Appearance">Apparence</h2>
-  <div class="groupe">
-    <button class="ligne" data-vue="couleurs">
-      <span class="icone" style="background:#c2410c"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1 0 1.5-.8 1.5-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-4.9-4.5-8.6-10-8.6z"/></svg></span>
-      <span class="nom" data-en="Colors">Couleurs</span><span class="valeur" id="val-couleurs">…</span><span class="chevron">›</span>
-    </button>
-    <button class="ligne" data-vue="langue">
-      <span class="icone" style="background:#0e7490"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/></svg></span>
-      <span class="nom">Langue · Language</span><span class="valeur" data-en="English">Français</span><span class="chevron">›</span>
-    </button>
   </div>
-
-  <h2 data-en="Security">Sécurité</h2>
-  <div class="groupe">
-    <button class="ligne" data-vue="motdepasse">
-      <span class="icone" style="background:#d62828"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
-      <span class="nom" data-en="Password">Mot de passe</span><span class="chevron">›</span>
-    </button>
-    <button class="ligne" data-vue="effacer">
-      <span class="icone" style="background:#d62828"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg></span>
-      <span class="nom" data-en="Erase what visitors wrote">Effacer les écrits des visiteurs</span><span class="valeur" id="val-effacer">…</span><span class="chevron">›</span>
-    </button>
-  </div>
-
   <div class="actions-station">
     <button class="bouton redemarrer" id="bouton-redemarrer-station" data-en="Restart">Redémarrer</button>
     <button class="bouton eteindre" id="bouton-eteindre" data-en="Switch off">Éteindre</button>
@@ -476,7 +554,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
 <!-- ===== Couleurs ===== -->
 <section class="vue" id="vue-couleurs" hidden>
   <div class="entete"><button data-retour data-en="‹ Settings">‹ Paramètres</button></div>
-  <h1 data-en="Colors">Couleurs</h1>
+  <h1 data-en="Theme">Thème</h1>
   <div class="couleurs" id="couleurs"></div>
   <p class="note" data-en="This choice applies to every page and every visitor.">Le choix vaut pour toutes les pages et tous les visiteurs.</p>
 </section>
@@ -621,6 +699,7 @@ var NOMS = {
   'ifixit_fr_all': T('iFixit — réparations', 'iFixit — repairs')
 };
 var THEMES = [
+  ['neutre', T('Neutre', 'Neutral'), '#2d4f73', '#e9eef4', '#111827'], ['contraste', T('Contraste fort', 'High contrast'), '#ffd400', '#111111', '#ffffff'],
   ['ocean', T('Océan', 'Ocean'), '#1d6fd6', '#e3eefb', '#14202e'], ['foret', T('Forêt', 'Forest'), '#1f8a4c', '#e2f3e8', '#16241b'],
   ['braise', T('Braise', 'Ember'), '#d62828', '#fbe6e4', '#2a1715'], ['soleil', T('Soleil', 'Sun'), '#d9750a', '#fdeed9', '#2b2013'],
   ['lavande', T('Lavande', 'Lavender'), '#6a4fd6', '#ece8fc', '#1e1a2e'], ['nuit', T('Nuit', 'Night'), '#5ea8ff', '#18202a', '#eef2f7']
@@ -1167,6 +1246,7 @@ function etatRadio() {
     $('val-radio').className = 'valeur' + (alerte || maj ? ' alerte' : '');
     $('radio-etat').textContent = d.active ? txt : '—'; $('radio-etat').className = 'valeur' + (alerte ? ' alerte' : d.etat === 'ok' ? ' bien' : '');
     $('radio-attente').textContent = d.attente;
+    tuileRadio(d);
   }).catch(function () {});
 }
 setInterval(etatRadio, 30000);
@@ -1244,18 +1324,83 @@ function sante() {
     }
     var p = d.personnes || 0;
     $('sante-personnes').textContent = p;
-    // Carte d'etat en haut des Parametres : personnes connectees, puis temperature, duree, alimentation
-    $('carte-personnes').textContent = p + (p > 1 ? T(' personnes connectées', ' people connected') : T(' personne connectée', ' person connected'));
-    var puces = $('carte-puces'), chaud = d.temperature >= 80, faible = d.tension && d.tension !== 'ok';
-    puces.innerHTML = '';
-    if (d.temperature !== null) { var c1 = el('span', chaud ? 'mauvais' : '', d.temperature + ' °C'); puces.appendChild(c1); }
-    puces.appendChild(el('span', '', T('allumée ', 'on ') + (j ? j + T(' j ', ' d ') : '') + duree(d.allumee % 86400)));
-    puces.appendChild(el('span', faible ? 'mauvais' : '', faible ? T('alimentation faible', 'weak power') : T('alimentation bonne', 'power good')));
-    if (b) puces.appendChild(el('span', !b.secteur && b.pourcent <= 15 ? 'mauvais' : '', (b.secteur ? T('secteur ', 'mains ') : T('accus ', 'batteries ')) + b.pourcent + ' %'));
-    $('carte-etat').classList.toggle('alerte', chaud || faible);
+    tableauDeBord(d);
     $('val-sante').className = 'valeur' + (d.temperature >= 80 || (d.tension && d.tension !== 'ok') ? ' alerte' : '');
   }).catch(function () {});
 }
+
+// ----- Tableau de bord en haut des Parametres : connectes, accus, temperature, radio ; ligne d'etat generale
+function chiffre(id, valeur, unite, detail, etat) {
+  var t = $('tuile-' + id), c = t.querySelector('.tuile-chiffre');
+  c.textContent = valeur;
+  if (unite) c.appendChild(el('small', '', unite));
+  t.querySelector('.tuile-detail').textContent = detail;
+  t.className = 'tuile' + (etat ? ' ' + etat : '');
+}
+function tableauDeBord(d) {
+  var p = d.personnes || 0, b = d.batterie, chaud = d.temperature >= 80, faible = d.tension && d.tension !== 'ok';
+  chiffre('personnes', p, '', p > 1 ? T('téléphones ou ordinateurs', 'phones or computers') : T('téléphone ou ordinateur', 'phone or computer'));
+  chiffre('temp', d.temperature === null ? '?' : d.temperature, ' °C', chaud ? T('trop chaud : à l’ombre !', 'too hot: shade it!') : T('normale (limite 80 °C)', 'normal (limit 80 °C)'), chaud ? 'alerte' : '');
+  var bas = b && !b.secteur && b.pourcent <= 15, j = $('tuile-accus').querySelector('.tuile-jauge');
+  if (b) {
+    chiffre('accus', b.pourcent, ' %', b.secteur ? T('sur secteur, en charge', 'on mains, charging')
+      : T('sur accus', 'on batteries') + (b.restant !== null ? T(' · encore ', ' · ') + duree(b.restant) : ''), bas ? 'alerte' : 'bien');
+    j.hidden = false; j.firstChild.style.width = b.pourcent + '%';
+  } else {
+    chiffre('accus', faible ? '!' : 'OK', '', faible ? T('alimentation trop faible', 'power too low') : T('alimentation bonne', 'power good'), faible ? 'alerte' : '');
+    $('tuile-accus').querySelector('.tuile-tete span').textContent = T('Alimentation', 'Power');
+    j.hidden = true;
+  }
+  var soucis = [];
+  if (chaud) soucis.push(T('trop chaud', 'too hot'));
+  if (faible) soucis.push(T('alimentation faible', 'weak power'));
+  if (bas) soucis.push(T('accus presque vides', 'batteries nearly empty'));
+  var jours = Math.floor(d.allumee / 86400);
+  $('etat-general').className = 'etat-general' + (soucis.length ? ' alerte' : '');
+  $('etat-texte').textContent = (soucis.length ? T('À surveiller : ', 'Check: ') + soucis.join(', ') : T('Tout fonctionne', 'All is well'))
+    + T(' · allumée depuis ', ' · on for ') + (jours ? jours + T(' j ', ' d ') : '') + duree(d.allumee % 86400);
+}
+function tuileRadio(d) {
+  if (!d.active) return chiffre('radio', T('Éteinte', 'Off'), '', T('messages par radio désactivés', 'radio messages turned off'));
+  var ok = d.etat === 'ok';
+  chiffre('radio', ok ? T('En marche', 'On') : d.etat === 'absente' ? T('Absente', 'Missing') : d.etat === 'muette' ? T('Muette', 'Silent') : '…', '',
+    ok ? (d.nom || '') : d.etat === 'absente' ? T('radio pas branchée', 'radio not plugged in') : T('ne répond pas', 'not responding'), ok ? 'bien' : 'alerte');
+}
+// Les pastilles et les actions rapides suivent les valeurs ecrites par le reste de la page
+var ETEINT = /^(Désactivé|Off|Aucun|None|Jamais|Never|—|…|Pas branché|Not plugged)/i;
+var observateur = new MutationObserver(teinter);
+function suivre() { observateur.observe($('vue-accueil'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] }); }
+function teinter() {
+  // Ce que fait cette fonction ne doit pas la relancer : on cesse d'observer le temps de colorer
+  observateur.disconnect();
+  document.querySelectorAll('#vue-accueil .ligne .valeur').forEach(function (v) {
+    if (v.classList.contains('alerte')) { if (v.classList.contains('on')) v.classList.remove('on'); return; }
+    v.classList.toggle('on', !!v.textContent.trim() && !ETEINT.test(v.textContent.trim()) && !v.closest('[data-vue="langue"], [data-vue="couleurs"]'));
+  });
+  document.querySelectorAll('[data-copie]').forEach(function (e) {
+    var v = $(e.dataset.copie); if (!v) return;
+    if (e.textContent !== v.textContent) e.textContent = v.textContent;   // sinon l'observateur se relancerait sans fin
+    var a = e.closest('.action');
+    if (a.classList.contains('urgence')) a.classList.toggle('on', !ETEINT.test(v.textContent.trim()));
+  });
+  observateur.takeRecords();
+  suivre();
+}
+teinter();
+// Chercher un reglage : le nom, l'explication et quelques mots-cles de chaque ligne (accents ignores)
+function sansAccent(t) { return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+$('chercher').addEventListener('input', function () {
+  var q = sansAccent(this.value.trim()), rien = true;
+  document.querySelectorAll('#vue-accueil [data-section]').forEach(function (sec) {
+    var vu = false;
+    sec.querySelectorAll('.ligne').forEach(function (l) {
+      var ok = !q || sansAccent(l.textContent + ' ' + (l.dataset.mots || '')).indexOf(q) >= 0;
+      l.hidden = !ok; vu = vu || ok;
+    });
+    sec.hidden = !vu; rien = rien && !vu;
+  });
+  $('rien-trouve').hidden = !rien;
+});
 sante();
 setInterval(sante, 60000);
 

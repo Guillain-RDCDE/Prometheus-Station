@@ -14,8 +14,8 @@ mkdir -p "$WEB/vendor" "$WEB/bibliotheque" "$WEB/ajouter" "$WEB/encyclopedies"
 mkdir -p "$WEB/themes"
 cp "$ICI"/web/themes/*.css "$WEB/themes/"
 # Jeu de couleurs choisi sur la page Mises a jour (Ocean par defaut) ; garde au fil des reinstallations
-THEME=$(cat /srv/prometheus/.admin/theme 2>/dev/null || cat /srv/prometheus/.theme 2>/dev/null || echo ocean)
-[ -f "$WEB/themes/$THEME.css" ] || THEME=ocean
+THEME=$(cat /srv/prometheus/.admin/theme 2>/dev/null || cat /srv/prometheus/.theme 2>/dev/null || echo neutre)
+[ -f "$WEB/themes/$THEME.css" ] || THEME=neutre
 cp "$WEB/themes/$THEME.css" "$WEB/theme.css"
 cp "$ICI/web/index.html" "$ICI/web/style.css" "$ICI/web/logo.svg" "$ICI/web/connexion.html" "$ICI/web/langue.js" "$ICI/web/panneau.js" "$ICI/web/annonce.js" "$ICI/web/communaute.css" "$ICI/web/apple-touch-icon.png" "$WEB/"
 # Annonce, Retrouver ses proches, Entraide, Urgence (eteintes au depart, Parametres > Communaute)

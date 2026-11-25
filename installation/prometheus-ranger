@@ -32,4 +32,6 @@ done
 
 [ $ZIM = 1 ] && runuser -u prometheus -- /usr/local/bin/prometheus-catalogue
 [ $ZIM = 1 ] || [ $LIVRE = 1 ] && runuser -u prometheus -- /usr/local/bin/prometheus-index-livres
+# Un livre deja present (meme contenu) : la page Ajouter le signale et propose de le supprimer
+[ $LIVRE = 1 ] && [ -x /usr/local/bin/prometheus-doublons ] && /usr/local/bin/prometheus-doublons
 exit 0

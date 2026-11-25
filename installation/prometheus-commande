@@ -96,10 +96,14 @@ for F in "$DOSSIER"/*; do
       elif [ -f "/srv/prometheus/bibliotheque/$NOM" ] && [[ "${NOM,,}" == *.epub || "${NOM,,}" == *.pdf ]]; then
         rm -f "/srv/prometheus/bibliotheque/$NOM"
         runuser -u prometheus -- /usr/local/bin/prometheus-index-livres >/dev/null
+        [ -x /usr/local/bin/prometheus-doublons ] && /usr/local/bin/prometheus-doublons >/dev/null
         echo "Livre supprime : $NOM"
       else
         echo "Suppression refusee : $NOM introuvable"
       fi ;;
+    garder-doublon-*)
+      # « Garder les deux » sur la page Ajouter : le contenu de l'ordre = l'empreinte du livre en double
+      /usr/local/bin/prometheus-doublons --garder "$CONTENU" ;;
     *) echo "Ordre inconnu ignore : $ORDRE" ;;
   esac
 done

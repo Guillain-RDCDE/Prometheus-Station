@@ -98,6 +98,7 @@ The script and program names are in French; the guide gives each one's role.
 | `/srv/prometheus/communaute/` | community settings, register of people, mutual-aid posts, most searched topics (title and count only) |
 | `/srv/prometheus/.admin/` | password (scrambled), sessions, chosen colors, low-power mode |
 | `/srv/prometheus/sauvegardes/` | the last 7 settings backups |
+| `/srv/prometheus/.admin/doublons-gardes` | fingerprints of duplicate books the keeper chose to keep (*Keep both*) |
 | `/var/lib/prometheus-batterie/journal.csv` | X728 battery board: one reading per minute, each shutdown and start (summed up by `prometheus-batterie --bilan`) |
 | `/run/prometheus/` | live values, emptied at every start (automatic shutdown, voltage) |
 

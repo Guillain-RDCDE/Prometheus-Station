@@ -22,10 +22,52 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <span class="sous" data-en="or tap to choose them — EPUB or PDF books, ZIM encyclopedias">ou touchez pour les choisir — livres EPUB ou PDF, encyclopédies ZIM</span>
     <input type="file" id="choix" multiple hidden accept=".epub,.pdf,.zim">
   </label>
+  <div id="doublons"></div>
   <ul class="envois" id="envois"></ul>
 </main>
 <script>
 var acceptes = /\.(epub|pdf|zim)$/i;
+
+// ----- Livres en double (meme contenu, octet pour octet) : proposer de supprimer le plus recent ou de garder les deux
+function mo(o) { if (o < 1048576) return Math.max(1, Math.round(o / 1024)) + T(' Ko', ' KB'); var m = o / 1048576; return (m < 10 ? m.toFixed(1) : Math.round(m)).toString().replace('.', LANGUE === 'en' ? '.' : ',') + T(' Mo', ' MB'); }
+function ordre(nom, contenu) { return fetch('/ajouter/commande/' + nom + '-' + Date.now(), { method: 'PUT', body: contenu }); }
+function doublons() {
+  return fetch('/ajouter/doublons.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : { groupes: [] }; })
+    .then(function (d) { afficherDoublons(d.groupes || []); }).catch(function () {});
+}
+function afficherDoublons(groupes) {
+  var zone = document.getElementById('doublons');
+  zone.innerHTML = '';
+  groupes.forEach(function (g) {
+    var c = document.createElement('div'); c.className = 'doublon';
+    var t = document.createElement('p'); t.className = 'doublon-titre';
+    t.textContent = T('Livre en double', 'Duplicate book');
+    var p = document.createElement('p');
+    p.textContent = (g.doublons.length > 1 ? g.doublons.map(function (n) { return '« ' + n + ' »'; }).join(T(' et ', ' and ')) + T(' sont identiques', ' are identical')
+      : '« ' + g.doublons[0] + ' »' + T(' est identique', ' is identical')) + T(' à « ', ' to “') + g.garder + T(' », déjà dans la bibliothèque (même contenu, ', '”, already in the library (same content, ') + mo(g.taille) + ').';
+    var boutons = document.createElement('div'); boutons.className = 'doublon-boutons';
+    var sup = document.createElement('button'); sup.className = 'bouton';
+    sup.textContent = g.doublons.length > 1 ? T('Supprimer les doublons', 'Delete the duplicates') : T('Supprimer le doublon', 'Delete the duplicate');
+    var garder = document.createElement('button'); garder.className = 'bouton secondaire';
+    garder.textContent = T('Garder les deux', 'Keep both');
+    sup.onclick = function () {
+      // En deux temps, comme toute suppression
+      if (!sup.dataset.confirmer) { sup.dataset.confirmer = '1'; sup.classList.add('danger'); sup.textContent = T('Toucher encore pour supprimer', 'Tap again to delete'); return; }
+      sup.disabled = garder.disabled = true; sup.textContent = T('Suppression…', 'Deleting…');
+      Promise.all(g.doublons.map(function (n) { return ordre('supprimer', n); })).then(attendre, attendre);
+    };
+    garder.onclick = function () {
+      sup.disabled = garder.disabled = true;
+      ordre('garder-doublon', g.empreinte).then(attendre, attendre);
+    };
+    boutons.appendChild(sup); boutons.appendChild(garder);
+    c.appendChild(t); c.appendChild(p); c.appendChild(boutons);
+    zone.appendChild(c);
+  });
+}
+// Apres un ordre ou un envoi : la station range puis recalcule ; on relit quelques fois
+function attendre() { [2000, 5000, 10000, 20000, 40000].forEach(function (ms) { setTimeout(doublons, ms); }); }
+doublons();
 
 function envoyer(f) {
   var li = document.createElement('li');
@@ -47,7 +89,6 @@ function envoyer(f) {
     return;
   }
   // Pourcentage en gras, puis ce qui est parti sur le total (Mo)
-  function mo(o) { var m = o / 1048576; return (m < 10 ? m.toFixed(1) : Math.round(m)).toString().replace('.', LANGUE === 'en' ? '.' : ',') + T(' Mo', ' MB'); }
   function avance(fait, total) {
     var pc = total ? Math.floor(fait / total * 100) : 0;
     plein.style.width = pc + '%';
@@ -67,6 +108,7 @@ function envoyer(f) {
     etat.textContent = ok
       ? T('Reçu (', 'Received (') + mo(f.size) + T('). Il sera rangé dans un instant.', '). It will be filed in a moment.')
       : T('Échec de l’envoi (erreur ', 'Upload failed (error ') + x.status + ').';
+    if (ok) attendre();
   };
   x.onerror = function () {
     barre.classList.add('echec');

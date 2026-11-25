@@ -62,6 +62,7 @@ chmod 700 /srv/prometheus/restauration   # sauvegarde a remettre (contient les m
 echo "== Programmes : liste des livres et rangement automatique"
 install -m 755 "$ICI/prometheus-index-livres" /usr/local/bin/prometheus-index-livres
 install -m 755 "$ICI/prometheus-ranger" /usr/local/bin/prometheus-ranger
+install -m 755 "$ICI/prometheus-doublons" /usr/local/bin/prometheus-doublons
 install -m 755 "$ICI/prometheus-etat" /usr/local/bin/prometheus-etat
 install -m 755 "$ICI/prometheus-commande" /usr/local/bin/prometheus-commande
 mkdir -p /srv/prometheus/commande
@@ -305,6 +306,8 @@ EOF
 
 systemctl daemon-reload
 systemctl enable --now prometheus-ranger.path prometheus-commande.path
+# Livres en double deja presents : signales des maintenant sur la page Ajouter
+/usr/local/bin/prometheus-doublons >/dev/null
 systemctl enable --now prometheus-admin.service
 systemctl restart prometheus-admin.service
 systemctl enable nginx

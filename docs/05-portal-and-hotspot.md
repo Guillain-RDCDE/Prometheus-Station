@@ -23,7 +23,7 @@ The QR-code generator of the poster (qrcode-generator 1.4.4) is also stored on t
 
 Every page is in **French and English**; each phone chooses its own language (by default, the phone's language).
 
-**Adding files**: a file dropped on the *Add files* page is sorted by itself — a `.zim` goes to the encyclopedias, an `.epub` or `.pdf` to the library, anything else is refused (program `prometheus-ranger`).
+**Adding files**: a file dropped on the *Add files* page is sorted by itself — a `.zim` goes to the encyclopedias, an `.epub` or `.pdf` to the library, anything else is refused (program `prometheus-ranger`). Then `prometheus-doublons` compares the books of the same size by their SHA-256 fingerprint and lists exact duplicates in `/var/www/prometheus/ajouter/doublons.json`, shown on the *Add files* page; names are not compared, so there is never a false alarm.
 
 **The station's Wi-Fi**: an **open** network (no password) called **Prometheus-Station**. The station's address on it is `10.42.0.1`.
 

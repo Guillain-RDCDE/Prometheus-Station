@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+# Prometheus Station - repere les livres en double dans la bibliotheque (meme contenu, octet pour octet).
+# Ecrit /var/www/prometheus/ajouter/doublons.json, lu par la page Ajouter (derriere le mot de passe), qui propose
+# de supprimer le plus recent ou de garder les deux. Lance par prometheus-ranger (apres un ajout) et par
+# prometheus-commande (apres une suppression ou « garder les deux »).
+# Seuls les livres de meme taille sont compares (empreinte SHA-256) : rapide, et jamais de fausse alerte.
+# « Garder les deux » : l'empreinte est notee dans /srv/prometheus/.admin/doublons-gardes et n'est plus signalee.
+#   prometheus-doublons              -> recalcule la liste
+#   prometheus-doublons --garder H   -> ne plus signaler le groupe d'empreinte H, puis recalcule
+import hashlib, json, os, re, sys, time
+
+BIBLIOTHEQUE = '/srv/prometheus/bibliotheque'
+SORTIE = '/var/www/prometheus/ajouter/doublons.json'
+GARDES = '/srv/prometheus/.admin/doublons-gardes'
+
+
+def empreinte(chemin):
+    h = hashlib.sha256()
+    with open(chemin, 'rb') as f:
+        for bloc in iter(lambda: f.read(1 << 20), b''):
+            h.update(bloc)
+    return h.hexdigest()
+
+
+def gardes():
+    try:
+        return set(open(GARDES).read().split())
+    except OSError:
+        return set()
+
+
+def calculer():
+    par_taille = {}
+    for nom in os.listdir(BIBLIOTHEQUE):
+        chemin = os.path.join(BIBLIOTHEQUE, nom)
+        if os.path.isfile(chemin) and nom.lower().endswith(('.epub', '.pdf')):
+            st = os.stat(chemin)
+            par_taille.setdefault(st.st_size, []).append((st.st_mtime, nom))
+    deja = gardes()
+    groupes = []
+    for taille, livres in par_taille.items():
+        if len(livres) < 2:
+            continue
+        par_empreinte = {}
+        for mtime, nom in livres:
+            try:
+                par_empreinte.setdefault(empreinte(os.path.join(BIBLIOTHEQUE, nom)), []).append((mtime, nom))
+            except OSError:
+                pass
+        for h, memes in par_empreinte.items():
+            if len(memes) < 2 or h in deja:
+                continue
+            memes.sort()   # le plus ancien d'abord : c'est lui qu'on propose de garder
+            groupes.append({'empreinte': h, 'taille': taille, 'garder': memes[0][1],
+                            'doublons': [nom for _, nom in memes[1:]], 'depuis': int(memes[-1][0])})
+    groupes.sort(key=lambda g: -g['depuis'])
+    tmp = SORTIE + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump({'heure': int(time.time()), 'groupes': groupes}, f, ensure_ascii=False)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, SORTIE)
+    return groupes
+
+
+def main():
+    if sys.argv[1:2] == ['--garder']:
+        h = sys.argv[2] if len(sys.argv) > 2 else ''
+        if not re.fullmatch(r'[0-9a-f]{64}', h):
+            print('Empreinte invalide')
+            return 1
+        if h not in gardes():
+            os.makedirs(os.path.dirname(GARDES), exist_ok=True)
+            with open(GARDES, 'a') as f:
+                f.write(h + '\n')
+        print('Doublon garde : ' + h[:12])
+    groupes = calculer()
+    for g in groupes:
+        print('Doublon : %s = %s' % (' = '.join(g['doublons']), g['garder']))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

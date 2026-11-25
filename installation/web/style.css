@@ -75,6 +75,13 @@ footer a { color: var(--gris); }
 .jauge.echec span { background: var(--rouge-urgence); }
 .envois .etat-envoi { font-size: .95rem; color: var(--gris); }
 .envois .etat-envoi b { color: var(--encre); }
+/* Livre en double sur la page Ajouter */
+.doublon { margin: 20px 0 0; padding: 14px 16px; border: 2px solid #d9750a; border-radius: var(--rayon); background: var(--carte); }
+.doublon p { margin: 0 0 10px; overflow-wrap: anywhere; }
+.doublon .doublon-titre { font-weight: 700; color: #b35f00; margin-bottom: 4px; }
+.doublon-boutons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.doublon-boutons .bouton { margin-top: 0; padding: 11px 8px; font-size: .95rem; }
+.bouton.danger { background: var(--rouge-urgence); border-color: var(--rouge-urgence); color: #fff; }
 
 /* Boutons et champs */
 .bouton { display: block; width: 100%; font: inherit; font-size: 1rem; font-weight: 600; padding: 15px; border: 1px solid var(--encre); border-radius: var(--rayon); background: var(--encre); color: var(--fond); cursor: pointer; margin-top: 8px; text-align: center; transition: opacity .15s ease; }

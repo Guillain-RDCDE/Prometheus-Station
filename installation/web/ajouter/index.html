@@ -30,11 +30,14 @@ var acceptes = /\.(epub|pdf|zim)$/i;
 function envoyer(f) {
   var li = document.createElement('li');
   var nom = document.createElement('div');
+  nom.className = 'nom-envoi';
   nom.textContent = f.name;
-  var barre = document.createElement('progress');
-  barre.max = 100; barre.value = 0;
+  var barre = document.createElement('div');
+  barre.className = 'jauge';
+  var plein = document.createElement('span');
+  barre.appendChild(plein);
   var etat = document.createElement('div');
-  etat.className = 'sous';
+  etat.className = 'etat-envoi';
   li.appendChild(nom); li.appendChild(barre); li.appendChild(etat);
   document.getElementById('envois').appendChild(li);
 
@@ -43,16 +46,32 @@ function envoyer(f) {
     etat.textContent = T('Refusé : seuls les fichiers EPUB, PDF et ZIM sont acceptés.', 'Refused: only EPUB, PDF and ZIM files are accepted.');
     return;
   }
+  // Pourcentage en gras, puis ce qui est parti sur le total (Mo)
+  function mo(o) { var m = o / 1048576; return (m < 10 ? m.toFixed(1) : Math.round(m)).toString().replace('.', LANGUE === 'en' ? '.' : ',') + T(' Mo', ' MB'); }
+  function avance(fait, total) {
+    var pc = total ? Math.floor(fait / total * 100) : 0;
+    plein.style.width = pc + '%';
+    etat.innerHTML = '';
+    var b = document.createElement('b'); b.textContent = pc + ' %';
+    etat.appendChild(b);
+    etat.appendChild(document.createTextNode(' · ' + mo(fait) + T(' sur ', ' of ') + mo(total)));
+  }
+  avance(0, f.size);
   var x = new XMLHttpRequest();
   x.open('PUT', '/ajouter/depot/' + encodeURIComponent(f.name));
-  x.upload.onprogress = function (e) { if (e.lengthComputable) barre.value = e.loaded / e.total * 100; };
+  x.upload.onprogress = function (e) { if (e.lengthComputable) avance(e.loaded, e.total); };
   x.onload = function () {
-    barre.value = 100;
-    etat.textContent = (x.status >= 200 && x.status < 300)
-      ? T('Reçu. Il sera rangé dans un instant.', 'Received. It will be filed in a moment.')
+    var ok = x.status >= 200 && x.status < 300;
+    plein.style.width = '100%';
+    barre.classList.add(ok ? 'fini' : 'echec');
+    etat.textContent = ok
+      ? T('Reçu (', 'Received (') + mo(f.size) + T('). Il sera rangé dans un instant.', '). It will be filed in a moment.')
       : T('Échec de l’envoi (erreur ', 'Upload failed (error ') + x.status + ').';
   };
-  x.onerror = function () { etat.textContent = T('Échec de l’envoi : la connexion a été coupée.', 'Upload failed: the connection was lost.'); };
+  x.onerror = function () {
+    barre.classList.add('echec');
+    etat.textContent = T('Échec de l’envoi : la connexion a été coupée.', 'Upload failed: the connection was lost.');
+  };
   x.send(f);
 }
 

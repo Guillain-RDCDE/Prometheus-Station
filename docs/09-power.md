@@ -11,6 +11,27 @@ Pi$ cd ~/installation
 Pi$ sudo bash 07-energie.sh
 ```
 
+## 9.0 The battery case (X728)
+
+*Added November 2026.* The station now runs in a **Geekworm X728-C1** metal case with an **X728 V2.5** battery board and four 18650 cells ([hardware](../HARDWARE.md#geekworm-x728-and-its-x728-c1-case)). The power bank becomes optional.
+
+![The station in its case, lid off](images/power-x728-case.jpg)
+
+**Assembly, from bottom to top:**
+
+1. **Charge the four cells fully** first, all to the same level (about 4.2 V each). Nothing is plugged in, no cell in place.
+2. **Feet:** a flat-head screw goes through the bottom of the case from outside (its head sits flush), and a short 5 mm spacer screws onto it inside. Four of them. Skip this on a table test.
+3. **The Pi** sits on the four short spacers.
+4. **Long spacers:** push the threaded end of each long spacer through a hole of the Pi, from above, and screw it into the short spacer below. The Pi is clamped between them.
+5. **The X728** plugs onto the Pi's 40 pins (check that no pin is left outside), and rests on the long spacers. Round-head screws hold it from above.
+6. **Cables**, still without cells: the extra cell holder, the push button and the fan. Each plug only fits its own socket: never force one.
+7. **Cells last**, flat end (−) against the spring.
+8. **Power** now plugs into the X728's input, never into the Pi.
+
+**Tested:** the station boots on the X728 and runs its updates without a single undervoltage alert (`vcgencmd get_throttled` = `0x0`), 44 °C in the closed case with its fan.
+
+**Not done yet:** the Pi does not read the X728 yet (cell level, clean shutdown when the cells run low, the X728's clock). Until then, section 9.1 below still protects the card. Battery life on the four cells has not been measured.
+
 ## 9.1 Clean shutdown when the power gets weak
 
 The service `prometheus-tension` asks the Pi every 5 seconds whether its supply voltage is **too low right now**. If it stays too low for **30 seconds in a row**, the station shuts down cleanly (and the e-ink screen says so).
@@ -60,6 +81,6 @@ So about **2.1 W → 1.9 W**. The price: searching the encyclopedias is 3 to 5 t
 
 ## Battery life
 
-At rest, the station uses about **2 W** (2.6 W with the network cable plugged in, which it never is on battery). On the Anker 737, the estimate is **about one day**. A full discharge test has **not** been done yet.
+At rest, the station uses about **2 W** (2.6 W with the network cable plugged in, which it never is on battery). On the Anker 737, the estimate is **about one day**. On the four cells of the X728 (about 50 Wh), roughly **7 to 10 hours** at a guess. No full discharge test has been done yet.
 
 Next: [10. Security →](10-security.md)

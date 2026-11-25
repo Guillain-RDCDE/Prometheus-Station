@@ -10,11 +10,14 @@ The list has two parts: what **runs the station today** (including the Meshtasti
 |---|---|---|
 | **Raspberry Pi 4, 8 GB** | the computer | ~75 € |
 | **microSD SanDisk Extreme 256 GB, A2** | the station's disk: system + about 200 GB of encyclopedias | ~35 € |
-| **Anker PowerCore 737** (24,000 mAh, about 86 Wh) | the battery | ~73 € |
-| **Waveshare 2.13" e-Paper HAT V4** (250 × 122, ref. 12915) | the small screen with the QR code *(optional)* | ~17 € |
+| **Geekworm X728 V2.5** (UPS board for two 18650 cells) | the built-in battery, since November 2026 | ~58 € |
+| **Geekworm X728-C1** (metal case, fan, push button, holder for two more 18650 cells) | the case | ~22 € |
+| **Samsung INR18650-35E** × 4 (3,500 mAh, unprotected) | the cells of the X728 | ~15 € |
+| **Anker PowerCore 737** (24,000 mAh, about 86 Wh) | the battery until November 2026, now a spare | ~73 € |
+| **Waveshare 2.13" e-Paper HAT V4** (250 × 122, ref. 12915) | the small screen with the QR code *(optional; not in the case for now)* | ~17 € |
 | USB-C cable, network (Ethernet) cable | power, installation | a few euros |
 
-About **200 €** for a working station.
+About **200 €** for a working station on a power bank; about **300 €** with the battery board and its case.
 
 ### Raspberry Pi 4 (8 GB)
 
@@ -31,6 +34,17 @@ Everything lives on it. With the content list of the guide, about 34 GB stay fre
 - **Why A2**: the encyclopedias are read in small random pieces; A2 cards are much faster at that. A slow card makes every search painful.
 - **Smaller card?** With 128 GB, leave out English Wikipedia (127 GB); see [step 4](docs/04-encyclopedias.md).
 - Buy from a reputable seller: fake capacities are common.
+
+### Geekworm X728 and its X728-C1 case
+
+Since November 2026 the station carries **its own battery**: a board that sits on the Pi's pins and holds 18650 cells, inside a small metal case with a fan and a lit push button. Mains power plugs into the X728, not into the Pi; if it goes away, the cells take over with no interruption.
+
+![The parts before assembly](docs/images/power-x728-parts.jpg)
+
+- **Four cells** in total: two on the board, two in the extra holder of the case. They work in parallel: charge them all fully before fitting them, and never mix old and new cells.
+- The X728 asks for **unprotected** cells. Check the polarity of each cell twice before inserting it.
+- **The e-ink screen does not fit** in the closed case: it is set aside for now (a window or a different lid may come later).
+- Assembly and what is tested: [step 9](docs/09-power.md#90-the-battery-case-x728).
 
 ### Anker PowerCore 737
 
@@ -91,4 +105,4 @@ Height is range: at ground level, buildings and trees block the signal; at a few
 
 [Build guide](docs/README.md) · [Reference](docs/REFERENCE.md)
 
-*Last updated: October 2026.*
+*Last updated: November 2026.*

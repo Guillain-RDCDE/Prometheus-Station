@@ -15,7 +15,7 @@ Start here: **[0. Before you start](00-before-you-start.md)**
 | 6 | [Remote access](06-remote-access.md) *(optional)* | `04-tailscale.sh` |
 | 7 | [Automatic Wi-Fi](07-automatic-wifi.md) | `05-wifi-auto.sh` |
 | 8 | [E-ink screen](08-eink-screen.md) *(optional)* | `06-ecran.sh` |
-| 9 | [Power](09-power.md) | `07-energie.sh` |
+| 9 | [Power](09-power.md) | `07-energie.sh`, `12-batterie.sh` *(X728 battery board)* |
 | 10 | [Security](10-security.md) | `08-securite.sh` |
 | 11 | [Backup](11-backup.md) | `09-sauvegarde.sh` |
 | 12 | [Using the station](12-using-the-station.md) | — |

@@ -30,6 +30,10 @@ The last line exists because the screen keeps its image: without it, a switched-
 
 The screen is redrawn only when the situation changes (checked every 5 seconds).
 
+## Turning it off
+
+*Settings > Screen and keyboard > Small e-ink screen* (on by default). Turned off, the station no longer touches the screen at all. Turn it off when the screen is not fitted, for example when it does not fit in the case ([step 9](09-power.md#90-the-battery-case-x728)): without a screen, the driver would wait for it forever.
+
 > ⚠️ Never run a test program for the screen while the service is running: both would fight for the pins (`GPIO busy`). Stop it first: `sudo systemctl stop prometheus-ecran`.
 
 Next: [9. Power →](09-power.md)

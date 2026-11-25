@@ -30,7 +30,32 @@ Pi$ sudo bash 07-energie.sh
 
 **Tested:** the station boots on the X728 and runs its updates without a single undervoltage alert (`vcgencmd get_throttled` = `0x0`), 44 °C in the closed case with its fan.
 
-**Not done yet:** the Pi does not read the X728 yet (cell level, clean shutdown when the cells run low, the X728's clock). Until then, section 9.1 below still protects the card. Battery life on the four cells has not been measured.
+**The software** (step 12):
+
+```
+Pi$ cd ~/installation
+Pi$ sudo bash 12-batterie.sh
+```
+
+The service `prometheus-batterie` reads the X728's charge gauge (I2C address `0x36`) and the mains pin, every 10 seconds:
+
+- *Settings > Station health* shows the charge, whether the station is **on mains or on batteries**, and on batteries the time left (estimated from the last hour, once 10 minutes have passed);
+- on batteries, when the cells are down to **5 %** or **3.35 V** for 60 seconds in a row, the station **shuts down cleanly**; below 3.20 V it does so whatever the mains pin says;
+- at the very end of any shutdown (not a restart), a 4-second pulse on pin 26 asks the X728 to **cut the power**, so a switched-off station does not keep draining its cells;
+- the X728's button: short press = restart, long press = shut down;
+- one line per minute in `/var/lib/prometheus-batterie/journal.csv` (time, mains or batteries, volts, percent): the record of a battery-life test.
+
+X728 V2.x pins: 5 (the board asks for a shutdown), 6 (mains lost = 1), 12 (set high: "the Pi is up"), 26 (ask the board to cut the power). None is used by the e-ink screen. Without an X728, the service stops at once and does nothing.
+
+To try the shutdown rule without switching anything off (stop the service first: pins are not shared):
+
+```
+Pi$ sudo systemctl stop prometheus-batterie
+Pi$ sudo PROMETHEUS_BATTERIE_ESSAI=1 PROMETHEUS_BATTERIE_SEUIL=99 prometheus-batterie
+Pi$ sudo systemctl start prometheus-batterie
+```
+
+**Tested:** charge gauge and mains pin read correctly (on batteries: 98 %, 4.11 V, falling); the shutdown rule triggers after exactly 60 s below the threshold (dry run); the charge shows in *Settings*. **Not tested yet:** a real shutdown at the end of a full discharge, the power cut by the X728 afterwards, the button, and the X728's clock (seen at I2C address `0x68`, not used yet). Battery life on the four cells has not been measured: that test is running.
 
 ## 9.1 Clean shutdown when the power gets weak
 

@@ -9,7 +9,8 @@
 #   POST /theme     -> changer les couleurs de la station (immediat)
 #   POST /wifi      -> renommer le wifi de la station (applique par le service prometheus-ssid)
 #   POST /adresse   -> changer le nom de la station sur le reseau : http://<nom>.local (applique par prometheus-nom)
-#   GET  /sante     -> {temperature (degres), tension ('ok' / 'basse' / 'basse_avant'), allumee (secondes)}
+#   GET  /sante     -> {temperature (degres), tension ('ok' / 'basse' / 'basse_avant'), allumee (secondes),
+#                       batterie (carte X728, etape 12) : {pourcent, tension, secteur, restant (secondes ou null)} ou null}
 #   GET  /energie   -> {sobre, extinction (minutes, 0 = jamais), restant (secondes ou null)}
 #   POST /energie   -> {sobre: true/false} (applique par prometheus-sobre) et/ou {extinction: minutes}
 # Pour tous les visiteurs (nginx : /api/...) :
@@ -91,6 +92,8 @@ DEFAUT = {
     'mesh': {'historique_jours': 90, 'distance': False, 'toutes_cartes': False},
     # Ecran et clavier branches sur la station (etape 11, la « mallette ») : veille en minutes, 0 = jamais
     'ecran': {'active': False, 'veille': 5},
+    # Petit ecran e-ink pose sur le Pi (etape 6) : a desactiver s'il n'est pas branche
+    'eink': {'active': True},
     # Balise : un message tout fait envoye seul par radio (toutes les 3 h ; au depart seulement si Urgence est allumee)
     'balise': {'active': False, 'texte': '{nom} : station de savoir hors ligne et messages. Wifi ouvert « {wifi} ». {position}',
                'heures': 3, 'canal': 0, 'urgence_seulement': True},
@@ -480,8 +483,13 @@ def sante():
         v = None
     # bit 0 : tension trop basse en ce moment ; bit 16 : elle l'a ete depuis l'allumage
     tension = None if v is None else 'basse' if v & 0x1 else 'basse_avant' if v & 0x10000 else 'ok'
+    # Carte batterie X728 (etape 12) : etat ecrit toutes les 10 s par prometheus-batterie ; trop vieux = absent
+    batterie = lire_json('/run/prometheus/batterie', None)
+    if not isinstance(batterie, dict) or time.time() - batterie.get('heure', 0) > 120:
+        batterie = None
     return {'temperature': round(int(t) / 1000) if t.isdigit() else None, 'tension': tension,
-            'allumee': int(float(lire_fichier('/proc/uptime', '0').split()[0])), 'personnes': personnes()}
+            'allumee': int(float(lire_fichier('/proc/uptime', '0').split()[0])), 'personnes': personnes(),
+            'batterie': batterie}
 
 
 def regler_heure(ms):

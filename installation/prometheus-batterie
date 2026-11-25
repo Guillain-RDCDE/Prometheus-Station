@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+# Prometheus Station - carte batterie Geekworm X728 (V2.x), etape 12.
+# - lit la jauge des accus (puce MAX17040 a l'adresse I2C 0x36) : tension et pourcentage ;
+# - sait si le secteur est branche (broche 6 : 1 = secteur coupe, la station tourne sur ses accus) ;
+# - sur accus, quand il ne reste presque plus rien, eteint la station proprement, puis la carte coupe le courant ;
+# - bouton de la carte : appui court = redemarrer, appui long = eteindre ;
+# - note la charge chaque minute (/var/lib/prometheus-batterie/journal.csv) : de quoi mesurer l'autonomie.
+# Etat pour les Parametres : /run/prometheus/batterie (JSON). Sans carte X728 : le programme s'arrete sans bruit.
+# Broches de la X728 V2.x : 5 = la carte demande l'extinction (impulsion), 6 = secteur coupe, 12 = « le Pi a demarre »,
+# 26 = demander a la carte d'eteindre (impulsion de 4 s, comme un appui long). Aucune n'est utilisee par l'ecran e-ink.
+# Pour l'essayer sans rien eteindre (service arrete d'abord : les broches ne se partagent pas) :
+#   PROMETHEUS_BATTERIE_ESSAI=1 PROMETHEUS_BATTERIE_SEUIL=99 prometheus-batterie
+#   (journal a part dans /tmp ; SEUIL = pourcentage sous lequel il faudrait s'eteindre, pour le declencher tout de suite)
+import json, os, subprocess, sys, threading, time
+
+JAUGE = 0x36
+BOUTON, SECTEUR, BOOT, COUPER = 5, 6, 12, 26
+SEUIL_POURCENT = 5        # sur accus : extinction a 5 % ...
+SEUIL_TENSION = 3.35      # ... ou sous 3,35 V (accus en parallele : c'est la tension d'un accu)
+SEUIL_URGENCE = 3.20      # sous 3,20 V on s'eteint meme si la broche du secteur dit le contraire
+DUREE_BAS = 60            # secondes de suite sous le seuil avant d'eteindre (un pic d'emission radio ne compte pas)
+ETAT = '/run/prometheus/batterie'
+DOSSIER = '/var/lib/prometheus-batterie'
+JOURNAL = os.path.join(DOSSIER, 'journal.csv')
+ESSAI = bool(os.environ.get('PROMETHEUS_BATTERIE_ESSAI'))
+if ESSAI:
+    DOSSIER = '/tmp/prometheus-batterie-essai'
+    JOURNAL = os.path.join(DOSSIER, 'journal.csv')
+    ETAT = '/tmp/prometheus-batterie-essai/etat'
+    SEUIL_POURCENT = float(os.environ.get('PROMETHEUS_BATTERIE_SEUIL', SEUIL_POURCENT))
+
+
+def dire(texte):
+    print(texte, flush=True)
+
+
+def broche(n, valeur):
+    """Met une broche en sortie, haute ou basse. pinctrl la laisse ainsi meme apres l'arret du programme."""
+    subprocess.run(['pinctrl', 'set', str(n), 'op', 'dh' if valeur else 'dl'], check=False)
+
+
+def lire_jauge(bus):
+    v = bus.read_i2c_block_data(JAUGE, 2, 2)
+    c = bus.read_i2c_block_data(JAUGE, 4, 2)
+    tension = ((v[0] << 8 | v[1]) >> 4) * 1.25 / 1000
+    pourcent = min(100.0, c[0] + c[1] / 256)
+    return round(tension, 3), round(pourcent, 1)
+
+
+def eteindre(pourquoi):
+    """Extinction propre. La carte coupe ensuite le courant (voir le crochet d'extinction installe par l'etape 12)."""
+    dire('Extinction : ' + pourquoi)
+    noter('extinction', pourquoi)
+    if ESSAI:
+        dire('(essai : la station ne s\'eteint pas)')
+        os._exit(0)
+    subprocess.run(['systemctl', 'poweroff'], check=False)
+    time.sleep(60)
+    os._exit(0)
+
+
+def noter(*champs):
+    try:
+        os.makedirs(DOSSIER, exist_ok=True)
+        # Le journal ne grossit pas sans fin : au-dela de 2 Mo (des mois de releves), on garde la seconde moitie
+        if os.path.exists(JOURNAL) and os.path.getsize(JOURNAL) > 2_000_000:
+            garde = open(JOURNAL).read().splitlines()[-20000:]
+            open(JOURNAL, 'w').write('\n'.join(garde) + '\n')
+        with open(JOURNAL, 'a') as f:
+            f.write(','.join([str(int(time.time())), time.strftime('%Y-%m-%d %H:%M:%S')] + [str(c) for c in champs]) + '\n')
+    except OSError:
+        pass
+
+
+def surveiller_bouton(h):
+    """La carte envoie une impulsion sur la broche 5 : 200 a 600 ms = redemarrer, plus long = eteindre."""
+    import lgpio
+    while True:
+        if lgpio.gpio_read(h, BOUTON) == 0:
+            time.sleep(0.2)
+            continue
+        debut = time.monotonic()
+        while lgpio.gpio_read(h, BOUTON) == 1:
+            time.sleep(0.02)
+            if time.monotonic() - debut > 0.6:
+                eteindre('bouton de la carte (appui long)')
+        if time.monotonic() - debut > 0.2:
+            dire('Redemarrage : bouton de la carte (appui court)')
+            noter('redemarrage', 'bouton')
+            if ESSAI:
+                os._exit(0)
+            subprocess.run(['systemctl', 'reboot'], check=False)
+            time.sleep(60)
+
+
+def main():
+    try:
+        from smbus2 import SMBus
+        bus = SMBus(1)
+        lire_jauge(bus)
+    except Exception:
+        dire('Pas de carte batterie X728 (jauge 0x36 absente) : rien a faire')
+        return 0
+    import lgpio
+    h = lgpio.gpiochip_open(0)
+    lgpio.gpio_claim_input(h, BOUTON)
+    lgpio.gpio_claim_input(h, SECTEUR)
+    broche(COUPER, 0)
+    broche(BOOT, 1)          # dit a la carte que le Pi a demarre
+    threading.Thread(target=surveiller_bouton, args=(h,), daemon=True).start()
+
+    releves = []             # (heure, pourcent) sur accus, pour estimer le temps restant
+    bas_depuis = 0
+    derniere_note = 0
+    secteur_avant = None
+    while True:
+        try:
+            tension, pourcent = lire_jauge(bus)
+        except OSError:
+            time.sleep(10)
+            continue
+        secteur = lgpio.gpio_read(h, SECTEUR) == 0
+        maintenant = time.time()
+        if secteur != secteur_avant:
+            dire('Secteur branche' if secteur else 'Secteur coupe : la station tourne sur ses accus (%.0f %%)' % pourcent)
+            noter('secteur' if secteur else 'accus', tension, pourcent)
+            releves = []
+            secteur_avant = secteur
+        restant = None
+        if not secteur:
+            releves.append((maintenant, pourcent))
+            releves = [r for r in releves if maintenant - r[0] <= 3600]
+            # Temps restant : la pente de la derniere heure (au moins 10 minutes de releves)
+            if maintenant - releves[0][0] >= 600 and releves[0][1] > pourcent:
+                pente = (releves[0][1] - pourcent) / (maintenant - releves[0][0])
+                restant = int(max(0, pourcent - SEUIL_POURCENT) / pente)
+        try:
+            os.makedirs(os.path.dirname(ETAT), exist_ok=True)
+            with open(ETAT + '.tmp', 'w') as f:
+                json.dump({'heure': int(maintenant), 'tension': tension, 'pourcent': round(pourcent),
+                           'secteur': secteur, 'restant': restant}, f)
+            os.chmod(ETAT + '.tmp', 0o644)
+            os.replace(ETAT + '.tmp', ETAT)
+        except OSError:
+            pass
+        if maintenant - derniere_note >= 60:
+            noter('releve', 'secteur' if secteur else 'accus', tension, pourcent)
+            derniere_note = maintenant
+        bas = (not secteur and (pourcent <= SEUIL_POURCENT or tension <= SEUIL_TENSION)) or tension <= SEUIL_URGENCE
+        if bas:
+            if not bas_depuis:
+                bas_depuis = maintenant
+                dire('Accus presque vides (%.2f V, %.0f %%)' % (tension, pourcent))
+            if maintenant - bas_depuis >= DUREE_BAS:
+                eteindre('accus presque vides (%.2f V, %.0f %%)' % (tension, pourcent))
+        elif bas_depuis:
+            dire('Accus de nouveau suffisants')
+            bas_depuis = 0
+        time.sleep(10)
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -557,6 +557,11 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <h2 data-en="Screen goes to sleep after">Mise en veille de l’écran après</h2>
   <div class="puces" id="ecran-veille"></div>
   <p class="note" data-en="On the station's screen, the administrator password is asked once, then remembered for 90 days. Two round buttons, bottom left, replace the browser's: Back and Home.">Sur l’écran de la station, le mot de passe de l’administrateur est demandé une fois, puis retenu 90 jours. Deux boutons ronds, en bas à gauche, remplacent ceux d’un navigateur : Retour et Accueil.</p>
+  <h2 class="avec-aide"><span data-en="Small e-ink screen">Petit écran e-ink</span><button class="aide-bouton" aria-controls="aide-eink" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
+  <div class="aide seule" id="aide-eink"><div><p data-en="The small paper-like screen fitted on the station: the QR code to join the Wi-Fi, radio messages, and “Station switched off”. Turn it off if it is not fitted, for example when it does not fit in the case.">Le petit écran façon papier posé sur la station : le QR code pour rejoindre le wifi, les messages radio et « Station éteinte ». Désactivez-le s’il n’est pas branché, par exemple quand il ne rentre pas dans le boîtier.</p></div></div>
+  <div class="groupe">
+    <div class="ligne"><label class="nom" for="eink-active" data-en="Turned on">Activé</label><input type="checkbox" class="interrupteur" id="eink-active"></div>
+  </div>
 </section>
 
 <!-- ===== Etat de la station ===== -->
@@ -567,6 +572,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <div class="groupe">
     <div class="ligne"><span class="nom" data-en="Temperature">Température</span><span class="valeur" id="sante-temperature">…</span></div>
     <div class="ligne"><span class="nom" data-en="Power supply">Alimentation</span><span class="valeur" id="sante-tension">…</span></div>
+    <div class="ligne" id="ligne-batterie" hidden><span class="nom"><span data-en="Batteries">Accus</span><span class="sous" id="sante-batterie-sous"></span></span><span class="valeur" id="sante-batterie">…</span></div>
     <div class="ligne"><span class="nom" data-en="Switched on for">Allumée depuis</span><span class="valeur" id="sante-allumee">…</span></div>
     <div class="ligne"><span class="nom" data-en="People connected">Personnes connectées</span><span class="valeur" id="sante-personnes">…</span></div>
   </div>
@@ -1089,6 +1095,7 @@ function afficherCommunaute() {
     function (v) { return v === ra.ecran_minutes; }, function (v) { regler('radio', { ecran_minutes: v }); });
   var ec = reg.ecran || { active: false, veille: 5 };
   $('ecran-active').checked = ec.active;
+  $('eink-active').checked = (reg.eink || {}).active !== false;
   $('val-ecran').textContent = ec.active ? T('Activé', 'On') : T('Désactivé', 'Off');
   puces($('ecran-veille'), [[2, '2 min'], [5, '5 min'], [15, '15 min'], [60, '1 h'], [0, T('Jamais', 'Never')]],
     function (v) { return v === ec.veille; }, function (v) { regler('ecran', { veille: v }); });
@@ -1181,7 +1188,7 @@ function communaute() {
  ['registre-active', 'registre', 'active'], ['registre-lieu', 'registre', 'lieu'],
  ['entraide-active', 'entraide', 'active'], ['urgence-active', 'urgence', 'active'], ['radio-active', 'radio', 'active'],
  ['mesh-distance', 'mesh', 'distance'], ['mesh-toutes', 'mesh', 'toutes_cartes'], ['ecran-active', 'ecran', 'active'],
- ['balise-active', 'balise', 'active'], ['balise-urgence', 'balise', 'urgence_seulement']].forEach(function (x) {
+ ['eink-active', 'eink', 'active'], ['balise-active', 'balise', 'active'], ['balise-urgence', 'balise', 'urgence_seulement']].forEach(function (x) {
   $(x[0]).onchange = function () { var v = {}; v[x[2]] = this.checked; regler(x[1], v); };
 });
 // Texte de l'annonce : bouton Enregistrer
@@ -1226,6 +1233,15 @@ function sante() {
     var j = Math.floor(d.allumee / 86400);
     $('sante-allumee').textContent = (j ? j + T(' j ', ' d ') : '') + duree(d.allumee % 86400);
     $('val-sante').textContent = (d.temperature === null ? '' : d.temperature + ' °C') + (d.tension && d.tension !== 'ok' ? ' · ⚠' : '');
+    // Carte batterie X728 (etape 12) : charge, secteur ou accus, temps restant estime
+    var b = d.batterie;
+    $('ligne-batterie').hidden = !b;
+    if (b) {
+      $('sante-batterie').textContent = b.pourcent + ' %';
+      $('sante-batterie').className = 'valeur' + (!b.secteur && b.pourcent <= 15 ? ' alerte' : b.secteur ? ' bien' : '');
+      $('sante-batterie-sous').textContent = b.secteur ? T('Sur secteur, en charge', 'On mains, charging')
+        : T('Sur accus', 'On batteries') + (b.restant !== null ? T(' · encore ', ' · ') + duree(b.restant) + T(' environ', ' left, roughly') : '');
+    }
     var p = d.personnes || 0;
     $('sante-personnes').textContent = p;
     // Carte d'etat en haut des Parametres : personnes connectees, puis temperature, duree, alimentation
@@ -1235,6 +1251,7 @@ function sante() {
     if (d.temperature !== null) { var c1 = el('span', chaud ? 'mauvais' : '', d.temperature + ' °C'); puces.appendChild(c1); }
     puces.appendChild(el('span', '', T('allumée ', 'on ') + (j ? j + T(' j ', ' d ') : '') + duree(d.allumee % 86400)));
     puces.appendChild(el('span', faible ? 'mauvais' : '', faible ? T('alimentation faible', 'weak power') : T('alimentation bonne', 'power good')));
+    if (b) puces.appendChild(el('span', !b.secteur && b.pourcent <= 15 ? 'mauvais' : '', (b.secteur ? T('secteur ', 'mains ') : T('accus ', 'batteries ')) + b.pourcent + ' %'));
     $('carte-etat').classList.toggle('alerte', chaud || faible);
     $('val-sante').className = 'valeur' + (d.temperature >= 80 || (d.tension && d.tension !== 'ok') ? ' alerte' : '');
   }).catch(function () {});

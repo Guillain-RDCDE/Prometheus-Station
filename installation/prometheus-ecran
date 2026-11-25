@@ -3,11 +3,12 @@
 # Affiche comment se connecter. Ne redessine que si quelque chose change.
 # Un message arrive par radio s'affiche a la place du QR code pendant la duree choisie (Parametres > Radio).
 # prometheus-ecran --si-extinction : affiche « Station eteinte » si la station est en train de s'eteindre.
+# Parametres > Ecran et clavier > Ecran e-ink : desactive, le programme ne touche plus du tout a l'ecran
+# (utile quand il n'est pas branche : le pilote attendrait sans fin un ecran absent).
 import glob, json, subprocess, sys, time
 sys.path.insert(0, '/opt/prometheus')
 from PIL import Image, ImageDraw, ImageFont
 import qrcode
-from waveshare_epd import epd2in13_V4
 
 AP = 'prometheus-wifi'
 GRAS = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
@@ -19,6 +20,20 @@ def cmd(*a):
         return subprocess.run(a, capture_output=True, text=True, timeout=10).stdout.strip()
     except Exception:
         return ''
+
+
+def active():
+    """L'ecran e-ink est-il active ? (Parametres ; active par defaut, pour qui l'a pose sur le Pi)"""
+    try:
+        return json.load(open('/srv/prometheus/communaute/reglages.json')).get('eink', {}).get('active') is not False
+    except (OSError, ValueError, AttributeError):
+        return True
+
+
+def pilote():
+    """Le pilote n'est charge que si l'ecran est active : il prend les broches et attend la reponse de l'ecran."""
+    from waveshare_epd import epd2in13_V4
+    return epd2in13_V4.EPD()
 
 
 def annonce():
@@ -208,7 +223,9 @@ def si_extinction():
     jobs = cmd('systemctl', 'list-jobs', '--no-legend')
     if 'poweroff.target' not in jobs and 'halt.target' not in jobs:
         return
-    epd = epd2in13_V4.EPD()
+    if not active():
+        return
+    epd = pilote()
     epd.init()
     epd.display(epd.getbuffer(dessiner_eteinte(epd.height, epd.width)))
     epd.sleep()
@@ -243,9 +260,16 @@ def defiler(epd, e, en_trop):
 def main():
     if sys.argv[1:] == ['--si-extinction']:
         return si_extinction()
-    epd = epd2in13_V4.EPD()
+    epd = None
     precedent = None
     while True:
+        if not active():
+            # Desactive : rien sur l'ecran, on attend qu'il soit reactive
+            precedent = None
+            time.sleep(10)
+            continue
+        if epd is None:
+            epd = pilote()
         e = etat()
         if e != precedent:
             en_trop = lignes_en_trop(e, epd.height, epd.width)

@@ -46,6 +46,18 @@ Pi$ journalctl -b -1 -e
 
 Fixed in November 2026: on stations installed before, every file over 1 MB failed (only small EPUBs went through). The password check applied the web server's default 1 MB limit to the upload. Run step 3 again (`sudo bash 03-wifi-accueil.sh`), or add `client_max_body_size 0;` inside `location = /_auth` in `/etc/nginx/sites-available/prometheus`, then `sudo systemctl reload nginx`. The web server's log says it plainly: `client intended to send too large body ... subrequest: "/_auth"`.
 
+## Books sent several at once stay unsorted
+
+Fixed in November 2026: the sorting program runs once per file received; with many files in a row, the system stopped it after 5 runs in 10 seconds (`start-limit-hit`) and the next files stayed in `/srv/prometheus/depot/`. On stations installed before, run step 3 again, or add `StartLimitIntervalSec=0` under `[Unit]` in `/etc/systemd/system/prometheus-ranger.service`, then:
+
+```
+Pi$ sudo systemctl daemon-reload
+Pi$ sudo systemctl reset-failed prometheus-ranger.service prometheus-ranger.path
+Pi$ sudo systemctl start prometheus-ranger.path
+```
+
+The waiting files are sorted at once.
+
 ## How long did the batteries last?
 
 With the X728 battery board ([step 9](09-power.md#90-the-battery-case-x728)), nobody needs to watch: `sudo prometheus-batterie --bilan` tells when the station went on batteries, whether it shut down cleanly, the last reading and the battery life. The raw record is `/var/lib/prometheus-batterie/journal.csv`.

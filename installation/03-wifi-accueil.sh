@@ -84,6 +84,9 @@ EOF
 cat > /etc/systemd/system/prometheus-ranger.service <<'EOF'
 [Unit]
 Description=Prometheus Station - range les fichiers recus
+# Plusieurs livres envoyes d'un coup le relancent a chaque arrivee : sans cette ligne, systemd le bloquait
+# au-dela de 5 lancements en 10 s et les fichiers suivants restaient dans le depot sans etre ranges
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot

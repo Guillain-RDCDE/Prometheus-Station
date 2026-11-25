@@ -63,6 +63,33 @@ livre.loaded.navigation.then(function (nav) {
   choix.addEventListener('change', function () { if (choix.value) rendu.display(choix.value); });
 });
 
+// Liens a l'interieur du livre (sommaire ecrit dans le livre, renvois, notes) : on les ouvre dans la liseuse.
+// Sans cela, le navigateur quittait la liseuse et cherchait le fichier du chapitre sur le site (page introuvable).
+// Les vrais liens web (http, mailto) restent des liens ordinaires.
+function ouvrirDansLeLivre(cible) {
+  var essais = [cible];
+  try { essais.push(decodeURI(cible)); } catch (e) {}
+  try { essais.push(encodeURI(decodeURI(cible))); } catch (e) {}
+  (function essai(i) {
+    if (i >= essais.length) return;
+    rendu.display(essais[i]).catch(function () { essai(i + 1); });
+  })(0);
+}
+rendu.hooks.content.register(function (contents, vue) {
+  var section = (vue && vue.section && vue.section.href) || (contents.section && contents.section.href) || '';
+  contents.document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    var href = a.getAttribute('href');
+    if (/^(https?:|mailto:|tel:)/i.test(href)) { a.target = '_blank'; a.rel = 'noopener'; return; }
+    e.preventDefault(); e.stopPropagation();
+    if (href.charAt(0) === '#') { ouvrirDansLeLivre(section.split('#')[0] + href); return; }
+    // Chemin du lien, calcule depuis le chapitre ou il se trouve (« ../Text/x.htm#y » depuis « Text/a.htm » -> « Text/x.htm#y »)
+    var u = new URL(href, 'http://livre/' + section);
+    ouvrirDansLeLivre(u.pathname.slice(1) + u.hash);
+  }, true);
+});
+
 livre.loaded.metadata.then(function (m) { if (m.title) document.title = m.title; });
 
 document.getElementById('avant').onclick = function () { rendu.prev(); };

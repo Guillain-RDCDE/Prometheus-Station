@@ -243,6 +243,9 @@ server {
         proxy_pass http://127.0.0.1:8091/verif;
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
+        # La verification recoit l'en-tete de taille de l'envoi : sans cette ligne, un livre de plus d'1 Mo
+        # etait refuse (413 dans la verification, donc erreur 500 sur la page)
+        client_max_body_size 0;
     }
 
     # Tableau des messages et heure : pour tous les visiteurs

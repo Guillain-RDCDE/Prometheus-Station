@@ -26,9 +26,13 @@ cat > /etc/systemd/system/prometheus-horloge.service <<'UNIT'
 [Unit]
 Description=Prometheus Station - mise a l'heure par l'horloge de la carte batterie
 DefaultDependencies=no
-After=systemd-modules-load.service systemd-udevd.service local-fs.target
-Before=time-set.target systemd-timesyncd.service sysinit.target
+# Apres systemd-timesyncd : a l'extinction on s'arrete donc AVANT lui, quand sa marque « synchronized » existe encore
+# (elle disparait avec lui). Au demarrage le reseau n'est pas encore la : il n'a pas pu prendre l'heure avant nous.
+After=systemd-modules-load.service systemd-udevd.service local-fs.target systemd-timesyncd.service
+Before=time-set.target sysinit.target shutdown.target
 Wants=time-set.target
+# Sans les dependances par defaut, rien n'arreterait ce service a l'extinction : ExecStop ne tournerait jamais
+Conflicts=shutdown.target
 
 [Service]
 Type=oneshot

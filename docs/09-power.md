@@ -59,7 +59,7 @@ Pi$ sudo PROMETHEUS_BATTERIE_ESSAI=1 PROMETHEUS_BATTERIE_SEUIL=99 prometheus-bat
 Pi$ sudo systemctl start prometheus-batterie
 ```
 
-**Tested:** charge gauge and mains pin read correctly; the shutdown rule triggers after exactly 60 s below the threshold (dry run); the charge shows in *Settings*. **A full discharge** (25 November 2026, see *Battery life* below): clean shutdown at 5 % / 3.62 V, then the X728 **did cut the power** (the cells were still at 5 % the next morning, 15 hours later). **The clock:** with the Pi's saved time pushed back to 1 November and no Internet time, the station booted and was put back on the right time by the board 2 seconds later, before anything was logged. **Not tested yet:** the button, switching back on by itself when mains returns, the clock after the board has cut the power.
+**Tested:** charge gauge and mains pin read correctly; the shutdown rule triggers after exactly 60 s below the threshold (dry run); the charge shows in *Settings*. **A full discharge** (25 November 2026, see *Battery life* below): clean shutdown at 5 % / 3.62 V, then the X728 **did cut the power** (the cells were still at 5 % the next morning, 15 hours later). **The clock:** with the Pi's saved time pushed back to 1 November and no Internet time, the station booted and was put back on the right time by the board 2 seconds later, before anything was logged. **The clock after a real power cut** (26 November): switched off from the Settings, power cut by the board, 4 minutes off, switched back on with the button: on the right time from the board before Internet. **Not tested yet:** switching back on by itself when mains returns.
 
 ## 9.1 Clean shutdown when the power gets weak
 

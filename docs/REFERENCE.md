@@ -81,7 +81,7 @@ Prometheus Station keeps a copy of that knowledge close at hand, readable by any
 | E-ink screen | `prometheus-ecran` (Python) | Waveshare 2.13" V4; can be turned off in the Settings when not fitted |
 | Power | `prometheus-tension`, `prometheus-extinction` | clean shutdown on weak power; optional shutdown without visitors |
 | Battery board | `prometheus-batterie` (Python, step 12) | Geekworm X728 V2.5 and four 18650 cells: charge in the Settings, clean shutdown when the cells run low, power cut afterwards, its button, a log for battery-life tests ([step 9](09-power.md#90-the-battery-case-x728)) |
-| Board clock | `prometheus-horloge` (shell, step 12) | the X728's clock (DS1307, `/dev/rtc0`) puts the station on time at boot even without Internet; the Internet time is copied into it every hour and at shutdown ([step 9](09-power.md#90-the-battery-case-x728)) |
+| Board clock | `prometheus-horloge` (shell, step 12) | the X728's clock (DS1307, `/dev/rtc0`) puts the station on time at boot even without Internet; the Internet time is copied into it every hour and at shutdown; without Internet nor board clock, the time from radios heard, when at least two agree ([step 9](09-power.md#90-the-battery-case-x728)) |
 | Security | `ufw` firewall | see [step 10](10-security.md) |
 | Backup | `prometheus-sauvegarde` (daily), `prometheus-restaurer` | see [step 11](11-backup.md) |
 

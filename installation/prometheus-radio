@@ -53,6 +53,12 @@ ANNONCE_MESHCORE = 6 * 3600   # MeshCore : la station s'annonce (advert) au plus
 ATTENTE_RADIO = 180   # garde-fou : secondes laissees a la radio pour revenir apres un reglage risque
 MAX_RESULTATS = 200
 GARDER_SAUVEGARDES = 30
+# L'heure par la radio (quand la station n'a ni Internet ni l'horloge de la carte X728) : voir heure_entendue()
+HEURE_SOURCE = '/run/prometheus-heure'             # ecrit par prometheus-horloge : « carte » ou « radio »
+HEURE_INTERNET = '/run/systemd/timesync/synchronized'
+HEURE_DEMANDE = '/run/prometheus/heure-radio.json'  # lu par prometheus-horloge --radio (root), qui met a l'heure
+HEURE_ACCORD = 120    # secondes : deux radios « d'accord » sur l'heure
+HEURE_GARDE = 2 * 3600   # on oublie l'heure entendue d'une radio au bout de 2 h
 
 radio = None          # la connexion Meshtastic en cours
 connectee_depuis = 0
@@ -134,6 +140,65 @@ def statut(ident, valeur, raison=''):
             ecrire(JOURNAL, journal)
         except OSError:
             pass
+
+
+def heure_sure():
+    """La station est-elle a l'heure ? Internet, ou l'horloge de la carte X728, ou deja mise a l'heure par la radio."""
+    if os.path.exists(HEURE_INTERNET):
+        return True
+    try:
+        return open(HEURE_SOURCE).read().strip() in ('carte', 'radio')
+    except OSError:
+        return False
+
+
+heures_entendues = {}    # radio -> (ecart entre son heure et la notre, quand on l'a entendue)
+heure_demandee = [0]
+
+
+def choisir_heure(echantillons, maintenant):
+    """L'ecart a appliquer a notre horloge, ou None. Une radio seule peut etre mal reglee (beaucoup de repeteurs le
+    sont) : il faut au moins deux radios differentes d'accord a 2 minutes pres, et plus de la moitie de celles
+    entendues. La station sans heure sure repart a l'heure de sa derniere extinction : la vraie heure ne peut pas
+    etre avant ; on ne recule donc jamais l'horloge (2 minutes de marge)."""
+    ecarts = sorted(e for e, quand in echantillons.values() if maintenant - quand <= HEURE_GARDE)
+    meilleur = []
+    for e in ecarts:
+        groupe = [x for x in ecarts if e <= x <= e + HEURE_ACCORD]
+        if len(groupe) > len(meilleur):
+            meilleur = groupe
+    if len(meilleur) < 2 or 2 * len(meilleur) <= len(ecarts):
+        return None
+    ecart = (meilleur[(len(meilleur) - 1) // 2] + meilleur[len(meilleur) // 2]) / 2   # la mediane
+    return ecart if ecart >= -HEURE_ACCORD else None
+
+
+def heure_entendue(radio_, horodatage, gps=False):
+    """Une radio a donne son heure (annonce MeshCore, position Meshtastic). Si la station n'a pas d'heure sure et que
+    les radios s'accordent, on demande a prometheus-horloge (root) de mettre la station a l'heure. Le GPS de notre
+    propre radio suffit seul."""
+    try:
+        horodatage = float(horodatage)
+    except (TypeError, ValueError):
+        return
+    if horodatage < 1.7e9 or horodatage > 4e9 or heure_sure() or time.time() - heure_demandee[0] < 300:
+        return
+    maintenant = time.time()
+    heures_entendues[str(radio_)] = (horodatage - maintenant, maintenant)
+    for k in [k for k, (_, quand) in heures_entendues.items() if maintenant - quand > HEURE_GARDE]:
+        del heures_entendues[k]
+    if gps:
+        ecart, sources = horodatage - maintenant, ['GPS de la radio de la station']
+        if ecart < -HEURE_ACCORD:
+            return
+    else:
+        ecart = choisir_heure(heures_entendues, maintenant)
+        if ecart is None:
+            return
+        sources = [k[:12] for k, (e, _) in heures_entendues.items() if abs(e - ecart) <= HEURE_ACCORD]
+    print('Heure par la radio : ecart de %+d s (%s)' % (ecart, ', '.join(sources)), flush=True)
+    heure_demandee[0] = maintenant
+    ecrire(HEURE_DEMANDE, {'heure': maintenant, 'ecart': ecart, 'sources': sources})
 
 
 def deposer_pour_tableau(nom, texte):
@@ -537,6 +602,14 @@ def paquet_meshtastic(packet, interface):
                     HISTO.stats('meshtastic', dict(resume.get('localStats'), source='radio'))
             elif resume:
                 HISTO.telemetrie('meshtastic', de, resume)
+        if port == 'POSITION_APP':
+            pos = d.get('position') or {}
+            # Une position fixe (sans GPS) porte l'heure de l'horloge de la radio, que la station lui a donnee :
+            # notre radio ne compte que si son GPS voit des satellites
+            if packet.get('from') != moi:
+                heure_entendue(de, pos.get('time'))
+            elif pos.get('satsInView'):
+                heure_entendue(de, pos.get('time'), gps=True)
         if packet.get('from') == moi:
             return    # ce que notre radio dit d'elle-meme n'a pas ete entendu par la radio
         # « Entendue a l'instant » a l'heure de la station (l'horloge de la radio peut retarder : vu le 19/10/2026)
@@ -690,8 +763,9 @@ def connecter():
         radio = meshtastic.serial_interface.SerialInterface(devPath=port, timeout=30)
         dernier_signe = connectee_depuis = time.time()
         noter_etat('ok', radio.getLongName() or '')
-        # La T-Beam sans GPS n'a pas d'horloge fiable : elle prend celle de la station (si celle-ci est a l'heure)
-        if time.time() > 1.77e9:
+        # La T-Beam sans GPS n'a pas d'horloge fiable : elle prend celle de la station, seulement si celle-ci est sure
+        # (sinon on lui donnerait l'heure de la derniere extinction de la station)
+        if heure_sure():
             try:
                 radio.localNode.setTime(int(time.time()))
             except (Exception, SystemExit):
@@ -1323,11 +1397,12 @@ class StationMeshCore:
         mc = self.mc
         self.depuis = time.time()
         self.nom = (mc.self_info or {}).get('name', '')
-        # La radio n'a pas d'horloge fiable : elle prend celle de la station
-        try:
-            await mc.commands.set_time(int(time.time()))
-        except Exception:
-            pass
+        # La radio n'a pas d'horloge fiable : elle prend celle de la station, seulement si celle-ci est sure
+        if heure_sure():
+            try:
+                await mc.commands.set_time(int(time.time()))
+            except Exception:
+                pass
         mc.subscribe(EventType.CONTACT_MSG_RECV, self.recu)
         mc.subscribe(EventType.CHANNEL_MSG_RECV, self.recu)
         mc.subscribe(EventType.ACK, self.ack)
@@ -1390,6 +1465,7 @@ class StationMeshCore:
             if type_ == 'ADVERT' and p.get('adv_key'):
                 de = str(p.get('adv_key'))
                 nom = nettoyer(p.get('adv_name') or '', 40)
+                heure_entendue(de, p.get('adv_timestamp'))   # l'annonce porte l'heure de la radio qui l'a faite
             resume = {k: p[k] for k in ('route_typename', 'path_len', 'path', 'payload_length', 'adv_name', 'adv_lat', 'adv_lon',
                                         'adv_type', 'chan_name', 'payload_ver') if k in p and isinstance(p[k], (int, float, str))}
             if isinstance(p.get('message'), str):

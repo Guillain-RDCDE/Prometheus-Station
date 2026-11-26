@@ -4,9 +4,16 @@
 # une, gardee par les accus quand la station est eteinte.
 #   --demarrage : au demarrage, met la station a l'heure de la carte (si la carte a une heure valable)
 #   --ecrire    : si la station est a l'heure d'Internet, recopie cette heure dans la carte
-# Le noyau recopie aussi l'heure d'Internet dans la carte toutes les 11 minutes. Sans carte : ne fait rien.
+#   --radio     : ni Internet ni carte, mais les radios entendues s'accordent sur l'heure (prometheus-radio a
+#                 depose /run/prometheus/heure-radio.json) : met la station (et la carte) a cette heure
+# Le noyau recopie aussi l'heure d'Internet dans la carte toutes les 11 minutes. Sans carte : --demarrage et
+# --ecrire ne font rien, --radio met quand meme la station a l'heure.
+# D'ou vient l'heure, pour les autres programmes : /run/prometheus-heure (« carte » ou « radio » ; Internet :
+# /run/systemd/timesync/synchronized existe).
 set -u
 RTC=/dev/rtc0
+SOURCE=/run/prometheus-heure
+DEMANDE=/run/prometheus/heure-radio.json
 
 case "${1:-}" in
 --demarrage)
@@ -18,6 +25,7 @@ case "${1:-}" in
         exit 0
     fi
     hwclock -f "$RTC" --hctosys
+    echo carte > "$SOURCE"
     echo "Station mise a l'heure de la carte : $(date '+%d/%m/%Y %H:%M:%S') (carte : $carte)"
     ;;
 --ecrire)
@@ -29,8 +37,31 @@ case "${1:-}" in
         echo "Station pas a l'heure d'Internet : horloge de la carte laissee telle quelle"
     fi
     ;;
+--radio)
+    [ -f "$DEMANDE" ] || exit 0
+    # On reverifie tout ici (la demande vient d'un programme sans droits) : jamais si l'heure est deja sure,
+    # jamais en arriere (la station repart a l'heure de sa derniere extinction : la vraie heure ne peut pas etre avant)
+    lu=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print("%d %s" % (int(float(d["ecart"])), ", ".join(map(str, d.get("sources", [])))[:200]))' "$DEMANDE" 2>/dev/null)
+    rm -f "$DEMANDE"
+    ecart=${lu%% *}
+    sources=${lu#* }
+    case "$ecart" in ''|*[!0-9-]*) echo "Demande illisible : ignoree"; exit 0 ;; esac
+    if [ -e /run/systemd/timesync/synchronized ] || grep -qx 'carte\|radio' "$SOURCE" 2>/dev/null; then
+        echo "Heure deja sure : heure de la radio ignoree"
+        exit 0
+    fi
+    if [ "$ecart" -lt -120 ] || [ "$ecart" -gt 630720000 ]; then
+        echo "Heure de la radio refusee (ecart de $ecart s)"
+        exit 0
+    fi
+    avant=$(date '+%d/%m/%Y %H:%M:%S')
+    date -s "@$(( $(date +%s) + ecart ))" > /dev/null
+    echo radio > "$SOURCE"
+    if [ -e "$RTC" ] && command -v hwclock > /dev/null; then hwclock -f "$RTC" --systohc; fi
+    echo "Station mise a l'heure par la radio : $avant -> $(date '+%d/%m/%Y %H:%M:%S') (ecart $ecart s ; $sources)"
+    ;;
 *)
-    echo "Usage : prometheus-horloge --demarrage | --ecrire"
+    echo "Usage : prometheus-horloge --demarrage | --ecrire | --radio"
     exit 1
     ;;
 esac

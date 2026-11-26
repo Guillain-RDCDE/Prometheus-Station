@@ -16,6 +16,7 @@ apt-get install -y -qq python3-venv bluez >/dev/null
 echo "== Programmes et dossiers d'echange"
 install -m 755 "$ICI/prometheus-radio" /usr/local/bin/prometheus-radio
 install -m 755 "$ICI/prometheus-radio-outil" /usr/local/bin/prometheus-radio-outil
+install -m 755 "$ICI/prometheus-horloge" /usr/local/bin/prometheus-horloge
 install -d -o prometheus -g prometheus -m 755 /srv/prometheus/radio \
   /srv/prometheus/radio/a-envoyer /srv/prometheus/radio/partis /srv/prometheus/radio/recus
 # Logiciels des radios (telecharges par l'outil) et sauvegardes des reglages (identite des radios : root seulement)
@@ -71,9 +72,31 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
+# L'heure par la radio : sans Internet ni horloge de carte, quand les radios entendues s'accordent sur l'heure,
+# prometheus-radio (sans droits) depose une demande ; prometheus-horloge (root) reverifie et met la station a l'heure.
+cat > /etc/systemd/system/prometheus-horloge-radio.path <<'EOF'
+[Unit]
+Description=Prometheus Station - heure donnee par les radios entendues
+
+[Path]
+PathChanged=/run/prometheus/heure-radio.json
+
+[Install]
+WantedBy=multi-user.target
+EOF
+cat > /etc/systemd/system/prometheus-horloge-radio.service <<'EOF'
+[Unit]
+Description=Prometheus Station - mise a l'heure par la radio
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/prometheus-horloge --radio
+EOF
+
 systemctl daemon-reload
 systemctl enable prometheus-radio.service
 systemctl enable --now prometheus-radio-chercher.timer
+systemctl enable --now prometheus-horloge-radio.path
 systemctl restart prometheus-radio.service
 
 echo "== Vos cartes radio (cartes.txt) : leurs logiciels seront gardes pour l'atelier"

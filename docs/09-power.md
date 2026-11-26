@@ -39,11 +39,15 @@ Pi$ sudo bash 12-batterie.sh
 
 The service `prometheus-batterie` reads the X728's charge gauge (I2C address `0x36`) and the mains pin, every 10 seconds:
 
-- *Settings > Station health* shows the charge, whether the station is **on mains or on batteries**, and on batteries the time left (estimated from the last hour, once 10 minutes have passed);
+- *Settings > Station health* shows the charge, whether the station is **on mains or on batteries**, and on batteries the time left (see below);
 - on batteries, when the cells are down to **5 %** or **3.35 V** for 60 seconds in a row, the station **shuts down cleanly**; below 3.20 V it does so whatever the mains pin says;
 - at the very end of any shutdown (not a restart), a 4-second pulse on pin 26 asks the X728 to **cut the power**, so a switched-off station does not keep draining its cells;
 - the X728's button: short press = restart, long press = shut down;
 - one line per minute in `/var/lib/prometheus-batterie/journal.csv` (time, mains or batteries, volts, percent), plus a line at each shutdown and at each start: the record of a battery-life test. Nobody needs to watch: afterwards, `sudo prometheus-batterie --bilan` sums up the last run on batteries in plain words (start, clean shutdown or not, last reading, battery life, charge when switched back on).
+
+- the X728's **clock** (a DS1307 at I2C address `0x68`, kept running by the cells while the station is off) puts the station on time at boot, **even without Internet**: the Pi has no clock of its own and would otherwise restart at the time it was switched off. The program `prometheus-horloge` reads it very early at boot (`dtoverlay=i2c-rtc,ds1307` in `/boot/firmware/config.txt`, a restart after step 12 the first time); the time from Internet is copied into it every hour, at shutdown, and by the system every 11 minutes. A brand-new board has no time yet: it gets one the first time the station is online.
+
+**Time left on batteries.** The X728's percentage is not reliable: during our test it fell by 5 % an hour in the morning and 17 % an hour in the evening, while the voltage went down steadily. So the time left is read from the **voltage**, on the curve measured during that test, and adjusted after 20 minutes to how fast the cells are really going down (more phones connected = faster). Replayed on the test: 4 % off in the middle case, 9 % at worst nine times out of ten (the old estimate from the percentage was off by up to three times).
 
 X728 V2.x pins: 5 (the board asks for a shutdown), 6 (mains lost = 1), 12 (set high: "the Pi is up"), 26 (ask the board to cut the power). None is used by the e-ink screen. Without an X728, the service stops at once and does nothing.
 
@@ -55,7 +59,7 @@ Pi$ sudo PROMETHEUS_BATTERIE_ESSAI=1 PROMETHEUS_BATTERIE_SEUIL=99 prometheus-bat
 Pi$ sudo systemctl start prometheus-batterie
 ```
 
-**Tested:** charge gauge and mains pin read correctly (on batteries: 98 %, 4.11 V, falling); the shutdown rule triggers after exactly 60 s below the threshold (dry run); the charge shows in *Settings*. **Not tested yet:** a real shutdown at the end of a full discharge, the power cut by the X728 afterwards, the button, and the X728's clock (seen at I2C address `0x68`, not used yet). Battery life on the four cells has not been measured: that test is running.
+**Tested:** charge gauge and mains pin read correctly; the shutdown rule triggers after exactly 60 s below the threshold (dry run); the charge shows in *Settings*. **A full discharge** (25 November 2026, see *Battery life* below): clean shutdown at 5 % / 3.62 V, then the X728 **did cut the power** (the cells were still at 5 % the next morning, 15 hours later). **The clock:** with the Pi's saved time pushed back to 1 November and no Internet time, the station booted and was put back on the right time by the board 2 seconds later, before anything was logged. **Not tested yet:** the button, switching back on by itself when mains returns, the clock after the board has cut the power.
 
 ## 9.1 Clean shutdown when the power gets weak
 
@@ -106,6 +110,12 @@ So about **2.1 W → 1.9 W**. The price: searching the encyclopedias is 3 to 5 t
 
 ## Battery life
 
-At rest, the station uses about **2 W** (2.6 W with the network cable plugged in, which it never is on battery). On the Anker 737, the estimate is **about one day**. On the four cells of the X728 (about 50 Wh), roughly **7 to 10 hours** at a guess. No full discharge test has been done yet.
+At rest, the station uses about **2 W** (2.6 W with the network cable plugged in, which it never is on battery). On the Anker 737, the estimate is **about one day**.
+
+**On the four cells of the X728 (Samsung 35E, about 50 Wh): about 9 h 30, measured** (25 November 2026). Station in its everyday settings (Wi-Fi hotspot on, encyclopedias, low-power mode off), and from the 2nd hour on the T-Beam radio plugged into the Pi by USB, on MeshCore: the radio made **no visible difference** to the discharge. Full at 10:00, clean shutdown at 19:33 at 5 % (some reserve is left on purpose), power then cut by the board.
+
+| Time on batteries | 0 h | 2 h | 4 h | 6 h | 8 h | 9 h 19 (shutdown) |
+|---|---|---|---|---|---|---|
+| Voltage | 4.11 V | 4.04 V | 3.95 V | 3.82 V | 3.70 V | 3.61 V |
 
 Next: [10. Security →](10-security.md)

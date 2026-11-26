@@ -81,6 +81,7 @@ Prometheus Station keeps a copy of that knowledge close at hand, readable by any
 | E-ink screen | `prometheus-ecran` (Python) | Waveshare 2.13" V4; can be turned off in the Settings when not fitted |
 | Power | `prometheus-tension`, `prometheus-extinction` | clean shutdown on weak power; optional shutdown without visitors |
 | Battery board | `prometheus-batterie` (Python, step 12) | Geekworm X728 V2.5 and four 18650 cells: charge in the Settings, clean shutdown when the cells run low, power cut afterwards, its button, a log for battery-life tests ([step 9](09-power.md#90-the-battery-case-x728)) |
+| Board clock | `prometheus-horloge` (shell, step 12) | the X728's clock (DS1307, `/dev/rtc0`) puts the station on time at boot even without Internet; the Internet time is copied into it every hour and at shutdown ([step 9](09-power.md#90-the-battery-case-x728)) |
 | Security | `ufw` firewall | see [step 10](10-security.md) |
 | Backup | `prometheus-sauvegarde` (daily), `prometheus-restaurer` | see [step 11](11-backup.md) |
 
@@ -138,7 +139,7 @@ The script and program names are in French; the guide gives each one's role.
 - **The Mesh section** (19 October 2026): every Meshtastic and MeshCore setting read and written with a backup before each change, a safety net that puts the previous settings back by itself when the radio does not come back, nodes and requests by radio (traceroute, metrics), channels, statistics, remote administration of a T-Echo over the air, and a workshop that recognised and updated a T-Echo through its general path, identity unchanged ([chapter 18](18-mesh-section.md)). Not yet tried on other boards (ESP32, RP2040) nor with a MeshCore repeater.
 - **A radio beacon** (20 October 2026): a ready-made message sent by radio every 3 hours, at first only while the Emergency page is on ([chapter 16](16-radio-message-board.md#the-beacon)).
 - **A screen and a keyboard on the station** (19 October 2026): its pages full screen without a phone, sleep and wake-up, tested with a virtual screen; a real HDMI screen comes next ([chapter 19](19-screen-and-keyboard.md)).
-- **A battery board and a metal case** (25 November 2026): Geekworm X728 with four 18650 cells; charge and mains read, clean-shutdown rule checked in a dry run, charge shown in the Settings. The first full discharge is running; the power cut after shutdown and the board's button are not tested yet ([step 9](09-power.md#90-the-battery-case-x728)). The e-ink screen is set aside: it does not fit in the closed case.
+- **A battery board and a metal case** (25 November 2026): Geekworm X728 with four 18650 cells; charge and mains read, clean-shutdown rule checked in a dry run, charge shown in the Settings. First full discharge (25 November): **about 9 h 30** with the radio plugged in, clean shutdown at 5 %, then the power cut by the board. Since 26 November, the board's clock keeps the station on time without Internet, and the time left is read from the voltage. The board's button is not tested yet ([step 9](09-power.md#90-the-battery-case-x728)). The e-ink screen is set aside: it does not fit in the closed case.
 - **System updates with their details on screen**, as they run.
 
 **Built, not yet tested in real conditions**

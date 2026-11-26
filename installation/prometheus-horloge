@@ -1,0 +1,37 @@
+#!/bin/bash
+# Prometheus Station - horloge de la carte batterie X728 (puce DS1307, I2C 0x68), etape 12.
+# Le Pi n'a pas d'horloge : sans Internet, il repartirait a l'heure de sa derniere extinction. La carte X728 en a
+# une, gardee par les accus quand la station est eteinte.
+#   --demarrage : au demarrage, met la station a l'heure de la carte (si la carte a une heure valable)
+#   --ecrire    : si la station est a l'heure d'Internet, recopie cette heure dans la carte
+# Le noyau recopie aussi l'heure d'Internet dans la carte toutes les 11 minutes. Sans carte : ne fait rien.
+set -u
+RTC=/dev/rtc0
+
+case "${1:-}" in
+--demarrage)
+    # Le pilote de l'horloge se charge pendant le demarrage : on l'attend 10 s au plus
+    for _ in $(seq 20); do [ -e "$RTC" ] && break; sleep 0.5; done
+    [ -e "$RTC" ] || { echo "Pas d'horloge de carte : rien a faire"; exit 0; }
+    if ! carte=$(hwclock -f "$RTC" --get 2>/dev/null); then
+        echo "Horloge de la carte pas encore reglee : elle le sera des que la station aura l'heure d'Internet"
+        exit 0
+    fi
+    hwclock -f "$RTC" --hctosys
+    echo "Station mise a l'heure de la carte : $(date '+%d/%m/%Y %H:%M:%S') (carte : $carte)"
+    ;;
+--ecrire)
+    [ -e "$RTC" ] || exit 0
+    # Ce fichier existe des que systemd-timesyncd a eu l'heure d'Internet (sans dbus : marche aussi a l'extinction)
+    if [ -e /run/systemd/timesync/synchronized ]; then
+        hwclock -f "$RTC" --systohc && echo "Heure d'Internet recopiee dans la carte : $(hwclock -f "$RTC" --get)"
+    else
+        echo "Station pas a l'heure d'Internet : horloge de la carte laissee telle quelle"
+    fi
+    ;;
+*)
+    echo "Usage : prometheus-horloge --demarrage | --ecrire"
+    exit 1
+    ;;
+esac
+exit 0

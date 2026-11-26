@@ -81,7 +81,7 @@ Prometheus Station keeps a copy of that knowledge close at hand, readable by any
 | E-ink screen | `prometheus-ecran` (Python) | Waveshare 2.13" V4; can be turned off in the Settings when not fitted |
 | Power | `prometheus-tension`, `prometheus-extinction` | clean shutdown on weak power; optional shutdown without visitors |
 | Battery board | `prometheus-batterie` (Python, step 12) | Geekworm X728 V2.5 and four 18650 cells: charge in the Settings, clean shutdown when the cells run low, power cut afterwards, its button, a log for battery-life tests ([step 9](09-power.md#90-the-battery-case-x728)) |
-| Board clock | `prometheus-horloge` (shell, step 12) | the X728's clock (DS1307, `/dev/rtc0`) puts the station on time at boot even without Internet; the Internet time is copied into it every hour and at shutdown; without Internet nor board clock, the time from radios heard, when at least two agree ([step 9](09-power.md#90-the-battery-case-x728)) |
+| Board clock | `prometheus-horloge` (shell, step 12) | the X728's clock (DS1307, `/dev/rtc0`) puts the station on time at boot even without internet; the internet time is copied into it every hour and at shutdown; without internet nor board clock, the time from radios heard, when at least two agree ([step 9](09-power.md#90-the-battery-case-x728)) |
 | Security | `ufw` firewall | see [step 10](10-security.md) |
 | Backup | `prometheus-sauvegarde` (daily), `prometheus-restaurer` | see [step 11](11-backup.md) |
 
@@ -102,7 +102,8 @@ The script and program names are in French; the guide gives each one's role.
 | `/srv/prometheus/sauvegardes/` | the last 7 settings backups |
 | `/srv/prometheus/.admin/doublons-gardes` | fingerprints of duplicate books the keeper chose to keep (*Keep both*) |
 | `/var/lib/prometheus-batterie/journal.csv` | X728 battery board: one reading per minute, each shutdown and start (summed up by `prometheus-batterie --bilan`) |
-| `/run/prometheus/` | live values, emptied at every start (automatic shutdown, voltage) |
+| `/run/prometheus/` | live values, emptied at every start (automatic shutdown, voltage, batteries; `heure-radio.json`: a time request from the radio) |
+| `/run/prometheus-heure` | where the time came from since the start: `carte` (X728 board) or `radio`; internet: `/run/systemd/timesync/synchronized` exists |
 
 ### Network
 
@@ -120,7 +121,8 @@ The script and program names are in French; the guide gives each one's role.
 | At rest, network cable plugged | about 2.6 W |
 | At rest, on battery | about 2.0 W |
 | Low-power mode | about 1.9 W |
-| Battery | Anker 737, about 86 Wh — **about one day** (estimate; full discharge not tested yet) |
+| Battery board | X728 with four Samsung 35E 18650 (about 50 Wh) — **about 9 h 30, measured** with the radio plugged in (25 November 2026) |
+| Power bank | Anker 737, about 86 Wh — **about one day** (estimate; full discharge not tested) |
 
 ## Status (November 2026)
 
@@ -139,20 +141,20 @@ The script and program names are in French; the guide gives each one's role.
 - **The Mesh section** (19 October 2026): every Meshtastic and MeshCore setting read and written with a backup before each change, a safety net that puts the previous settings back by itself when the radio does not come back, nodes and requests by radio (traceroute, metrics), channels, statistics, remote administration of a T-Echo over the air, and a workshop that recognised and updated a T-Echo through its general path, identity unchanged ([chapter 18](18-mesh-section.md)). Not yet tried on other boards (ESP32, RP2040) nor with a MeshCore repeater.
 - **A radio beacon** (20 October 2026): a ready-made message sent by radio every 3 hours, at first only while the Emergency page is on ([chapter 16](16-radio-message-board.md#the-beacon)).
 - **A screen and a keyboard on the station** (19 October 2026): its pages full screen without a phone, sleep and wake-up, tested with a virtual screen; a real HDMI screen comes next ([chapter 19](19-screen-and-keyboard.md)).
-- **A battery board and a metal case** (25 November 2026): Geekworm X728 with four 18650 cells; charge and mains read, clean-shutdown rule checked in a dry run, charge shown in the Settings. First full discharge (25 November): **about 9 h 30** with the radio plugged in, clean shutdown at 5 %, then the power cut by the board. Since 26 November, the board's clock keeps the station on time without Internet, and the time left is read from the voltage. The board's button is not tested yet ([step 9](09-power.md#90-the-battery-case-x728)). The e-ink screen is set aside: it does not fit in the closed case.
+- **A battery board and a metal case** (25 November 2026): Geekworm X728 with four 18650 cells; charge and mains read, clean-shutdown rule checked in a dry run, charge shown in the Settings. First full discharge (25 November): **about 9 h 30** with the radio plugged in, clean shutdown at 5 %, then the power cut by the board. Since 26 November, the board's clock keeps the station on time without internet, and the time left is read from the voltage. Switched back on with the board's button after a real power cut, on time at once; the button while running is not tested yet ([step 9](09-power.md#90-the-battery-case-x728)). The e-ink screen is set aside: it does not fit in the closed case.
 - **System updates with their details on screen**, as they run.
 
 **Built, not yet tested in real conditions**
 - firewall and phone isolation, seen from a phone on the station's Wi-Fi;
 - automatic shutdown without visitors, with its message on the screen;
-- several phones at once; a full battery discharge;
-- **radio range**: outdoors, then with the antenna on the mast.
+- several phones at once;
+- **radio range**: outdoors, then with the antenna on the mast;
+- **the time from the radio** (26 November 2026): two radios agreeing set the station on time, a lone wrong repeater is ignored; tested with simulated radios only.
 
 **Next**
-- **more from the radio**: the time from the T-Beam's GPS (a station with no internet and no phone still knows the time), ready-made messages and an SOS from the handhelds without a phone, a roll call that warns when a radio has gone silent, a "radar" showing how far and in which direction each radio is, messages that wait for a radio out of range, Wikipedia answers by radio;
+- **more from the radio**: ready-made messages and an SOS from the handhelds without a phone, a roll call that warns when a radio has gone silent, a "radar" showing how far and in which direction each radio is, messages that wait for a radio out of range, Wikipedia answers by radio;
 - **the antenna on the mast**, and a range map;
 - **solar power**: a 30 W folding panel feeding the battery;
-- **a battery sensor**, to know the real charge level;
 - **linking stations together**: messages, announcements, the register of people and mutual-aid posts travel from one station to another — by Meshtastic radio, or failing that on a USB stick carried by hand — so that someone safe in one village can be found from the next;
 - **a rugged case**: the whole station in a waterproof hard case that works closed (left at the foot of a tree for the night), with a keyboard in the lid and 3D-printed inner parts;
 - **a ready-made card image**, so that nobody has to type a single command.

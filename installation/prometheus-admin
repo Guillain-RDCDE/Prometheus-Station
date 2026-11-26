@@ -493,17 +493,17 @@ def sante():
 
 
 def regler_heure(ms):
-    """Sans internet, le Pi ne sait pas l'heure (pas de pile) : on prend celle du telephone.
-    Seulement si la station n'est pas a l'heure par internet et qu'elle a plus de 2 minutes d'ecart."""
+    """Sans internet, le Pi ne sait pas l'heure : on prend celle du telephone. Seulement si la station n'a pas d'heure
+    sure (ni internet, ni horloge de la carte X728, ni accord des radios : /run/prometheus-heure, ecrit par
+    prometheus-horloge) et qu'elle a plus de 2 minutes d'ecart. Un telephone peut etre mal regle : il passe en dernier."""
     try:
         tel = float(ms) / 1000
     except (TypeError, ValueError):
         return False
     if not 1.7e9 < tel < 4.1e9 or abs(tel - time.time()) < 120:
         return False
-    sync = subprocess.run(['timedatectl', 'show', '-p', 'NTPSynchronized', '--value'],
-                          capture_output=True, text=True).stdout.strip()
-    if sync == 'yes':
+    # Internet : la marque de systemd-timesyncd (la meme que prometheus-horloge et prometheus-radio)
+    if os.path.exists('/run/systemd/timesync/synchronized') or lire_fichier('/run/prometheus-heure') in ('carte', 'radio'):
         return False
     # Le service a le droit de regler l'horloge (CAP_SYS_TIME, voir prometheus-admin.service)
     return subprocess.run(['date', '-s', '@%d' % tel], capture_output=True).returncode == 0

@@ -25,7 +25,7 @@ A credit-card-sized computer, with no screen or keyboard. It runs everything: th
 
 - **You buy separately**: the memory card, a power supply or battery, and a case if you want one. The board comes alone.
 - **4 GB** should work (searches a little slower); not tested here. A Pi 5 would work too but uses more power, which matters on battery.
-- It has **no battery-backed clock**: without internet, the station takes the time from the first phone that visits.
+- It has **no clock of its own**: switched off, it forgets the time. With the X728 below, the board's clock keeps it; without, the station takes the time from radios heard or from the first phone that visits ([step 5](docs/05-portal-and-hotspot.md#the-clock)).
 
 ### microSD card, 256 GB, A2 class
 
@@ -43,6 +43,7 @@ Since November 2026 the station carries **its own battery**: a board that sits o
 
 - **Four cells** in total: two on the board, two in the extra holder of the case. They work in parallel: charge them all fully before fitting them, and never mix old and new cells.
 - The X728 asks for **unprotected** cells. Check the polarity of each cell twice before inserting it.
+- The board also has a **clock** kept running by the cells, and a **charge gauge**: the station knows the time without internet, and how long its batteries will last (about **9 h 30** measured, with the radio).
 - **The e-ink screen does not fit** in the closed case: it is set aside for now (a window or a different lid may come later).
 - Assembly and what is tested: [step 9](docs/09-power.md#90-the-battery-case-x728).
 

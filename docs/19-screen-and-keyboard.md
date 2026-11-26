@@ -101,4 +101,4 @@ The two buttons are added by `langue.js` and `annonce.js` when the page was open
 | The keyboard does nothing in low-power mode | the screen must be *Turned on*: then the USB ports stay on |
 | What the screen did | `sudo journalctl -u prometheus-kiosque -n 50` |
 
-Next: the case itself is in the [Reference](REFERENCE.md#status-october-2026).
+Next: the case itself is in the [Reference](REFERENCE.md#status-november-2026).

@@ -166,4 +166,4 @@ A T-Echo plugged into the station by USB **with no program connected** does not 
 | The Workshop waits for *hold BOOT* or *press reset twice* | do it: the line above the window says which; the station retries for 3 to 5 minutes |
 | What the radio service did | `sudo journalctl -u prometheus-radio -n 50` (every Mesh order is logged) |
 
-Next: what comes after is in the [Reference](REFERENCE.md#status-october-2026).
+Next: what comes after is in the [Reference](REFERENCE.md#status-november-2026).

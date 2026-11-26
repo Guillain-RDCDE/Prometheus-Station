@@ -62,6 +62,10 @@ The waiting files are sorted at once.
 
 With the X728 battery board ([step 9](09-power.md#90-the-battery-case-x728)), nobody needs to watch: `sudo prometheus-batterie --bilan` tells when the station went on batteries, whether it shut down cleanly, the last reading and the battery life. The raw record is `/var/lib/prometheus-batterie/journal.csv`.
 
+## The station is not on time
+
+Check where the time came from: `cat /run/prometheus-heure` (`carte` = the X728 board's clock, `radio` = radios heard), and `ls /run/systemd/timesync/synchronized` (exists = internet time). Then `journalctl -u prometheus-horloge -b` (start: *mise a l'heure de la carte*) and `journalctl -u prometheus-horloge-radio`. If the board's clock says *pas encore reglee* (a new board, or its cells were removed), it gets the time back the next time the station has internet. Order of the sources: [step 5](05-portal-and-hotspot.md#the-clock).
+
 ## Forgot the settings password
 
 ```
@@ -90,7 +94,9 @@ Each service has its own log. The main ones:
 | `prometheus-wifi-auto` | home Wi-Fi / station Wi-Fi |
 | `prometheus-ecran` | the e-ink screen |
 | `prometheus-tension` | clean shutdown on weak power |
-| `prometheus-batterie` | the X728 battery board: charge, clean shutdown when the cells run low, its button |
+| `prometheus-batterie` | the X728 battery board: charge, time left, clean shutdown when the cells run low, its button |
+| `prometheus-horloge` | the X728 board's clock: the time at start, internet time copied into it (also `prometheus-horloge-ecrire.timer`, every hour) |
+| `prometheus-horloge-radio` | the time from the radios heard, when there is neither internet nor board clock |
 | `prometheus-extinction` | automatic shutdown without visitors |
 | `prometheus-radio` | the radio, Meshtastic or MeshCore *(phase 2)*: see [chapter 16](16-radio-message-board.md#troubleshooting) |
 | `prometheus-radio-outil` | the radio tool behind the Mesh section (network switch, software, backups, workshop): see [chapter 17](17-radio-page.md#troubleshooting) and [chapter 18](18-mesh-section.md#troubleshooting) |

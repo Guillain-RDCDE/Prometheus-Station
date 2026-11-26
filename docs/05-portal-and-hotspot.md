@@ -56,6 +56,11 @@ From your phone: the **Prometheus-Station** network now appears. Join it: the ho
 
 ## The clock
 
-The Pi has **no battery-backed clock**. Without internet it restarts with the time it had when it was switched off. So the home page sends the visiting phone's time to the station, once per visit. The station only takes it if it is **not** already on time through internet **and** is more than 2 minutes off.
+The Pi has **no clock of its own**: without internet it restarts with the time it had when it was switched off. The station takes the time from the surest source it has, in this order:
+
+1. **Internet**, as soon as it has it;
+2. **the clock of the X728 battery board**, if fitted: read at every start ([step 9](09-power.md#90-the-battery-case-x728));
+3. **the radios heard**, when at least two different radios agree ([step 9](09-power.md#90-the-battery-case-x728));
+4. **the first phone that visits**: the home page sends the phone's time to the station, once per visit. The station only takes it when it has no sure time from the three sources above **and** is more than 2 minutes off. A phone can be wrongly set: it comes last.
 
 Next: [6. Remote access →](06-remote-access.md)

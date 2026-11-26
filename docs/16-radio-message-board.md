@@ -114,6 +114,10 @@ The two programs only exchange files: if the radio program stops, the board keep
 | The tool `meshtastic` can't open the T-Beam | the station is holding it: `sudo systemctl stop prometheus-radio` first |
 | What the radio program says | `sudo journalctl -u prometheus-radio -n 20` |
 
+## The time from the radio
+
+Each radio heard tells its time (MeshCore announcements, Meshtastic positions). A station with neither internet nor the X728 board's clock sets itself on time when **at least two different radios agree** (the T-Beam's own GPS alone is enough when it sees satellites). Details and safeguards: [step 9](09-power.md#90-the-battery-case-x728). The other way round, the station only gives its time to its radio when its own time is sure.
+
 ## Not tested yet
 
 - **Range.** All tests so far were indoors, the T-Beam on a desk. A walk with a T-Echo, then the antenna on the mast, will tell how far it reaches.

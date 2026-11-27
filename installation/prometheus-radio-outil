@@ -913,7 +913,7 @@ def action_chercher(_):
     except Exception as e:
         dire('!! Liste publique des relais non mise à jour :', e)
     try:
-        if trajet_voulu() and not os.path.exists(pc.FOND_CARTE):
+        if trajet_voulu() and rf.a_refaire(pc.FOND_CARTE):
             action_fond('')
     except Exception as e:
         dire('!! Fond de carte non téléchargé :', e)
@@ -943,19 +943,27 @@ def action_relais(_):
     dire('   %d radios dans la liste, %d relais placés et entendus ces %d derniers jours : gardés'
          % (len(noeuds), len(relais), traj.FRAICHEUR_JOURS))
     # Le fond de carte hors ligne (Natural Earth) : une seule fois, il ne change pour ainsi dire jamais
-    if not os.path.exists(pc.FOND_CARTE):
+    if rf.a_refaire(pc.FOND_CARTE):
         action_fond('')
 
 
 def action_fond(_):
-    """Fond de carte du trajet des messages : Natural Earth (domaine public), reduit et garde sur la station."""
-    dire('== Fond de carte hors ligne (Natural Earth, internet, environ 110 Mo une seule fois)')
-    fond = {}
-    for couche, nom in list(rf.COUCHES.items()) + [('villes', rf.VILLES)]:
+    """Fond de carte du trajet des messages : Natural Earth (domaine public) et GeoNames (villes), garde sur la station."""
+    dire('== Fond de carte hors ligne (Natural Earth et GeoNames, internet, environ 120 Mo une seule fois)')
+    fond = {'version': rf.VERSION}      # en tete du fichier : rf.a_refaire le lit sans tout charger
+    for couche, nom in rf.COUCHES.items():
         donnees = json.loads(telecharger(rf.SOURCE + nom + '.geojson'))
-        fond[couche] = rf.compacter_villes(donnees) if couche == 'villes' else rf.compacter(couche, donnees)
+        fond[couche] = rf.compacter(couche, donnees)
         del donnees
-        dire('   %-10s %6d %s' % (couche, len(fond[couche]), 'villes' if couche == 'villes' else 'morceaux de trait'))
+        dire('   %-10s %6d morceaux de trait' % (couche, len(fond[couche])))
+    for couche, nom in rf.SURFACES.items():
+        donnees = json.loads(telecharger(rf.SOURCE + nom + '.geojson'))
+        fond[couche] = rf.decouper_surfaces(donnees)
+        del donnees
+        dire('   %-10s %6d carreaux de surface' % (couche, len(fond[couche])))
+    with zipfile.ZipFile(io.BytesIO(telecharger(rf.VILLES_SOURCE))) as z:
+        fond['villes'] = rf.compacter_geonames(z.read('cities5000.txt').decode('utf-8'))
+    dire('   %-10s %6d villes de plus de 5000 habitants (GeoNames)' % ('villes', len(fond['villes'])))
     pc.ecrire_json(pc.FOND_CARTE, fond, 0o644)
     dire('   gardé : %.1f Mo' % (os.path.getsize(pc.FOND_CARTE) / 1e6))
 

@@ -420,16 +420,66 @@ class FondDeCarte(unittest.TestCase):
             {'properties': {}, 'geometry': None}]}
         self.assertEqual(len(rf.compacter('routes', geo)), 1)          # la petite route (rang 9) n'est pas gardee
         self.assertEqual(len(rf.compacter('cotes', geo)), 3)           # ligne, ligne, contour du polygone
-        villes = {'features': [{'properties': {'name': 'A', 'scalerank': 2, 'pop_max': 5000}, 'geometry': {'type': 'Point', 'coordinates': [1.23456, 2.5]}},
-                               {'properties': {'name': ''}, 'geometry': {'type': 'Point', 'coordinates': [0, 0]}}]}
-        self.assertEqual(rf.compacter_villes(villes), [['A', 1.235, 2.5, 2, 5000]])
+        ligne = 'x\tLa Roche-sur-Yon\tLa Roche\t\t46.67\t-1.4268\tP\tPPLA2\tFR\t\t52\t85\t\t\t59410\t\t\tEurope/Paris\t2024-01-01'
+        self.assertEqual(rf.compacter_geonames(ligne + '\nmauvaise ligne\n' + ligne.replace('59410', 'x')),
+                         [['La Roche-sur-Yon', -1.427, 46.67, 0, 59410]])
+
+    @staticmethod
+    def aire(anneau):
+        return abs(sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(anneau, anneau[1:] + anneau[:1]))) / 2
+
+    def test_surfaces_en_carreaux(self):
+        # Un carre de 4 points reste entier (rien a gagner a le couper)
+        simple = {'features': [{'geometry': {'type': 'Polygon', 'coordinates': [[[0, 0], [4, 0], [4, 4], [0, 4]]]}}]}
+        self.assertEqual(len(rf.decouper_surfaces(simple)), 1)
+        # Le meme avec 2000 points sur ses bords : coupe en carreaux d'un degre au plus, sans rien perdre ni ajouter
+        cote = [i / 125 for i in range(500)]
+        carre = [[x, 0] for x in cote] + [[4, y] for y in cote] + [[4 - x, 4] for x in cote] + [[0, 4 - y] for y in cote]
+        geo = {'features': [{'geometry': {'type': 'Polygon', 'coordinates': [carre]}}]}
+        c = rf.decouper_surfaces(geo)
+        self.assertGreaterEqual(len(c), 16)
+        for w, s_, e, n, codes in c:
+            self.assertLessEqual(e - w, 1.0001)
+            for code in codes:
+                for lon, lat in rf.decoder(code):
+                    self.assertTrue(w - 1e-6 <= lon <= e + 1e-6 and s_ - 1e-6 <= lat <= n + 1e-6)
+        self.assertAlmostEqual(sum(self.aire(rf.decoder(k)) for x in c for k in x[4]), 16, places=2)
+        # Une forme en U (concave) : l'aire est gardee
+        u = [[0, 0], [3, 0], [3, 3], [2, 3], [2, 1], [1, 1], [1, 3], [0, 3]]
+        c = rf.decouper_surfaces({'features': [{'geometry': {'type': 'MultiPolygon', 'coordinates': [[u]]}}]})
+        self.assertAlmostEqual(sum(self.aire(rf.decoder(k)) for x in c for k in x[4]), self.aire(u), places=2)
+
+    def test_surfaces_pres_du_pole(self):
+        # L'Antarctique va de -180 a 180 et touche -90 : la decoupe faisait une boucle sans fin (27/11/2026)
+        import signal
+        pole = [[-180, -90], [180, -90], [180, -70]] + [[x, -65 - (x % 7) / 3] for x in range(179, -180, -1)] + [[-180, -70]]
+        signal.signal(signal.SIGALRM, lambda *a: self.fail('decoupe sans fin'))
+        signal.alarm(20)
+        try:
+            c = rf.decouper_surfaces({'features': [{'geometry': {'type': 'Polygon', 'coordinates': [pole]}}]})
+        finally:
+            signal.alarm(0)
+        self.assertGreater(len(c), 100)
 
     def test_extraire_et_simplifier(self):
         fond = {'cotes': rf.morceaux([[i / 1000, 45.0] for i in range(1000)]),        # 1 degre, un point tous les 1/1000
                 'villes': [['Grande', 0.5, 45.0, 1, 1000000], ['Collee', 0.501, 45.0, 2, 100], ['Loin', 10, 45, 1, 9]]}
+        fond['terres'] = rf.decouper_surfaces({'features': [{'geometry': {'type': 'Polygon', 'coordinates': [[[0, 44], [0.5, 44], [0.5, 45], [0, 45]]]}}]})
         r = rf.extraire(fond, 0, 44, 1, 46, 0.01)
+        self.assertEqual(len(r['terres']), 1)
+        self.assertEqual(rf.extraire(fond, 5, 44, 6, 46, 0.01)['terres'], [])
         n = sum(len(l) for l in r['cotes'])
         self.assertLess(n, 200)                                        # simplifie au pixel
         self.assertEqual([v['nom'] for v in r['villes']], ['Grande'])  # « Collee » serait sur « Grande » ; « Loin » hors cadre
         self.assertEqual(rf.extraire(fond, 5, 44, 6, 46, 0.01)['cotes'], [])
         self.assertEqual(rf.simplifier([[0, 0], [0.001, 0], [1, 0]], 0.01), [[0, 0], [1, 0]])
+
+    def test_a_refaire(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, 'fond.json')
+            self.assertTrue(rf.a_refaire(f))                                   # absent
+            json.dump({'cotes': []}, open(f, 'w'))
+            self.assertTrue(rf.a_refaire(f))                                   # ancien fond, sans version
+            json.dump({'version': rf.VERSION, 'cotes': []}, open(f, 'w'))
+            self.assertFalse(rf.a_refaire(f))

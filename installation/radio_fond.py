@@ -1,7 +1,10 @@
 # Prometheus Station - fond de carte du trajet des messages, hors ligne (27/11/2026). Python pur : essais tests/radio.
 #
-# Les donnees de Natural Earth (domaine public, naturalearthdata.com) : cotes, frontieres, regions, fleuves, lacs,
-# routes principales, villes. Telechargees une fois (internet, ~110 Mo), reduites a ~10 Mo dans FOND_CARTE :
+# Les donnees de Natural Earth (domaine public, naturalearthdata.com) : terres et lacs (surfaces coloriees), cotes,
+# frontieres, regions, fleuves, routes principales ; et les villes de plus de 5000 habitants de GeoNames
+# (geonames.org, CC BY 4.0 : la carte le cite). Telechargees une fois (internet, ~120 Mo), reduites dans FOND_CARTE.
+# Les surfaces sont decoupees en carreaux (decouper_surfaces) : un contour comme celui de l'Europe n'est jamais
+# relu en entier, seuls les carreaux a l'ecran le sont. Les traits :
 # chaque trait est coupe en petits morceaux (MORCEAU points), chacun avec son cadre, et ecrit en « polyline »
 # (le codage de Google, au millieme de degre, ~100 m) : la station ne decode que les morceaux a l'ecran, et ne
 # garde que les points distants d'au moins un pixel. Aucune tuile, aucun serveur de cartes : tout reste ici.
@@ -11,11 +14,14 @@ SOURCE = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/
 # couche -> fichier Natural Earth (10 m : le plus detaille)
 COUCHES = {'cotes': 'ne_10m_coastline', 'frontieres': 'ne_10m_admin_0_boundary_lines_land',
            'regions': 'ne_10m_admin_1_states_provinces_lines', 'fleuves': 'ne_10m_rivers_lake_centerlines',
-           'lacs': 'ne_10m_lakes', 'routes': 'ne_10m_roads'}
-VILLES = 'ne_10m_populated_places_simple'
+           'routes': 'ne_10m_roads'}
+SURFACES = {'terres': 'ne_10m_land', 'lacs': 'ne_10m_lakes'}
+VILLES_SOURCE = 'https://download.geonames.org/export/dump/cities5000.zip'
 MORCEAU = 64            # points par morceau de trait
 PRECISION = 1000        # millieme de degre
-MAX_VILLES = 14
+MAX_VILLES = 18
+VERSION = 2              # a augmenter quand le contenu du fond change : les stations le refont d'elles-memes
+CARREAU_POINTS = 1500   # un carreau de surface est recoupe en deux tant qu'il a plus de points (ou plus d'un degre)
 
 
 # ----- codage « polyline » (entiers signes, par difference avec le point precedent)
@@ -101,18 +107,88 @@ def compacter(couche, geojson):
     return res
 
 
-def compacter_villes(geojson):
+def couper_anneau(anneau, axe, valeur, dessous):
+    """Sutherland-Hodgman : la partie d'un contour ferme du cote voulu de la droite axe = valeur (0 = lon, 1 = lat)."""
+    res = []
+    n = len(anneau)
+    for i in range(n):
+        a, b = anneau[i - 1], anneau[i]
+        dedans_a = (a[axe] <= valeur) if dessous else (a[axe] >= valeur)
+        dedans_b = (b[axe] <= valeur) if dessous else (b[axe] >= valeur)
+        if dedans_b:
+            if not dedans_a:
+                res.append(_croisement(a, b, axe, valeur))
+            res.append(b)
+        elif dedans_a:
+            res.append(_croisement(a, b, axe, valeur))
+    return res
+
+
+def _croisement(a, b, axe, valeur):
+    t = (valeur - a[axe]) / (b[axe] - a[axe])
+    p = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]
+    p[axe] = valeur
+    return p
+
+
+def decouper_surfaces(geojson):
+    """Les surfaces (polygones) coupees en carreaux : [[ouest, sud, est, nord, [contour code, ...]], ...]."""
     res = []
     for f in (geojson or {}).get('features', []):
-        p, g = f.get('properties') or {}, f.get('geometry') or {}
-        c = g.get('coordinates') or []
-        if g.get('type') != 'Point' or len(c) < 2 or not p.get('name'):
+        g = f.get('geometry') or {}
+        if g.get('type') == 'Polygon':
+            polys = [g.get('coordinates') or []]
+        elif g.get('type') == 'MultiPolygon':
+            polys = g.get('coordinates') or []
+        else:
+            polys = []
+        for poly in polys:
+            anneaux = [[[float(p[0]), float(p[1])] for p in a if len(p) >= 2] for a in poly]
+            anneaux = [a for a in anneaux if len(a) >= 3]
+            if not anneaux:
+                continue
+            lons = [p[0] for p in anneaux[0]]
+            lats = [p[1] for p in anneaux[0]]
+            _carreaux(anneaux, min(lons), min(lats), max(lons), max(lats), res)
+    return res
+
+
+def _carreaux(anneaux, w, s, e, n, res):
+    pile = [(anneaux, w, s, e, n)]
+    while pile:
+        anneaux, w, s, e, n = pile.pop()
+        total = sum(len(a) for a in anneaux)
+        largeur, hauteur = (e - w) * math.cos(math.radians((s + n) / 2)), n - s    # en degres « vrais »
+        # On coupe le cote le plus long ; jamais sans fin (pres d'un pole, un carreau peut n'avoir aucune largeur)
+        axe = 0 if largeur >= hauteur else 1
+        m = (w + e) / 2 if axe == 0 else (s + n) / 2
+        fini = total <= CARREAU_POINTS and max(largeur, hauteur) <= 1 or total <= 8 or max(largeur, hauteur) < 0.01
+        if fini or m in ((w, e) if axe == 0 else (s, n)):
+            codes = [coder([[round(p[0], 3), round(p[1], 3)] for p in a]) for a in anneaux]
+            res.append([round(w, 3), round(s, 3), round(e, 3), round(n, 3), codes])
+            continue
+        for dessous in (True, False):
+            parts = [couper_anneau(a, axe, m, dessous) for a in anneaux]
+            parts = [p for p in parts if len(p) >= 3]
+            if not parts:
+                continue
+            if axe == 0:
+                pile.append((parts, w, s, m, n) if dessous else (parts, m, s, e, n))
+            else:
+                pile.append((parts, w, s, e, m) if dessous else (parts, w, m, e, n))
+
+
+def compacter_geonames(texte):
+    """cities5000.txt de GeoNames (colonnes separees par des tabulations) : [[nom, lon, lat, 0, population], ...]."""
+    res = []
+    for ligne in texte.splitlines():
+        c = ligne.split('\t')
+        if len(c) < 15 or not c[1]:
             continue
         try:
-            rang, pop = int(p.get('scalerank', 10)), int(p.get('pop_max') or 0)
-        except (TypeError, ValueError):
-            rang, pop = 10, 0
-        res.append([str(p['name'])[:40], round(c[0], 3), round(c[1], 3), rang, pop])
+            res.append([c[1][:40], round(float(c[5]), 3), round(float(c[4]), 3), 0, int(c[14] or 0)])
+        except ValueError:
+            continue
     return res
 
 
@@ -140,17 +216,30 @@ def extraire(fond, ouest, sud, est, nord, tol):
                 continue
             lignes.append(simplifier(decoder(code), tol))
         res[couche] = lignes
+    for couche in SURFACES:
+        res[couche] = [[simplifier(decoder(code), tol) for code in codes]
+                       for w, s, e, n, codes in fond.get(couche, []) if not (e < ouest or w > est or n < sud or s > nord)]
     villes = [v for v in fond.get('villes', []) if ouest <= v[1] <= est and sud <= v[2] <= nord]
     villes.sort(key=lambda v: (v[3], -v[4]))
-    # Pas deux noms l'un sur l'autre : au moins 12 « tolerances » (une douzaine de pixels) entre deux villes
+    # Pas deux noms l'un sur l'autre (tol = un pixel) : 45 pixels de cote ou 12 de haut entre deux villes
     gardees = []
     for v in villes:
-        if all(abs(v[1] - g[1]) * math.cos(math.radians(v[2])) > 12 * tol or abs(v[2] - g[2]) > 6 * tol for g in gardees):
+        if all(abs(v[1] - g[1]) * math.cos(math.radians(v[2])) > 45 * tol or abs(v[2] - g[2]) > 12 * tol for g in gardees):
             gardees.append(v)
         if len(gardees) >= MAX_VILLES:
             break
-    res['villes'] = [{'nom': v[0], 'lon': v[1], 'lat': v[2]} for v in gardees]
+    res['villes'] = [{'nom': v[0], 'lon': v[1], 'lat': v[2], 'habitants': v[4]} for v in gardees]
     return res
+
+
+def a_refaire(fichier):
+    """Le fond manque, ou il date d'une version precedente (avant le 27/11/2026 au soir : ni terres ni villes GeoNames)."""
+    try:
+        with open(fichier, encoding='utf-8') as f:
+            debut = f.read(200)
+    except OSError:
+        return True
+    return '"version": %d' % VERSION not in debut
 
 
 def lire_fond(fichier, _cache={}):

@@ -158,27 +158,41 @@ function carteTrajet(pts, cache) {
       if (f && f.absent) svg('text', { x: 296, y: 14, 'text-anchor': 'end', 'class': 'attribution' }, fond).textContent = T('fond de carte pas encore téléchargé', 'map background not downloaded yet');
       return;
     }
-    ['regions', 'frontieres', 'lacs', 'fleuves', 'routes', 'cotes'].forEach(function (couche) {
-      (f[couche] || []).forEach(function (ligne) {
-        var d = ligne.map(function (p, i) { var a = xy(p[1], p[0]); return (i ? 'L' : 'M') + a[0].toFixed(1) + ' ' + a[1].toFixed(1); }).join('');
-        svg('path', { d: d, 'class': 'c-' + couche, fill: 'none' }, fond);   // jamais rempli, meme avec une vieille feuille de style
+    // La mer, puis les terres et les lacs (carreaux remplis), puis les traits, puis les villes
+    svg('rect', { x: 0, y: 0, width: L, height: H, 'class': 'mer' }, fond);
+    var chemin = function (ligne) {
+      return ligne.map(function (p, i) { var a = xy(p[1], p[0]); return (i ? 'L' : 'M') + a[0].toFixed(1) + ' ' + a[1].toFixed(1); }).join('');
+    };
+    ['terres', 'lacs'].forEach(function (couche) {
+      (f[couche] || []).forEach(function (anneaux) {
+        svg('path', { d: anneaux.map(function (a) { return chemin(a) + 'Z'; }).join(''), 'class': 'c-' + couche, 'fill-rule': 'evenodd' }, fond);
       });
     });
-    (f.villes || []).forEach(function (v) {
-      var a = xy(v.lat, v.lon);
-      if (a[0] < 0 || a[0] > L || a[1] < 0 || a[1] > H) return;
-      svg('circle', { cx: a[0], cy: a[1], r: 1.6, 'class': 'ville' }, fond);
-      var droite = a[0] > L - 70;     // pres du bord droit : le nom part vers la gauche
-      svg('text', { x: droite ? a[0] - 4 : a[0] + 4, y: a[1] - 3, 'text-anchor': droite ? 'end' : 'start', 'class': 'nom-ville' }, fond).textContent = v.nom;
+    ['regions', 'frontieres', 'fleuves', 'routes', 'cotes'].forEach(function (couche) {
+      (f[couche] || []).forEach(function (ligne) {
+        svg('path', { d: chemin(ligne), 'class': 'c-' + couche, fill: 'none' }, fond);   // jamais rempli, meme avec une vieille feuille de style
+      });
     });
-    svg('text', { x: 296, y: 296, 'text-anchor': 'end', 'class': 'attribution' }, fond).textContent = 'Natural Earth';
+    // Villes : plus grosses et plus marquees selon le nombre d'habitants ; les plus grandes d'abord
+    (f.villes || []).forEach(function (v) {
+      var a = xy(v.lat, v.lon), n = v.habitants || 0;
+      if (a[0] < 2 || a[0] > L - 2 || a[1] < 2 || a[1] > H - 2) return;
+      var taille = n >= 200000 ? 'grande' : n >= 30000 ? 'moyenne' : 'petite';
+      svg('circle', { cx: a[0], cy: a[1], r: taille === 'grande' ? 2.6 : taille === 'moyenne' ? 2 : 1.4, 'class': 'ville' }, fond);
+      // Le nom part vers la gauche s'il depasserait du bord droit (largeur estimee d'apres sa taille de lettres)
+      var droite = a[0] + 4 + v.nom.length * { grande: 6.4, moyenne: 5.3, petite: 4.6 }[taille] > L - 4;
+      svg('text', { x: droite ? a[0] - 4 : a[0] + 4, y: a[1] - 3, 'text-anchor': droite ? 'end' : 'start', 'class': 'nom-ville ' + taille }, fond).textContent = v.nom;
+    });
+    svg('text', { x: L - 4, y: H - 4, 'text-anchor': 'end', 'class': 'attribution' }, fond).textContent = 'Natural Earth · GeoNames';
   };
   if (cache.fond) dessinerFond(cache.fond);
   else api('/mesh/fond?o=' + cadre.o.toFixed(4) + '&s=' + cadre.s.toFixed(4) + '&e=' + cadre.e.toFixed(4) + '&n=' + cadre.n.toFixed(4) + '&tol=' + tol.toFixed(5))
     .then(function (f) { cache.fond = f; dessinerFond(f); }).catch(function () {});
   for (var j = 1; j < pts.length; j++) {
     var a = xy(pts[j - 1].lat, pts[j - 1].lon), b = xy(pts[j].lat, pts[j].lon);
-    svg('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'class': pts[j].i - pts[j - 1].i > 1 ? 'trou' : 'ligne-trajet' }, c);
+    var trou = pts[j].i - pts[j - 1].i > 1;
+    svg('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'class': 'lisere' }, c);     // bord clair : le trajet se detache du fond
+    svg('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'class': trou ? 'trou' : 'ligne-trajet' }, c);
   }
   pts.forEach(function (q, j) {
     var a = xy(q.lat, q.lon), dernier = j === pts.length - 1;

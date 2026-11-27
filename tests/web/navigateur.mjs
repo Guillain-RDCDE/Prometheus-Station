@@ -199,10 +199,16 @@ async function lancerChrome() {
   const profil = fs.mkdtempSync(path.join(os.tmpdir(), 'prometheus-chrome-'));
   const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profil, '--no-first-run',
     '--no-default-browser-check', '--hide-scrollbars', '--lang=fr-FR', 'about:blank'], { stdio: 'ignore' });
+  // Chrome ecrit son port quand il est pret : jusqu'a 60 s (la machine de GitHub est parfois lente a le lancer).
+  // Le fichier peut exister encore vide : on attend qu'il contienne un numero.
   const fichierPort = path.join(profil, 'DevToolsActivePort');
-  for (let i = 0; i < 100 && !fs.existsSync(fichierPort); i++) await attendre(100);
-  await attendre(200);
-  const port = fs.readFileSync(fichierPort, 'utf8').split('\n')[0];
+  let port = '';
+  for (let i = 0; i < 600 && !/^\d+$/.test(port); i++) {
+    await attendre(100);
+    try { port = fs.readFileSync(fichierPort, 'utf8').split('\n')[0].trim(); } catch (e) { port = ''; }
+    if (chrome.exitCode !== null) throw new Error('Chrome s’est arrete au demarrage (code ' + chrome.exitCode + ')');
+  }
+  if (!/^\d+$/.test(port)) throw new Error('Chrome n’a pas donne son port en 60 s');
   return { chrome, profil, port };
 }
 async function ouvrirOnglet(port) {

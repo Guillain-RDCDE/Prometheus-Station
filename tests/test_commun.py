@@ -3,7 +3,7 @@
 
     python3 -m unittest discover -s tests -p 'test_*.py'
 """
-import importlib, json, os, re, stat, subprocess, sys, tempfile, threading, unittest
+import importlib, json, os, re, shutil, stat, subprocess, sys, tempfile, threading, unittest
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 INSTALLATION = os.path.join(os.path.dirname(ICI), 'installation')
@@ -24,6 +24,7 @@ def charger(racine):
 class Module(unittest.TestCase):
     def setUp(self):
         self.racine = tempfile.mkdtemp(prefix='essai-commun-')
+        self.addCleanup(shutil.rmtree, self.racine, True)   # rien ne reste dans /tmp apres l'essai
         self.pc = charger(self.racine)
         for d in (self.pc.ADMIN, self.pc.COMMUNAUTE, self.pc.THEMES, os.path.dirname(self.pc.JOURNAL_MAJ)):
             os.makedirs(d, exist_ok=True)

@@ -12,6 +12,9 @@ import asyncio, importlib.machinery, importlib.util, json, os, shutil, sys, temp
 ICI = os.path.dirname(os.path.abspath(__file__))
 PROGRAMMES = os.path.abspath(os.environ.get('RADIO_PROGRAMMES') or os.path.join(ICI, '..', '..', 'installation'))
 RACINE = os.environ.get('PROMETHEUS_RACINE') or tempfile.mkdtemp(prefix='essai-radio-')
+if not os.environ.get('PROMETHEUS_RACINE'):
+    import atexit, shutil
+    atexit.register(shutil.rmtree, RACINE, True)   # rien ne reste dans /tmp apres les essais
 os.environ['PROMETHEUS_RACINE'] = RACINE
 if PROGRAMMES not in sys.path:
     sys.path.insert(0, PROGRAMMES)

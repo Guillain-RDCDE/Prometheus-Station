@@ -120,6 +120,8 @@ Tested on a T-Echo, one way after the other: Meshtastic → MeshCore (station) w
 
 Every operation of this page (settings, network switch, software) writes what it does, line by line, into a window that scrolls while it runs, then a line says **Done** or **Failed**, with the details kept above. *Show the details of the last operation* brings them back later. Keys and passwords never appear in it: they are masked. The details are written in French, like the station's other internal messages; the tool's own output (`esptool`, `meshtastic`) is in English.
 
+> Tried again for real on 27 November 2026, after the code review: a full round trip MeshCore → Meshtastic → MeshCore from the Overview, nobody touching the radio. On the way to Meshtastic the station put the radio's private key back without ever writing it on a command line, then checked that the radio announced the same public key as before; on the way back, the MeshCore identity, the 79 contacts and the Bluetooth pairing came back by themselves. In the operation's details the private key, the channel link and the MQTT password are shown as `[masqué]` (hidden).
+
 ## How it works inside
 
 | Part | Role |

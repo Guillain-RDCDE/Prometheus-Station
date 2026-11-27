@@ -148,7 +148,12 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   /* Une seule couleur pour les icones, celle du theme (seule la Page Urgence garde son rouge) ;
      chaque famille de reglages forme un bloc, son titre dedans sur un fond leger (choix de Guillain, 27/11/2026) */
   .sections .section { background: var(--carte); border: 1px solid var(--trait); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 2px rgba(15,23,32,.05); margin-bottom: 22px; }
-  .sections .section h2 { margin: 0; padding: 12px 16px; background: color-mix(in srgb, var(--accent) 7%, var(--carte)); color: var(--accent); border-bottom: 1px solid var(--trait); }
+  .sections .section h2 { margin: 0; padding: 12px 16px; background: color-mix(in srgb, var(--f, var(--accent)) 8%, var(--carte)); color: var(--f, var(--accent)); border-bottom: 1px solid var(--trait); }
+  /* Une couleur par famille (27/11/2026) : visiteurs orange, station bleu, contenus vert, systeme violet ;
+     toutes les icones d'une famille la prennent, et les raccourcis du haut celle de leur famille. L'Urgence reste rouge. */
+  .famille-visiteurs { --f: #e8590c; } .famille-station { --f: #1c7ed6; } .famille-contenus { --f: #2f9e44; } .famille-systeme { --f: #7048e8; }
+  .section .icone, .action .icone { --c: var(--f); }
+  .action[data-vue="annonce"], .action[data-vue="messages"] { --f: #e8590c; } .action[data-vue="energie"] { --f: #1c7ed6; }
   .sections .groupe { border: 0; border-radius: 0; box-shadow: none; }
   /* La valeur a droite devient une pastille : verte (en marche), grise (eteint), orange (a regarder) */
   .ligne .valeur { font-size: .8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--trait); color: var(--gris); max-width: 42%; }
@@ -245,7 +250,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <label class="recherche-reglage"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="chercher" placeholder="Chercher un réglage : wifi, balise, sauvegarde…" data-en-ph="Find a setting: Wi-Fi, beacon, backup…" autocomplete="off"></label>
   <p class="note" id="rien-trouve" hidden data-en="No setting matches.">Aucun réglage ne correspond.</p>
   <div class="sections">
-  <div class="section" data-section>
+  <div class="section famille-visiteurs" data-section>
     <h2 data-en="For visitors">Pour les visiteurs</h2>
     <div class="groupe">
     <button class="ligne" data-vue="urgence" data-mots="urgence secours 112 emergency">
@@ -278,7 +283,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     </a>
     </div>
   </div>
-  <div class="section" data-section>
+  <div class="section famille-station" data-section>
     <h2 data-en="Station">Station</h2>
     <div class="groupe">
     <button class="ligne" data-vue="energie" data-mots="energie batterie accus sobre extinction power battery">
@@ -303,7 +308,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     </button>
     </div>
   </div>
-  <div class="section" data-section>
+  <div class="section famille-contenus" data-section>
     <h2 data-en="Content">Contenus</h2>
     <div class="groupe">
     <button class="ligne" data-vue="contenus" data-mots="encyclopedies wikipedia kiwix zim mise a jour">
@@ -324,7 +329,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     </button>
     </div>
   </div>
-  <div class="section" data-section>
+  <div class="section famille-systeme" data-section>
     <h2 data-en="System and security">Système et sécurité</h2>
     <div class="groupe">
     <button class="ligne" data-vue="logiciels" data-mots="logiciels mise a jour systeme software update">

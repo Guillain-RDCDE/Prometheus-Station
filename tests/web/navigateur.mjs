@@ -385,6 +385,9 @@ try {
       }
     });
     await o.cmd('Runtime.enable'); await o.cmd('Log.enable'); await o.cmd('Page.enable');
+    // Les pages suivent la langue du navigateur : --lang ne suffit pas partout (Chrome de GitHub, sous Linux, reste
+    // en anglais). Les verifications sont ecrites en francais : on donne le francais a chaque page, quelle que soit la machine.
+    await o.cmd('Page.addScriptToEvaluateOnNewDocument', { source: "try { if (!localStorage.getItem('langue')) localStorage.setItem('langue', 'fr'); } catch (e) {}" });
     await o.cmd('Emulation.setDeviceMetricsOverride', { width: page.largeur || 420, height: 900, deviceScaleFactor: 1, mobile: false });
     if (page.avant) await o.cmd('Page.addScriptToEvaluateOnNewDocument', { source: `if (location.origin === '${BASE}') { ${page.avant} }` });
     await o.cmd('Page.navigate', { url: BASE + page.url });

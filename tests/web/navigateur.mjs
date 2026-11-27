@@ -60,7 +60,8 @@ function radioAdmin() {
       canaux: [{ index: 0, nom: 'LongFast' }]
     },
     journal: [{ sens: 'recu', nom: 'Jeanne', texte: 'Bonjour la station', heure: t - 500, canal: 0, snr: 4.5 }, { sens: 'emis', texte: 'Bien reçu', heure: t - 400, canal: 0 },
-              { sens: 'recu', nom: 'Loin', texte: 'Bonjour de loin', heure: t - 300, canal: 0, snr: -3, sauts: 3, chemin: 'ec46d45c2667' }],
+              { sens: 'recu', nom: 'Loin', texte: 'Bonjour de loin', heure: t - 300, canal: 0, snr: -3, sauts: 3, chemin: 'ec46d45c2667' },
+              { sens: 'recu', nom: 'Loin', texte: 'Encore moi, meme chemin', heure: t - 200, canal: 0, snr: -4, sauts: 3, chemin: 'ec46d45c2667' }],
     outil: { sauvegardes: { meshtastic: t - 86400, meshcore: 0 }, versions: { meshtastic: ['2.7.15'], meshcore: ['1.10.0'] }, radios: [] }
   };
 }
@@ -347,10 +348,12 @@ const PAGES = [
   { nom: 'mesh noeuds', url: '/parametres/mesh/noeuds.html', attente: 1500, verifs: [vrai(`document.querySelectorAll('#liste .ligne-m').length === 2`, '2 radios')] },
   { nom: 'mesh messages', url: '/parametres/mesh/messages.html', attente: 1500,
     verifs: [vrai(`/Bonjour la station/.test(${txt('#journal')})`, 'le journal radio'),
-      vrai(`document.querySelectorAll('#journal .plus').length === 1`, 'un seul bouton « + trajet » (le message passé par des relais)')],
+      vrai(`document.querySelectorAll('#journal .plus').length === 2`, 'un bouton « + trajet » par message passé par des relais')],
     gestes: async p => {
       await p.eval(`document.querySelector('#journal .plus').click()`); await attendre(800);
-      return [await p.verif(vrai(`document.querySelectorAll('.trajet .etapes li').length === 4`, 'trajet : 3 relais + la station')),
+      await p.eval(`afficherJournal()`); await attendre(500);        // le rafraichissement des 15 s : le panneau reste ouvert
+      return [await p.verif(vrai(`document.querySelectorAll('#journal .trajet:not([hidden])').length === 1`, 'même chemin : seul le message touché s’ouvre, et le reste au rafraîchissement')),
+        await p.verif(vrai(`document.querySelectorAll('.trajet .etapes li').length === 4`, 'trajet : 3 relais + la station')),
         await p.verif(vrai(`/Relais <b>Cap<\\/b>/.test(${txt('.trajet .etapes')}) && !document.querySelector('.trajet .etapes b b')`, 'un nom de radio reste du texte')),
         await p.verif(vrai(`document.querySelectorAll('.trajet svg circle.relais').length === 2 && document.querySelectorAll('.trajet svg .trou').length === 1`, 'carte : 2 relais situés, pointillés sur le trou')),
         await p.verif(vrai(`document.querySelectorAll('.trajet svg .c-cotes').length === 1 && /Villeneuve/.test(${txt('.trajet svg')}) && /Natural Earth/.test(${txt('.trajet svg')})`, 'carte : le fond (côtes, ville, attribution)')),

@@ -103,7 +103,9 @@ function ligneMessage(m, repondre) {
 // ouvert le reste quand la liste se redessine (toutes les 15 s).
 var trajetsOuverts = {}, trajetsLus = {};
 function boutonTrajet(ligne, ls, m) {
-  var cle = m.sauts + ':' + m.chemin, b = el('button', 'plus');
+  // cle : le chemin (meme chemin = meme trajet, lu une seule fois) ; ici : CE message (deux messages venus par le
+  // meme chemin ne s'ouvrent pas ensemble)
+  var cle = m.sauts + ':' + m.chemin, ici = m.heure + '@' + cle, b = el('button', 'plus');
   b.type = 'button';
   var zone = el('div', 'trajet'); zone.hidden = true;
   function montrer(ouvert) {
@@ -112,9 +114,9 @@ function boutonTrajet(ligne, ls, m) {
     zone.hidden = !ouvert;
     if (ouvert) remplirTrajet(zone, cle, m);
   }
-  b.onclick = function () { trajetsOuverts[cle] = !trajetsOuverts[cle]; montrer(trajetsOuverts[cle]); };
+  b.onclick = function () { trajetsOuverts[ici] = !trajetsOuverts[ici]; montrer(trajetsOuverts[ici]); };
   ls.appendChild(b); ligne.appendChild(zone);
-  montrer(!!trajetsOuverts[cle]);
+  montrer(!!trajetsOuverts[ici]);
 }
 function remplirTrajet(zone, cle, m) {
   if (trajetsLus[cle]) { dessinerTrajet(zone, trajetsLus[cle], m); return; }

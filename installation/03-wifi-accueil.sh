@@ -172,6 +172,15 @@ fi
 
 echo "== Configuration du serveur web"
 cat > /etc/nginx/sites-available/prometheus <<'EOF'
+# Kiwix enferme ses pages dans un « bac a sable » (en-tete Content-Security-Policy: sandbox ...). Un onglet ouvert
+# depuis une page (un PDF de la bibliotheque post-catastrophe, par exemple) en heritait, et Chrome refuse d'afficher
+# un PDF dans un bac a sable (ERR_BLOCKED_BY_CLIENT). On laisse les nouveaux onglets en sortir ; le reste ne change pas.
+# Seulement quand Kiwix envoie cet en-tete (ses pages HTML) : jamais sur les PDF ou les images.
+map $upstream_http_content_security_policy $csp_kiwix {
+    ""                    "";
+    "~^(?<csp>.*?);?\s*$" "$csp allow-popups-to-escape-sandbox;";
+}
+
 # Toute adresse inconnue (captive.apple.com, google.com...) renvoie vers l'accueil :
 # c'est ce qui fait s'ouvrir la page toute seule sur les telephones.
 server {
@@ -200,6 +209,8 @@ server {
 
     location /encyclopedies/content/ {
         proxy_pass http://127.0.0.1:8080;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy $csp_kiwix;
         proxy_read_timeout 300s;
         proxy_set_header Accept-Encoding "";
         sub_filter_once on;

@@ -168,6 +168,17 @@ map $upstream_http_content_security_policy $csp_kiwix {
     "~^(?<csp>.*?);?\s*$" "$csp allow-popups-to-escape-sandbox;";
 }
 
+# Pages, styles et programmes des pages : le navigateur redemande a chaque fois s'ils ont change (reponse « 304 »
+# sans le fichier s'il n'a pas change). Sans cela, apres une mise a jour, il pouvait garder l'ancienne feuille de style
+# avec la nouvelle page (vu le 27/11/2026 : carte du trajet en taches noires). Une regle generale (map + add_header
+# dans « server »), jamais un bloc « location » : un bloc par extension passerait devant /parametres/ et sa connexion.
+# Kiwix (/encyclopedies) garde ses propres consignes.
+map $uri $cache_pages {
+    ~^/encyclopedies                 "";
+    ~(\.(html|css|js|mjs)|/)$         "no-cache";
+    default                          "";
+}
+
 # Toute adresse inconnue (captive.apple.com, google.com...) renvoie vers l'accueil :
 # c'est ce qui fait s'ouvrir la page toute seule sur les telephones.
 server {
@@ -183,6 +194,8 @@ server {
     root /var/www/prometheus;
     index index.html;
     charset utf-8;
+    # Voir « map $uri $cache_pages » plus haut (sans effet dans les blocs qui ont leur propre add_header)
+    add_header Cache-Control $cache_pages;
 
     # Notre page Encyclopedies remplace celle de Kiwix
     location = /encyclopedies { return 301 /encyclopedies/; }

@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/theme.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/annonce.js"></script>
 <script>
 addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
@@ -56,8 +57,8 @@ function lien(article) { return '/encyclopedies/content/' + article.split('/').m
 
 // On ne montre que les raccourcis dont l'encyclopedie est bien sur la station
 Promise.all([
-  fetch('/api/reglages', { cache: 'no-store' }).then(function (r) { return r.json(); }),
-  fetch('/encyclopedies/catalog/v2/entries?count=200', { cache: 'no-store' }).then(function (r) { return r.text(); }).catch(function () { return ''; })
+  lire('/api/reglages'),
+  lireTexte('/encyclopedies/catalog/v2/entries?count=200').catch(function () { return ''; })
 ]).then(function (res) {
   var actif = res[0].urgence && res[0].urgence.active;
   document.getElementById('eteinte').hidden = actif;
@@ -84,7 +85,7 @@ Promise.all([
     a.href = '/encyclopedies/content/' + c[0] + '/'; a.textContent = c[1];
     tout.appendChild(a);
   });
-});
+}).catch(function () {});
 </script>
 </body>
 </html>

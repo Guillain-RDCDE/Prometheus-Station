@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/theme.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <style>
   /* Accueil de l'ecran de la mallette (maquette du 20/10/2026) : de gros paves a toucher du doigt ou a choisir au
      clavier (fleches, Entree, Echap). Meme parti pris que le reste : du texte, des filets fins, pas de cartes ni
@@ -66,7 +67,6 @@
   <div class="aide-clavier" data-en="Keyboard: arrows to choose, Enter to open, Escape to go back.">Au clavier : flèches pour choisir, Entrée pour ouvrir, Échap pour revenir.</div>
 </div>
 <script>
-function $(id) { return document.getElementById(id); }
 // Icones : un trait, a l'encre du theme
 var I = {
   messages: '<path d="M4 5h16v11H9l-5 4z"/>', radio: '<path d="M12 13v8"/><circle cx="12" cy="11" r="2"/><path d="M8.5 7.5a5 5 0 0 0 0 7M15.5 7.5a5 5 0 0 1 0 7M5.6 4.6a9 9 0 0 0 0 12.8M18.4 4.6a9 9 0 0 1 0 12.8"/>',
@@ -163,22 +163,22 @@ addEventListener('keydown', function (ev) {
 
 // L'heure, en grand
 function horloge() {
-  var d = new Date(), loc = LANGUE === 'en' ? 'en-GB' : 'fr-FR';
-  $('heure').textContent = d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
-  $('date').textContent = d.toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'long' });
+  var d = new Date();
+  $('heure').textContent = d.toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' });
+  $('date').textContent = d.toLocaleDateString(LOC, { weekday: 'long', day: 'numeric', month: 'long' });
 }
 horloge(); setInterval(horloge, 15000);
 
 // Les infos en direct (seulement ce que tout visiteur peut lire ; l'etat de la station si l'administrateur est connecte)
-function lire(u) { return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw r.status; return r.json(); }); }
 function charger() {
   lire('/api/messages').then(function (d) {
     var auj = new Date(); auj.setHours(0, 0, 0, 0);
     var n = (d.messages || []).filter(function (m) { return m.heure * 1000 >= auj.getTime(); }).length;
     infos.messages = [n ? n + T(' aujourd’hui', ' today') : T('Aucun aujourd’hui', 'None today'), ''];
     var r = d.radio || {};
-    var etat = !r.active ? [T('Désactivée', 'Turned off'), 'eteint'] : r.etat === 'ok' ? [(r.reseau === 'meshcore' ? 'MeshCore' : 'Meshtastic') + T(' · connectée', ' · connected'), '']
-             : [T('Ne répond pas', 'Not answering'), 'alerte'];
+    var er = texteRadio(r);   // le meme texte que les Parametres et la section Mesh
+    var etat = er.genre === 'eteinte' ? [er.court, 'eteint'] : er.genre === 'bien' ? [(r.reseau === 'meshcore' ? 'MeshCore' : 'Meshtastic') + T(' · connectée', ' · connected'), '']
+             : [er.court, er.genre === 'alerte' ? 'alerte' : ''];
     infos.radio = etat; infos['p-radio'] = etat;
     infos['r-ecrire'] = r.attente ? [r.attente + T(' en attente d’envoi', ' waiting to leave'), ''] : ['', ''];
     majInfos();

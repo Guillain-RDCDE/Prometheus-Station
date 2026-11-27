@@ -71,7 +71,9 @@ Prometheus Station keeps a copy of that knowledge close at hand, readable by any
 | Library readers | **epub.js** 0.3 + jszip (EPUB), **pdf.js** 6.5 legacy (PDF), in `/var/www/prometheus/vendor/` | read in the phone's browser, offline; PDF: bookmarks, links, go to page, search, highlight |
 | Downloads | `prometheus-telecharger` (aria2), daily timer | always the newest version, checked, resumed, 5 GB safety margin |
 | Password, settings, messages, register, mutual aid, clock | `prometheus-admin` (Python, no extra module) | listens only on the station itself (127.0.0.1:8091) |
-| Settings actions needing the administrator | `prometheus-commande`, `prometheus-ssid`, `prometheus-nom`, `prometheus-sobre` | the pages drop a request file; a system service carries it out. No page ever runs a program itself |
+| Settings actions needing the administrator | `prometheus-commande`, `prometheus-ssid`, `prometheus-nom`, `prometheus-sobre` | the pages drop a request file; a system service carries it out. No page ever runs a program itself. Each order carries a number and gets an answer the page reads (done, started, waiting, refused); one radio operation at a time, the next one waits instead of being lost |
+| What every program says the same way | `prometheus_commun.py` (Python) and `prometheus-commun` (for shell scripts), in `/usr/local/lib/prometheus/` | where files are, the settings and their defaults, writing a file safely, how many people are connected, whether an update is running, the colors. The radio's shared rules (which board is the station's, message sizes, backups, safety net, secrets) are in `radio_*.py` next to it |
+| Folders and who may write in them | one table, `/etc/tmpfiles.d/prometheus.conf` (from `installation/prometheus-dossiers.conf`) | applied at every start and at the end of every installation step: a step can be run again alone, in any order |
 | Radio | `prometheus-radio` (Python, Meshtastic and MeshCore libraries in `/opt/prometheus-radio`) | links the message board and the Radio page to the T-Beam: by USB on Meshtastic, by Bluetooth on MeshCore; off until turned on in the Settings |
 | Radio tool | `prometheus-radio-outil` (run by `prometheus-commande`) | saves and sets the radio, switches networks, fetches and installs the radios' software, puts a backup back, recognises and installs any board ([chapters 17](17-radio-page.md) and [18](18-mesh-section.md)) |
 | Station screen | `cage` + Chromium in kiosk mode, `prometheus-kiosque`, `prometheus-ecran-local` (step 11) | a screen and a USB keyboard on the station show its pages full screen, with sleep; off until turned on in the Settings ([chapter 19](19-screen-and-keyboard.md)) |
@@ -99,7 +101,9 @@ The script and program names are in French; the guide gives each one's role.
 | `/srv/prometheus/radio/` | radio messages waiting, sent and received, the radio's state and details, the network in use, the radios' software (`logiciels/`) and each network's settings (`sauvegardes/`, administrator only: it holds the radios' keys) |
 | `/srv/prometheus/communaute/` | community settings, register of people, mutual-aid posts, most searched topics (title and count only) |
 | `/srv/prometheus/.admin/` | password (scrambled), sessions, chosen colors, low-power mode |
-| `/srv/prometheus/sauvegardes/` | the last 7 settings backups |
+| `/srv/prometheus/sauvegardes/` | the last 7 settings backups (what they contain: `/usr/local/lib/prometheus/sauvegarde.liste`) |
+| `/srv/prometheus/commande/` | the orders of the buttons, carried out at once by `prometheus-commande`; `commande-attente/`: a radio order waiting for the one before |
+| `/var/www/prometheus/ajouter/resultats/` | the answer to each numbered order, kept one day (behind the password) |
 | `/srv/prometheus/.admin/doublons-gardes` | fingerprints of duplicate books the keeper chose to keep (*Keep both*) |
 | `/var/lib/prometheus-batterie/journal.csv` | X728 battery board: one reading per minute, each shutdown and start (summed up by `prometheus-batterie --bilan`) |
 | `/run/prometheus/` | live values, emptied at every start (automatic shutdown, voltage, batteries; `heure-radio.json`: a time request from the radio) |
@@ -142,7 +146,8 @@ The script and program names are in French; the guide gives each one's role.
 - **A radio beacon** (20 October 2026): a ready-made message sent by radio every 3 hours, at first only while the Emergency page is on ([chapter 16](16-radio-message-board.md#the-beacon)).
 - **A screen and a keyboard on the station** (19 October 2026): its pages full screen without a phone, sleep and wake-up, tested with a virtual screen; a real HDMI screen comes next ([chapter 19](19-screen-and-keyboard.md)).
 - **A battery board and a metal case** (25 November 2026): Geekworm X728 with four 18650 cells; charge and mains read, clean-shutdown rule checked in a dry run, charge shown in the Settings. First full discharge (25 November): **about 9 h 30** with the radio plugged in, clean shutdown at 5 %, then the power cut by the board. Since 26 November, the board's clock keeps the station on time without internet, and the time left is read from the voltage. Switched back on with the board's button after a real power cut, on time at once; the button while running is not tested yet ([step 9](09-power.md#90-the-battery-case-x728)). The e-ink screen is set aside: it does not fit in the closed case.
-- **System updates with their details on screen**, as they run.
+- **System updates with their details on screen**, as they run, and a plain-language summary under them (27 November 2026).
+- **Automated tests** (27 November 2026), after a review of the whole code: one place for each rule that used to be copied (settings and their defaults, folder rights, the backup list, the radio's rules, the pages' shared code), and tests that keep it so — `bash tests/lancer.sh`, also run by GitHub on every change: the shared module, the radio without a radio, every address of the settings server, the buttons' orders, each page in a real browser. Eleven defects found by the review are fixed, among them the safety net now also on MeshCore, radio keys no longer readable by other accounts, and a step of the installation that could be run again without breaking the buttons.
 
 **Built, not yet tested in real conditions**
 - firewall and phone isolation, seen from a phone on the station's Wi-Fi;
@@ -162,6 +167,8 @@ The script and program names are in French; the guide gives each one's role.
 ## Contributing
 
 Most useful: field reports, content suggestions (other languages, other ZIM files), hardware alternatives, corrections to the guide. Open an issue or a pull request on [the repository](https://github.com/Guillain-RDCDE/Prometheus-Station).
+
+Before proposing a change to the code, run `bash tests/lancer.sh` from the repository (Python 3, and Node for the pages; Chrome for the browser test). A rule that several programs need goes in the shared module, never in a copy: the tests check it.
 
 ---
 

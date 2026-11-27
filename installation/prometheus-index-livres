@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 # Prometheus Station - fabrique la liste des livres (livres.json) lue par la page Bibliotheque.
 # Livres : /srv/prometheus/bibliotheque (EPUB, PDF). Ajoute aussi les bibliotheques Gutenberg (ZIM).
-import json, os, re, zipfile
+import json, os, re, sys, zipfile
 import xml.etree.ElementTree as ET
 from urllib.parse import quote
 
-LIVRES = '/srv/prometheus/bibliotheque'
-ENCYCLOPEDIES = '/srv/prometheus/encyclopedies'
-SORTIE = '/var/www/prometheus/bibliotheque/livres.json'
+sys.path[:0] = [os.path.dirname(os.path.realpath(__file__)), '/usr/local/lib/prometheus']
+import prometheus_commun as pc
+
+LIVRES = os.path.join(pc.SRV, 'bibliotheque')
+ENCYCLOPEDIES = os.path.join(pc.SRV, 'encyclopedies')
+SORTIE = os.path.join(pc.WEB, 'bibliotheque', 'livres.json')
 DC = '{http://purl.org/dc/elements/1.1/}'
 
 
@@ -52,9 +55,6 @@ for nom in sorted(os.listdir(ENCYCLOPEDIES)) if os.path.isdir(ENCYCLOPEDIES) els
                           'lien': '/encyclopedies/content/' + quote(nom[:-4])})
 
 os.makedirs(os.path.dirname(SORTIE), exist_ok=True)
-tmp = SORTIE + '.tmp'
-with open(tmp, 'w', encoding='utf-8') as f:
-    json.dump(gutenberg + livres, f, ensure_ascii=False, indent=1)
-os.chmod(tmp, 0o644)
-os.replace(tmp, SORTIE)
+# Ecriture sure : le rangement des livres et le telechargement peuvent lancer ce programme en meme temps
+pc.ecrire_texte(SORTIE, json.dumps(gutenberg + livres, ensure_ascii=False, indent=1))
 print(f'{len(livres)} livre(s), {len(gutenberg)} bibliotheque(s) Gutenberg')

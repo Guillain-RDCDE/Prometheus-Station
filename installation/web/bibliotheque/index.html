@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/theme.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/annonce.js"></script>
 <script>
 // Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
@@ -62,8 +63,7 @@ function afficher(filtre) {
   document.getElementById('vide').hidden = n > 0;
 }
 
-fetch('/bibliotheque/livres.json', { cache: 'no-store' })
-  .then(function (r) { return r.json(); })
+lire('/bibliotheque/livres.json')
   .then(function (d) {
     // Les bibliotheques Gutenberg sont decrites en francais par la station : on les traduit ici
     d.forEach(function (l) {

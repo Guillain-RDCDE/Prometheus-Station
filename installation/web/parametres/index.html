@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/theme.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/panneau.js"></script>
 <script src="/annonce.js"></script>
 <script>
@@ -30,7 +31,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .ligne .valeur { color: var(--gris); font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
   .ligne .valeur.alerte { color: var(--accent); font-weight: 600; }
   .chevron { color: var(--pale); flex: none; }
-  .pastille { display: inline-block; min-width: 20px; padding: 1px 7px; border-radius: 10px; background: var(--accent); color: #fff; font-size: .78rem; font-weight: 700; text-align: center; }
+  .pastille { display: inline-block; min-width: 20px; padding: 1px 7px; border-radius: 10px; background: var(--accent); color: var(--sur-accent); font-size: .78rem; font-weight: 700; text-align: center; }
 
   .entete { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
   .entete button { font: inherit; color: var(--accent); background: none; border: 0; padding: 4px 0; cursor: pointer; font-size: 1rem; }
@@ -41,7 +42,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .suivi .texte-suivi { display: flex; align-items: center; gap: 10px; }
   .suivi .roue { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--trait); border-top-color: var(--accent); animation: tourne .8s linear infinite; }
   .suivi svg { flex: none; width: 18px; height: 18px; }
-  .suivi.fini { color: #2f9e44; } .suivi.echec { color: #c92a2a; }
+  .suivi.fini { color: var(--vert); } .suivi.echec { color: var(--rouge-urgence); }
   .suivi .jauge { margin: 8px 0 0; }
   @keyframes tourne { to { transform: rotate(360deg); } }
   .jauge { height: 10px; border-radius: 5px; background: var(--trait); overflow: hidden; margin: 6px 0 4px; }
@@ -62,8 +63,8 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .rond { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
   .rond.libre { background: var(--trait); }
   #liste-fichiers .titre-fichier { display: flex; align-items: center; gap: 8px; }
-  .supprimer { flex: none; font: inherit; font-size: .85rem; font-weight: 600; color: #d62828; background: none; border: 1px solid transparent; border-radius: 10px; padding: 6px 10px; cursor: pointer; }
-  .supprimer.confirmer { color: #fff; background: #d62828; }
+  .supprimer { flex: none; font: inherit; font-size: .85rem; font-weight: 600; color: var(--rouge-urgence); background: none; border: 1px solid transparent; border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+  .supprimer.confirmer { color: var(--sur-accent); background: var(--rouge-urgence); }
   .supprimer:disabled { color: var(--pale); background: none; }
   .drapeau-grand svg { display: block; border-radius: 4px; box-shadow: 0 0 0 1px var(--trait); }
   .coche { color: var(--accent); font-weight: 700; visibility: hidden; }
@@ -77,7 +78,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   /* Aide : un « ? » qui deplie une explication courte */
   .ligne label.nom { cursor: pointer; }
   .aide-bouton { flex: none; width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 1.5px solid var(--pale); background: none; color: var(--gris); font: 700 .8rem/1 system-ui, sans-serif; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease; }
-  .aide-bouton[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .aide-bouton[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
   .aide { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
   .aide.ouverte { grid-template-rows: 1fr; }
   .aide > div { overflow: hidden; }
@@ -89,27 +90,27 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   a.bouton { text-align: center; }
   .bouton[hidden] { display: none; }
   .epingle { flex: none; font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--trait); background: var(--carte); color: var(--accent); cursor: pointer; }
-  .epingle.oui { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .epingle.oui { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
   .bouton.annuler { color: var(--encre); }
-  .bouton.eteindre-tout { background: var(--carte); color: #d62828; border: 1px solid #d62828; }
+  .bouton.eteindre-tout { background: var(--carte); color: var(--rouge-urgence); border: 1px solid var(--rouge-urgence); }
   .bouton.eteindre-tout:disabled { color: var(--pale); border-color: var(--trait); }
-  .confirmation { margin-top: 14px; padding: 16px; border-radius: var(--rayon); background: #fff5f5; border: 2px solid #d62828; color: #8a1c1c; font-weight: 600; animation: entree .2s ease; }
+  .confirmation { margin-top: 14px; padding: 16px; border-radius: var(--rayon); background: var(--rouge-pale); border: 2px solid var(--rouge-urgence); color: var(--rouge-urgence); font-weight: 600; animation: entree .2s ease; }
   .confirmation[hidden] { display: none; }
   .confirmation p { margin: 0 0 12px; }
   .confirmation .actions-station { margin-top: 0; }
   .actions-station { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 36px; }
   .actions-station .bouton { margin-top: 0; background: var(--carte); border: 1px solid var(--trait); font-size: 1rem; }
   .bouton.redemarrer { color: var(--accent); }
-  .bouton.redemarrer.confirmer { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .bouton.eteindre { color: #d62828; }
-  .bouton.eteindre.confirmer { background: #d62828; color: #fff; border-color: #d62828; }
+  .bouton.redemarrer.confirmer { background: var(--accent); color: var(--sur-accent); border-color: var(--accent); }
+  .bouton.eteindre { color: var(--rouge-urgence); }
+  .bouton.eteindre.confirmer { background: var(--rouge-urgence); color: var(--sur-accent); border-color: var(--rouge-urgence); }
   .actions-station .bouton:disabled { color: var(--pale); background: var(--carte); border-color: var(--trait); }
   .puces { display: flex; gap: 8px; flex-wrap: wrap; }
   .puce { font: inherit; font-size: .92rem; font-weight: 600; padding: 9px 15px; border-radius: 20px; border: 1px solid var(--trait); background: var(--carte); color: var(--encre); cursor: pointer; }
-  .puce.choisie { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .puce.choisie { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
   #annonce-texte { resize: vertical; margin-bottom: 0; }
   a.bouton[hidden] { display: none; }
-  .valeur.bien { color: #2f9e44; font-weight: 600; }
+  .valeur.bien { color: var(--vert); font-weight: 600; }
   .adresse-champ { display: flex; align-items: center; gap: 4px; color: var(--gris); }
   .adresse-champ .champ { flex: 1; min-width: 0; margin: 0; }
   #form-adresse .bouton { margin-top: 10px; }
@@ -124,7 +125,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .resultat-maj { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0 0; padding: 14px 16px; border-radius: var(--rayon); border: 1px solid var(--trait); background: var(--carte); }
   .resultat-maj p { margin: 0; line-height: 1.45; }
   .resultat-maj p strong { display: block; font-size: 1.02rem; }
-  .resultat-maj .signe { flex: none; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }
+  .resultat-maj .signe { flex: none; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--sur-accent); }
   .resultat-maj.bien { border-color: color-mix(in srgb, var(--vert) 35%, var(--trait)); background: var(--vert-pale); }
   .resultat-maj.bien .signe { background: var(--vert); } .resultat-maj.bien strong { color: var(--vert); }
   .resultat-maj.alerte { border-color: color-mix(in srgb, var(--orange) 40%, var(--trait)); background: var(--orange-pale); }
@@ -146,7 +147,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .icone { width: 38px; height: 38px; border-radius: 11px; background: color-mix(in srgb, var(--c, var(--accent)) 15%, var(--carte)); }
   .icone svg { width: 20px; height: 20px; stroke: var(--c, var(--accent)); }
   /* Une seule couleur pour les icones, celle du theme (seule la Page Urgence garde son rouge) ;
-     chaque famille de reglages forme un bloc, son titre dedans sur un fond leger (choix de Guillain, 27/11/2026) */
+     chaque famille de reglages forme un bloc, son titre dedans sur un fond leger (27/11/2026) */
   .sections .section { background: var(--carte); border: 1px solid var(--trait); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 2px rgba(15,23,32,.05); margin-bottom: 22px; }
   .sections .section h2 { margin: 0; padding: 12px 16px; background: color-mix(in srgb, var(--f, var(--accent)) 8%, var(--carte)); color: var(--f, var(--accent)); border-bottom: 1px solid var(--trait); }
   /* Une couleur par famille (27/11/2026) : visiteurs orange, station bleu, contenus vert, systeme violet ;
@@ -202,8 +203,8 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .action-texte { display: flex; flex-direction: column; min-width: 0; font-weight: 650; font-size: .95rem; line-height: 1.25; }
   .action-etat { font-weight: 500; font-size: .8rem; color: var(--gris); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .action.urgence { border-color: color-mix(in srgb, var(--rouge-urgence) 45%, var(--trait)); }
-  .action.urgence.on { background: var(--rouge-urgence); border-color: var(--rouge-urgence); color: #fff; }
-  .action.urgence.on .action-etat { color: #fff; } .action.urgence.on .icone { background: rgba(255,255,255,.2); } .action.urgence.on .icone svg { stroke: #fff; }
+  .action.urgence.on { background: var(--rouge-urgence); border-color: var(--rouge-urgence); color: var(--sur-accent); }
+  .action.urgence.on .action-etat { color: var(--sur-accent); } .action.urgence.on .icone { background: color-mix(in srgb, var(--sur-accent) 20%, transparent); } .action.urgence.on .icone svg { stroke: var(--sur-accent); }
 
   /* Recherche */
   .recherche-reglage { position: relative; display: block; margin: 0 0 4px; }
@@ -242,7 +243,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <a class="tuile" id="tuile-radio" href="#radio"><span class="tuile-tete"><svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="2"/><path d="M8.5 7.5a5 5 0 0 0 0 7M15.5 7.5a5 5 0 0 1 0 7M12 13v8"/></svg><span data-en="Radio">Radio</span></span><span class="tuile-chiffre">…</span><span class="tuile-detail"></span></a>
   </div>
   <div class="actions-rapides">
-    <button class="action urgence" data-vue="urgence"><span class="icone" style="--c:#c92a2a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span class="action-texte"><span data-en="Emergency page">Page Urgence</span><span class="action-etat" data-copie="val-urgence">…</span></span></button>
+    <button class="action urgence" data-vue="urgence"><span class="icone" style="--c:var(--rouge-urgence)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span class="action-texte"><span data-en="Emergency page">Page Urgence</span><span class="action-etat" data-copie="val-urgence">…</span></span></button>
     <button class="action" data-vue="annonce"><span class="icone"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg></span><span class="action-texte"><span data-en="Announcement">Annonce</span><span class="action-etat" data-copie="val-annonce">…</span></span></button>
     <button class="action" data-vue="messages"><span class="icone"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="action-texte"><span data-en="Messages">Messages</span><span class="action-etat" data-copie="val-messages">…</span></span></button>
     <button class="action" data-vue="energie"><span class="icone"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4M9.5 10v4"/></svg></span><span class="action-texte"><span data-en="Energy">Énergie</span><span class="action-etat" data-copie="val-energie">…</span></span></button>
@@ -254,7 +255,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <h2 data-en="For visitors">Pour les visiteurs</h2>
     <div class="groupe">
     <button class="ligne" data-vue="urgence" data-mots="urgence secours 112 emergency">
-      <span class="icone" style="--c:#c92a2a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span class="icone" style="--c:var(--rouge-urgence)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
       <span class="nom"><span data-en="Emergency page">Page Urgence</span><span class="resume" data-en="Numbers and life-saving steps, at the top of the home page">Numéros et gestes qui sauvent, en tête de l’accueil</span></span><span class="valeur" id="val-urgence">…</span><span class="chevron">›</span>
     </button>
     <button class="ligne" data-vue="annonce" data-mots="annonce bandeau message banner">
@@ -738,14 +739,10 @@ var MOIS = LANGUE === 'en'
   ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   : ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 function date(v) { return v ? MOIS[+v.slice(5, 7) - 1] + ' ' + v.slice(0, 4) : ''; }
-function $(id) { return document.getElementById(id); }
-function el(tag, classe, texte) { var e = document.createElement(tag); if (classe) e.className = classe; if (texte) e.textContent = texte; return e; }
-function poster(route, donnees) {
-  return fetch('/admin-api/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); });
-}
-function ordre(nom) { return fetch('/ajouter/commande/' + nom, { method: 'PUT', body: '' }); }
-function lire() { return fetch('/ajouter/etat.json', { cache: 'no-store' }).then(function (r) { return r.json(); }); }
+// $, el, lire, envoyer, deuxTemps, duree, taille, texteRadio, suivreJournal... : /commun.js
+// Un ordre a la station (file des ordres, prometheus-commande) ; l'etat qu'elle tient a jour (etat.json)
+function ordre(nom, contenu) { return commander(nom, contenu); }   // numerote : la station repond (/commun.js)
+function lireEtat() { return lire('/ajouter/etat.json'); }
 
 // ----- Navigation entre les ecrans (l'adresse garde l'ecran : #wifi, #couleurs...)
 function montrer() {
@@ -860,7 +857,7 @@ function afficher(e) {
     $('bouton-systeme').disabled = !s.a_jour || s.en_cours || !e.internet;
     $('bouton-systeme').textContent = s.en_cours ? T('Mise à jour en cours…', 'Updating…') : T('Mettre à jour', 'Update');
     $('voir-detail').hidden = !s.journal || s.en_cours || !$('console-maj').hidden;
-    if (s.en_cours) suivreMaj(null);   // page ouverte pendant une mise a jour : on montre le detail tout de suite
+    if (s.en_cours) suivreMaj();   // page ouverte pendant une mise a jour : on montre le detail tout de suite
   }
   $('bouton-redemarrer').hidden = !s.redemarrage || s.en_cours;
   if (bilanAFaire && !suiviMaj) { bilanMaj(bilanAFaire, s.redemarrage, true); bilanAFaire = null; bilanVu = true; }
@@ -880,19 +877,14 @@ function afficher(e) {
   // Sauvegarde
   var sv = e.sauvegarde;
   $('val-sauvegarde').textContent = sv ? sv.date.split(' a ')[0] : T('Aucune', 'None');
-  $('sauvegarde-date').textContent = sv ? sv.date.replace(' a ', T(' à ', ' at ')) + ' · ' + poids(sv.octets) : T('Aucune', 'None');
+  $('sauvegarde-date').textContent = sv ? sv.date.replace(' a ', T(' à ', ' at ')) + ' · ' + taille(sv.octets) : T('Aucune', 'None');
   $('bouton-telecharger').hidden = !sv;
   if (sv) { $('bouton-telecharger').href = '/parametres/sauvegardes/' + sv.fichier; $('bouton-telecharger').setAttribute('download', sv.fichier); }
 
   $('verifie').textContent = T('Vérifié le ', 'Checked on ') + e.verifie.replace(' a ', T(' à ', ' at '));
 }
 
-// ----- Stockage : ce qui occupe la carte, avec suppression (en deux temps)
-function poids(o) {
-  if (o >= 1e9) return (o / 1e9).toFixed(o >= 1e10 ? 0 : 1).replace('.', T(',', '.')) + T(' Go', ' GB');
-  if (o >= 1e6) return Math.round(o / 1e6) + T(' Mo', ' MB');
-  return Math.max(1, Math.round(o / 1e3)) + T(' Ko', ' KB');
-}
+// ----- Stockage : ce qui occupe la carte, avec suppression (en deux temps). Tailles : taille() de /commun.js
 // Les 4 plus gros contenus ont chacun leur couleur ; les autres encyclopedies en partagent une, les livres une autre
 var COULEURS_PLACE = ['#2f9e44', '#1c7ed6', '#f08c00', '#7048e8'], COULEUR_ENCYCLO = '#0c8599', COULEUR_LIVRES = '#d6336c', COULEUR_SYSTEME = '#868e96';
 function barrePlace(liste, total, libre) {
@@ -909,13 +901,13 @@ function barrePlace(liste, total, libre) {
   var barre = $('barre-place'), legende = $('legende-place');
   barre.innerHTML = ''; legende.innerHTML = '';
   tranches.forEach(function (t) {
-    var i = el('i'); i.style.background = t[2]; i.style.width = (total ? t[1] / total * 100 : 0).toFixed(2) + '%'; i.title = t[0] + ' · ' + poids(t[1]);
+    var i = el('i'); i.style.background = t[2]; i.style.width = (total ? t[1] / total * 100 : 0).toFixed(2) + '%'; i.title = t[0] + ' · ' + taille(t[1]);
     barre.appendChild(i);
     var l = el('span'), r = el('i', 'rond'); r.style.background = t[2];
-    l.appendChild(r); l.appendChild(document.createTextNode(t[0] + ' ')); l.appendChild(el('small', '', poids(t[1])));
+    l.appendChild(r); l.appendChild(document.createTextNode(t[0] + ' ')); l.appendChild(el('small', '', taille(t[1])));
     legende.appendChild(l);
   });
-  var l = el('span'); l.appendChild(el('i', 'rond libre')); l.appendChild(document.createTextNode(T('Libre ', 'Free '))); l.appendChild(el('small', '', poids(libre)));
+  var l = el('span'); l.appendChild(el('i', 'rond libre')); l.appendChild(document.createTextNode(T('Libre ', 'Free '))); l.appendChild(el('small', '', taille(libre)));
   legende.appendChild(l);
 }
 function fichiersOccupes(liste, total, libre) {
@@ -931,21 +923,21 @@ function fichiersOccupes(liste, total, libre) {
     tete.appendChild(rond); tete.appendChild(document.createTextNode(titre));
     nom.appendChild(tete);
     var pct = total ? f.octets / total * 100 : 0;
-    nom.appendChild(el('div', 'sous', (f.genre === 'encyclopedie' ? T('Encyclopédie', 'Encyclopedia') : T('Livre', 'Book')) + ' · ' + poids(f.octets) +
+    nom.appendChild(el('div', 'sous', (f.genre === 'encyclopedie' ? T('Encyclopédie', 'Encyclopedia') : T('Livre', 'Book')) + ' · ' + taille(f.octets) +
       (pct >= 1 ? ' · ' + Math.round(pct) + T('\u00a0%', '%') : '')));
     var part = el('div', 'part'), barre = el('i'); barre.style.width = pct.toFixed(2) + '%'; barre.style.background = couleur; part.appendChild(barre);
     nom.appendChild(part);
     var b = el('button', 'supprimer', T('Supprimer', 'Delete'));
-    b.onclick = function () {
-      if (!b.classList.contains('confirmer')) {
-        b.classList.add('confirmer'); b.textContent = T('Confirmer', 'Confirm');
-        setTimeout(function () { if (b.classList.contains('confirmer')) { b.classList.remove('confirmer'); b.textContent = T('Supprimer', 'Delete'); } }, 5000);
-        return;
-      }
-      b.classList.remove('confirmer'); b.disabled = true; b.textContent = T('Suppression…', 'Deleting…');
-      fetch('/ajouter/commande/supprimer-' + Date.now(), { method: 'PUT', body: f.fichier })
-        .then(function () { setTimeout(verifier, 2500); });
-    };
+    deuxTemps(b, { texte: T('Confirmer', 'Confirm'), action: function () {
+      b.disabled = true; b.textContent = T('Suppression…', 'Deleting…');
+      ordre('supprimer-' + Date.now(), f.fichier).then(function (r) {
+        if (!r.ok) { b.disabled = false; b.textContent = T('Supprimer', 'Delete'); $('note-stockage').textContent = r.erreur; return; }
+        resultatOrdre(r.id).then(function (res) {
+          if (ordreRefuse(res)) { b.disabled = false; b.textContent = T('Supprimer', 'Delete'); $('note-stockage').textContent = res.message; return; }
+          verifier();
+        });
+      });
+    } });
     ligne.appendChild(nom); ligne.appendChild(b);
     zone.appendChild(ligne);
   });
@@ -961,7 +953,7 @@ function couleurs(actuel) {
     var p = el('i'); p.style.background = t[2];
     b.appendChild(p); b.appendChild(document.createTextNode(t[1]));
     b.onclick = function () {
-      poster('theme', { nom: t[0] }).then(function (r) {
+      envoyer('/admin-api/theme', { nom: t[0] }).then(function (r) {
         if (!r.ok) return;
         document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now();
         $('val-couleurs').textContent = t[1];
@@ -974,7 +966,7 @@ function couleurs(actuel) {
 
 // ----- Rafraichissement : a l'ouverture, puis chaque minute pendant un telechargement ou une mise a jour
 function suivre() {
-  lire().then(function (e) {
+  lireEtat().then(function (e) {
     afficher(e);
     if (e.telechargement || (e.systeme && e.systeme.en_cours)) setTimeout(function () { ordreEtSuivre('verifier'); }, 25000);
   }).catch(function () { setTimeout(suivre, 3000); });
@@ -987,20 +979,21 @@ function suivre() {
 function ordreEtSuivre(nom, fini, marge, suivi_, pret) {
   var avant = etat ? etat.horodatage : null;
   ordre(nom).then(function (r) {
+    if (!r.ok) { if (fini) fini(false); suivre(); return; }
     // L'heure de la station au moment ou elle a recu l'ordre (en-tete Date du serveur ; celle du telephone peut differer)
-    var t0 = Date.parse(r.headers.get('Date') || '') / 1000 || 0, essais = 0;
+    var t0 = r.heure, essais = 0;
     if (suivi_) suivi_.apres = t0 + (marge || 0);   // la ligne d'etat ne conclut que sur un etat a partir de cette heure
     (function attendre() {
-      lire().then(function (e) {
+      lireEtat().then(function (e) {
         // pret(e, t0) : une preuve que l'ordre est fait (ex. un nouveau fichier de sauvegarde), a la place de la marge
         var nouveau = e.horodatage !== avant && (pret ? pret(e, t0) : (!t0 || e.horodatage >= t0 + (marge || 0)));
         if (nouveau || ++essais > 45) { if (fini) fini(); suivre(); } else setTimeout(attendre, 2000);
       }).catch(function () { setTimeout(attendre, 2000); });
     })();
-  }).catch(function () { if (fini) fini(false); suivre(); });
+  });
 }
 function verifier() {
-  lire().then(function (e) { afficher(e); ordreEtSuivre('verifier'); }).catch(function () { ordreEtSuivre('verifier'); });
+  lireEtat().then(function (e) { afficher(e); ordreEtSuivre('verifier'); }).catch(function () { ordreEtSuivre('verifier'); });
 }
 
 // ----- Messages : nombre, et tout effacer (en deux temps pour eviter une fausse manoeuvre)
@@ -1010,29 +1003,24 @@ function avertirRadio() {
                           'Warning: ' + attenteRadio + ' message(s) not yet sent by radio will not be sent. ') : '';
 }
 function compterMessages() {
-  fetch('/api/messages', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+  lire('/api/messages').then(function (d) {
     var n = d.messages.length;
     attenteRadio = d.radio ? d.radio.attente : 0;
     $('val-messages').textContent = n ? n + ' message' + (n > 1 ? 's' : '') : T('Aucun', 'None');
     $('nb-messages').textContent = n || '';
     var b = $('bouton-vider');
-    b.disabled = !n; b.dataset.confirmer = ''; b.textContent = T('Effacer tous les messages', 'Delete all messages');
+    b.disabled = !n; b.textContent = T('Effacer tous les messages', 'Delete all messages');
   }).catch(function () {});
 }
 $('bouton-vider').onclick = function () {
   var b = this;
-  if (!b.dataset.confirmer) {
-    b.dataset.confirmer = '1';
-    b.textContent = T('Toucher encore pour confirmer', 'Tap again to confirm');
+  if (!deuxTemps(b, { texte: T('Toucher encore pour confirmer', 'Tap again to confirm'), retour: compterMessages, avertir: function () {
     $('note-messages').textContent = avertirRadio() + T('Ceux déjà partis par radio restent sur les radios.', 'Those already sent by radio stay on the radios.');
-    setTimeout(function () { if (b.dataset.confirmer) compterMessages(); }, 5000);
-    return;
-  }
+  } })) return;
   b.disabled = true;
-  fetch('/api/messages/vider', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+  envoyer('/api/messages/vider', {})
     .then(function (r) {
-      $('note-messages').textContent = !r.ok ? T('Erreur.', 'Error.') : T('Tous les messages ont été effacés.', 'All messages have been deleted.') +
+      $('note-messages').textContent = !r.ok ? r.erreur : T('Tous les messages ont été effacés.', 'All messages have been deleted.') +
         (r.d.annules ? T(' ' + r.d.annules + ' message(s) radio en attente ont été annulés.', ' ' + r.d.annules + ' waiting radio message(s) were cancelled.') : '');
       compterMessages();
     });
@@ -1053,11 +1041,8 @@ $('bouton-contenus').onclick = function () {
   }, 7, suiviContenus);
 };
 // ----- Mise a jour du systeme : le detail defile pendant qu'elle tourne (fichier ecrit par prometheus-commande)
-var suiviMaj = false, bilanAFaire = null, bilanVu = false;
-function lireJournalMaj() {
-  return fetch('/ajouter/maj-systeme.txt?' + Date.now(), { cache: 'no-store' })
-    .then(function (r) { return r.ok ? r.text() : ''; }).catch(function () { return null; });
-}
+var suiviMaj = false, bilanAFaire = null, bilanVu = false, JOURNAL_MAJ = '/ajouter/maj-systeme.txt';
+function lireJournalMaj() { return lireJournal(JOURNAL_MAJ); }
 function montrerJournalMaj(texte) {
   var c = $('console-maj'), enBas = c.scrollTop + c.clientHeight >= c.scrollHeight - 30;
   c.hidden = false; $('voir-detail').hidden = true;
@@ -1102,46 +1087,48 @@ function bilanMaj(texte, redemarrage, enDirect) {
   var p = r.querySelector('p'); p.textContent = quand ? quand + phrase.charAt(0).toLowerCase() + phrase.slice(1) : phrase;
   var b = document.createElement('strong'); b.textContent = titre; p.insertBefore(b, p.firstChild);
 }
-// debutAvant : premiere ligne du detail precedent (le « FIN » qu'il contient ne compte pas pour la nouvelle mise a jour)
-function suivreMaj(debutAvant) {
-  if (suiviMaj) return;
+// Suivi par le journal (/commun.js, suivreJournal), au lancement ou a l'ouverture de la page pendant une mise a jour.
+// Fin : le bilan attend l'etat recalcule (redemarrage demande ou non), que verifier() pose. Pas demarree ou station
+// muette : on le dit et le bouton revient (avant, sans reseau, il restait sur « Lancement… »).
+function debutMaj() {
   suiviMaj = true;
   $('bouton-systeme').disabled = true; $('bouton-systeme').textContent = T('Mise à jour en cours…', 'Updating…');
   $('resultat-maj').hidden = true;
-  var depart = Date.now(), vueEnCours = false;
-  (function tour() {
-    lireJournalMaj().then(function (texte) {
-      if (texte === null) { setTimeout(tour, 3000); return; }
-      var nouveau = texte.split('\n')[0] !== debutAvant;
-      var fin = nouveau && /### FIN (-?\d+)\s*$/.exec(texte);
-      // Reprise a l'ouverture de la page, mais c'etait deja fini (etat un peu en retard) : rien a montrer
-      if (fin && debutAvant === null && !vueEnCours) { suiviMaj = false; verifier(); return; }
-      if (!fin) vueEnCours = true;
-      if (nouveau) montrerJournalMaj(texte);
-      if (!fin) {
-        if (Date.now() - depart > 30000 && !nouveau) {   // rien n'a demarre en 30 s
-          suiviMaj = false;
-          $('resultat-maj').hidden = false; $('resultat-maj').className = 'resultat-maj alerte';
-          $('resultat-maj').querySelector('.signe').textContent = '!';
-          $('resultat-maj').querySelector('p').textContent = T('La mise à jour n’a pas démarré. Réessayez dans un moment.', 'The update did not start. Try again in a moment.');
-          verifier(); return;
-        }
-        setTimeout(tour, 2000); return;
-      }
+}
+function echecMaj(texte) {
+  suiviMaj = false;
+  var r = $('resultat-maj'); r.hidden = false; r.className = 'resultat-maj alerte';
+  r.querySelector('.signe').textContent = '!'; r.querySelector('p').textContent = texte;
+  $('bouton-systeme').disabled = false; $('bouton-systeme').textContent = T('Mettre à jour', 'Update');
+  verifier();
+}
+function suiviMajOptions(o) {
+  return Object.assign({
+    surTexte: montrerJournalMaj,
+    surFin: function (code, texte) {
       suiviMaj = false;
-      // Le bilan attend l'etat recalcule (redemarrage demande ou non) : verifier() le pose
       bilanAFaire = texte;
-      verifier();   // recompte ce qui reste a mettre a jour
-    });
-  })();
+      verifier();   // recompte ce qui reste a mettre a jour, puis pose le bilan
+    },
+    surRien: function (raison) {
+      if (raison === 'pas-demarre') echecMaj(T('La mise à jour n’a pas démarré. Réessayez dans un moment.', 'The update did not start. Try again in a moment.'));
+      else { suiviMaj = false; verifier(); }   // reprise, mais c'etait deja fini (etat un peu en retard) : rien a montrer
+    },
+    surPanne: function (message) { echecMaj(message + T(' Réessayez dans un moment.', ' Try again in a moment.')); }
+  }, o);
+}
+function suivreMaj() {
+  if (suiviMaj) return;
+  debutMaj();
+  suivreJournal(JOURNAL_MAJ, suiviMajOptions({ debutAvant: null }));
 }
 $('bouton-systeme').onclick = function () {
-  this.disabled = true; this.textContent = T('Lancement…', 'Starting…');
-  lireJournalMaj().then(function (texte) {
-    var debutAvant = (texte || '').split('\n')[0];
-    $('console-maj').textContent = T('Lancement…', 'Starting…'); $('console-maj').hidden = false;
-    ordre('systeme').then(function () { suivreMaj(debutAvant); });
-  });
+  if (suiviMaj) return;
+  debutMaj(); this.textContent = T('Lancement…', 'Starting…');
+  $('console-maj').textContent = T('Lancement…', 'Starting…'); $('console-maj').hidden = false;
+  suivreJournal(JOURNAL_MAJ, suiviMajOptions({ lancer: function () {
+    return ordre('systeme').then(function (r) { if (r.ok) $('bouton-systeme').textContent = T('Mise à jour en cours…', 'Updating…'); return r; });
+  } }));
 };
 $('voir-detail').onclick = function () {
   lireJournalMaj().then(function (texte) { if (texte) montrerJournalMaj(texte); });
@@ -1154,11 +1141,11 @@ $('ssid').addEventListener('input', function () { this.dataset.touche = '1'; });
 $('form-wifi').onsubmit = function (ev) {
   ev.preventDefault();
   var nom = $('ssid').value.trim();
-  poster('wifi', { nom: nom }).then(function (r) {
+  envoyer('/admin-api/wifi', { nom: nom }).then(function (r) {
     $('note-wifi').textContent = r.ok
       ? T('C’est fait : le wifi s’appelle maintenant « ' + nom + ' ». Si vous êtes connecté dessus, reconnectez-vous à ce nouveau nom.',
           'Done: the Wi-Fi is now called “' + nom + '”. If you are connected to it, reconnect to this new name.')
-      : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+      : r.erreur;
     if (r.ok) { delete $('ssid').dataset.touche; $('val-wifi').textContent = nom; }
   });
 };
@@ -1166,29 +1153,24 @@ $('adresse').addEventListener('input', function () { this.dataset.touche = '1'; 
 $('form-adresse').onsubmit = function (ev) {
   ev.preventDefault();
   var nom = $('adresse').value.trim().toLowerCase();
-  poster('adresse', { nom: nom }).then(function (r) {
+  envoyer('/admin-api/adresse', { nom: nom }).then(function (r) {
     $('note-adresse').dataset.fait = '1';
     $('note-adresse').textContent = r.ok
       ? T('C’est fait : la station s’ouvre maintenant à l’adresse http://' + nom + '.local. Pensez à refaire le raccourci de l’écran d’accueil.',
           'Done: the station now opens at http://' + nom + '.local. Remember to redo the home screen shortcut.')
-      : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+      : r.erreur;
     if (r.ok) delete $('adresse').dataset.touche;
   });
 };
 $('form-mdp').onsubmit = function (ev) {
   ev.preventDefault();
-  poster('changer', { ancien: $('ancien').value, nouveau: $('nouveau').value }).then(function (r) {
-    $('note-mdp').textContent = r.ok ? T('Mot de passe changé.', 'Password changed.') : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+  envoyer('/admin-api/changer', { ancien: $('ancien').value, nouveau: $('nouveau').value }).then(function (r) {
+    $('note-mdp').textContent = r.ok ? T('Mot de passe changé.', 'Password changed.') : r.erreur;
     if (r.ok) { $('ancien').value = ''; $('nouveau').value = ''; }
   });
 };
 
-// ----- Energie : mode sobre et extinction automatique (reglages immediats, sans la file des ordres)
-function duree(s) {
-  var h = Math.floor(s / 3600), m = Math.round(s % 3600 / 60);
-  if (m === 60) { h++; m = 0; }
-  return h ? h + ' h' + (m ? ' ' + (m < 10 ? '0' : '') + m : '') : Math.max(1, m) + ' min';
-}
+// ----- Energie : mode sobre et extinction automatique (reglages immediats, sans la file des ordres). Durees : duree()
 function afficherEnergie(d) {
   $('sobre').checked = d.sobre;
   $('ecran-absent').hidden = d.ecran_installe !== false;
@@ -1199,14 +1181,14 @@ function afficherEnergie(d) {
     ? T('Extinction dans ', 'Shutdown in ') + duree(Math.max(0, d.restant)) + T(' si personne ne vient.', ' if nobody comes.') : '';
 }
 function energie() {
-  fetch('/admin-api/energie', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(afficherEnergie).catch(function () {});
+  lire('/admin-api/energie').then(afficherEnergie).catch(function () {});
 }
 $('sobre').onchange = function () {
-  poster('energie', { sobre: this.checked }).then(function (r) { if (r.ok) afficherEnergie(r.d); else energie(); });
+  envoyer('/admin-api/energie', { sobre: this.checked }).then(function (r) { if (r.ok) afficherEnergie(r.d); else energie(); });
 };
 document.querySelectorAll('[data-minutes]').forEach(function (b) {
   b.onclick = function () {
-    poster('energie', { extinction: +b.dataset.minutes }).then(function (r) {
+    envoyer('/admin-api/energie', { extinction: +b.dataset.minutes }).then(function (r) {
       if (r.ok) afficherEnergie(r.d); else energie();
     });
   };
@@ -1228,7 +1210,7 @@ function puces(zone, liste, estChoisie, choisir) {
   });
 }
 function regler(section, valeurs) {
-  return poster('reglages', { section: section, valeurs: valeurs }).then(function (r) {
+  return envoyer('/admin-api/reglages', { section: section, valeurs: valeurs }).then(function (r) {
     if (r.ok) { reg[section] = r.d; afficherCommunaute(); if (section === 'annonce' && window.prometheusAnnonce) prometheusAnnonce(); }
     else communaute();
     return r;
@@ -1317,12 +1299,12 @@ var minuteBalise = null;
 function apercuBalise() {
   clearTimeout(minuteBalise);
   minuteBalise = setTimeout(function () {
-    fetch('/admin-api/balise?texte=' + encodeURIComponent($('balise-texte').value), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    lire('/admin-api/balise?texte=' + encodeURIComponent($('balise-texte').value)).then(function (d) {
       var premier = !baliseInfo; baliseInfo = d;
       var t = T('Partira ainsi : « ', 'Will be sent as: « ') + d.apercu + ' » (' + d.octets + ' / ' + d.max + T(' octets', ' bytes') + ')';
       if (d.coupe) t += T(' — trop long : la fin sera coupée.', ' — too long: the end will be cut.');
       if (!d.position && $('balise-texte').value.indexOf('{position}') >= 0) t += T(' La station n’a pas de position fixe (section Mesh › Configuration) : la case reste vide.', ' The station has no fixed position (Mesh section › Settings): the field stays empty.');
-      if (d.derniere) t += T(' Dernier envoi : ', ' Last sent: ') + new Date(d.derniere * 1000).toLocaleString(LANGUE === 'en' ? 'en-GB' : 'fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '.';
+      if (d.derniere) t += T(' Dernier envoi : ', ' Last sent: ') + dateCourte(d.derniere) + '.';
       $('balise-apercu').textContent = t;
       if (premier && reg.balise) afficherBalise();   // les canaux de la radio sont maintenant connus
     }).catch(function () {});
@@ -1335,33 +1317,33 @@ $('balise-enregistrer').onclick = function () {
   delete $('balise-texte').dataset.touche; b.disabled = true;
 };
 
-// Etat de la radio, tenu a jour par le programme prometheus-radio
+// Etat de la radio, tenu a jour par le programme prometheus-radio ; le texte : texteRadio() (/commun.js), le meme
+// pour cette ligne, la tuile du haut et la section Mesh
 function etatRadio() {
-  fetch('/api/radio', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
-    var txt = !d.active ? T('Désactivée', 'Off') : d.etat === 'ok' ? (d.nom || T('Branchée', 'Plugged in'))
-      : d.etat === 'absente' ? T('Pas branchée', 'Not plugged in') : d.etat === 'muette' ? T('Ne répond pas', 'Not responding') : T('Démarrage…', 'Starting…');
-    var alerte = d.active && (d.etat === 'absente' || d.etat === 'muette');
+  lire('/api/radio').then(function (d) {
+    var er = texteRadio(d), txt = er.genre === 'bien' ? (d.nom || er.court) : er.court;
+    var alerte = er.genre === 'alerte';
     // Une version plus recente du logiciel de la radio est gardee sur la station : on le dit (page Radio pour l'installer)
     var maj = d.maj && !alerte;
     $('val-radio').textContent = maj ? T('Mise à jour disponible', 'Update available') : txt;
     $('val-radio').className = 'valeur' + (alerte || maj ? ' alerte' : '');
-    $('radio-etat').textContent = d.active ? txt : '—'; $('radio-etat').className = 'valeur' + (alerte ? ' alerte' : d.etat === 'ok' ? ' bien' : '');
+    $('radio-etat').textContent = d.active ? txt : '—'; $('radio-etat').className = 'valeur' + (alerte ? ' alerte' : er.genre === 'bien' ? ' bien' : '');
     $('radio-attente').textContent = d.attente;
     tuileRadio(d);
   }).catch(function () {});
 }
 setInterval(etatRadio, 30000);
 function compter(fonction, champ) {
-  fetch('/api/' + fonction, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+  lire('/api/' + fonction).then(function (d) {
     var n = d[champ].length;
     $(fonction + '-nombre').textContent = n || '';
     var b = $(fonction + '-vider');
-    b.disabled = !n; delete b.dataset.confirmer;
+    b.disabled = !n;
     b.textContent = fonction === 'registre' ? T('Effacer toutes les fiches', 'Delete all entries') : T('Effacer toutes les annonces', 'Delete all posts');
   }).catch(function () {});
 }
 function communaute() {
-  fetch('/api/reglages', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) { reg = d; afficherCommunaute(); }).catch(function () {});
+  lire('/api/reglages').then(function (d) { reg = d; afficherCommunaute(); }).catch(function () {});
   compter('registre', 'fiches'); compter('entraide', 'annonces');
 }
 // Interrupteurs : effet immediat
@@ -1387,23 +1369,20 @@ $('annonce-enregistrer').onclick = function () {
 };
 // Tout effacer : en deux temps
 ['registre', 'entraide'].forEach(function (f) {
+  var recompter = function () { compter(f, f === 'registre' ? 'fiches' : 'annonces'); };
   $(f + '-vider').onclick = function () {
     var b = this;
-    if (!b.dataset.confirmer) {
-      b.dataset.confirmer = '1'; b.textContent = T('Toucher encore pour confirmer', 'Tap again to confirm');
-      setTimeout(function () { if (b.dataset.confirmer) compter(f, f === 'registre' ? 'fiches' : 'annonces'); }, 5000);
-      return;
-    }
+    if (!deuxTemps(b, { texte: T('Toucher encore pour confirmer', 'Tap again to confirm'), retour: recompter })) return;
     b.disabled = true;
-    fetch('/api/' + f + '/vider', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-      .then(function () { compter(f, f === 'registre' ? 'fiches' : 'annonces'); });
+    envoyer('/api/' + f + '/vider', {}).then(recompter);
   };
 });
 communaute();
 
 // ----- Etat de la station : temperature, alimentation, duree depuis l'allumage
 function sante() {
-  fetch('/admin-api/sante', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+  // Session expiree : lire() ramene a la connexion (avant : « undefined °C », redemande chaque minute)
+  lire('/admin-api/sante').then(function (d) {
     var t = $('sante-temperature');
     t.textContent = d.temperature === null ? '?' : d.temperature + ' °C';
     t.className = 'valeur' + (d.temperature >= 80 ? ' alerte' : '');
@@ -1411,8 +1390,7 @@ function sante() {
     v.textContent = d.tension === 'ok' ? T('Bonne', 'Good') : d.tension === 'basse' ? T('Trop faible en ce moment', 'Too low right now')
       : d.tension === 'basse_avant' ? T('A été trop faible', 'Has been too low') : '?';
     v.className = 'valeur' + (d.tension === 'ok' ? ' bien' : d.tension ? ' alerte' : '');
-    var j = Math.floor(d.allumee / 86400);
-    $('sante-allumee').textContent = (j ? j + T(' j ', ' d ') : '') + duree(d.allumee % 86400);
+    $('sante-allumee').textContent = duree(d.allumee);
     $('val-sante').textContent = (d.temperature === null ? '' : d.temperature + ' °C') + (d.tension && d.tension !== 'ok' ? ' · ⚠' : '');
     // Carte batterie X728 (etape 12) : charge, secteur ou accus, temps restant estime
     var b = d.batterie;
@@ -1456,21 +1434,20 @@ function tableauDeBord(d) {
   if (chaud) soucis.push(T('trop chaud', 'too hot'));
   if (faible) soucis.push(T('alimentation faible', 'weak power'));
   if (bas) soucis.push(T('accus presque vides', 'batteries nearly empty'));
-  var jours = Math.floor(d.allumee / 86400);
   $('etat-general').className = 'etat-general' + (soucis.length ? ' alerte' : '');
   $('etat-texte').textContent = (soucis.length ? T('À surveiller : ', 'Check: ') + soucis.join(', ') : T('Tout fonctionne', 'All is well'))
-    + T(' · allumée depuis ', ' · on for ') + (jours ? jours + T(' j ', ' d ') : '') + duree(d.allumee % 86400);
+    + T(' · allumée depuis ', ' · on for ') + duree(d.allumee);
 }
 function tuileRadio(d) {
-  if (!d.active) return chiffre('radio', T('Éteinte', 'Off'), '', T('messages par radio désactivés', 'radio messages turned off'));
-  var ok = d.etat === 'ok';
-  chiffre('radio', ok ? T('En marche', 'On') : d.etat === 'absente' ? T('Absente', 'Missing') : d.etat === 'muette' ? T('Muette', 'Silent') : '…', '',
-    ok ? (d.nom || '') : d.etat === 'absente' ? T('radio pas branchée', 'radio not plugged in') : T('ne répond pas', 'not responding'), ok ? 'bien' : 'alerte');
+  var er = texteRadio(d);
+  chiffre('radio', er.court, '', er.detail, er.genre === 'bien' || er.genre === 'alerte' ? er.genre : '');
 }
 // Les pastilles et les actions rapides suivent les valeurs ecrites par le reste de la page
-var ETEINT = /^(Désactivé|Off|Aucun|None|Jamais|Never|—|…|Pas branché|Not plugged)/i;
+var ETEINT = /^(Désactivé|Off|Aucun|None|Jamais|Never|—|…|Pas branché|Not plugged|Démarrage|Starting)/i;   // gris : eteint, ou pas encore pret
 var observateur = new MutationObserver(teinter);
-function suivre() { observateur.observe($('vue-accueil'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] }); }
+// (s'appelait « suivre », comme le rafraichissement de l'etat plus haut : le dernier ecrit gagnait, et apres un ordre
+// la page ne relisait plus l'etat de la station)
+function observerAccueil() { observateur.observe($('vue-accueil'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] }); }
 function teinter() {
   // Ce que fait cette fonction ne doit pas la relancer : on cesse d'observer le temps de colorer
   observateur.disconnect();
@@ -1485,7 +1462,7 @@ function teinter() {
     if (a.classList.contains('urgence')) a.classList.toggle('on', !ETEINT.test(v.textContent.trim()));
   });
   observateur.takeRecords();
-  suivre();
+  observerAccueil();
 }
 teinter();
 // Chercher un reglage : le nom, l'explication et quelques mots-cles de chaque ligne (accents ignores)
@@ -1515,7 +1492,7 @@ $('bouton-sauvegarder').onclick = function () {
   ordreEtSuivre('sauvegarder', function (ok) {
     b.disabled = false; b.textContent = T('Sauvegarder maintenant', 'Back up now');
     if (ok === false) suivi('suivi-sauvegarde', 'echec', T('La station ne répond pas : réessayez dans un moment.', 'The station does not respond: try again in a moment.'));
-    else suivi('suivi-sauvegarde', 'fini', T('Sauvegarde faite à ', 'Backed up at ') + new Date().toLocaleTimeString(LANGUE === 'en' ? 'en-GB' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }) + '.');
+    else suivi('suivi-sauvegarde', 'fini', T('Sauvegarde faite à ', 'Backed up at ') + new Date().toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' }) + '.');
   }, 0, null, function (e, t0) {
     // Fait : un nouveau fichier de sauvegarde, ou (deux sauvegardes dans la meme minute ont le meme nom) un etat
     // recalcule apres la sauvegarde (la station sauvegarde puis recalcule son etat, environ 6 s)
@@ -1525,7 +1502,7 @@ $('bouton-sauvegarder').onclick = function () {
 
 // ----- Sujets les plus cherches, et ceux epingles sur l'accueil
 function sujets() {
-  fetch('/admin-api/recherches', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+  lire('/admin-api/recherches').then(function (d) {
     var ep = d.epingles || [], liens = ep.map(function (x) { return x.lien; });
     $('val-sujets').textContent = ep.length ? ep.length + T(' épinglé(s)', ' pinned') : '';
     function rangee(zone, titre, sous, lien, epingle) {
@@ -1534,8 +1511,8 @@ function sujets() {
       if (sous) nom.appendChild(el('div', 'sous', sous));
       var b = el('button', 'epingle' + (epingle ? ' oui' : ''), epingle ? T('Épinglé', 'Pinned') : T('Épingler', 'Pin'));
       b.onclick = function () {
-        poster('recherches/epingler', { lien: lien, titre: titre, epingle: !epingle }).then(function (r) {
-          $('note-sujets').textContent = r.ok ? '' : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+        envoyer('/admin-api/recherches/epingler', { lien: lien, titre: titre, epingle: !epingle }).then(function (r) {
+          $('note-sujets').textContent = r.ok ? '' : r.erreur;
           sujets();
         });
       };
@@ -1547,18 +1524,14 @@ function sujets() {
     var z2 = $('liste-sujets'); z2.innerHTML = '';
     d.sujets.forEach(function (x) { rangee(z2, x.titre, x.n + T(' fois', ' times'), x.lien, liens.indexOf(x.lien) >= 0); });
     if (!d.sujets.length) z2.appendChild(el('div', 'ligne', T('Rien pour l’instant : les sujets apparaissent quand des visiteurs ouvrent des articles depuis la recherche.', 'Nothing yet: topics appear when visitors open articles from the search.')));
-    var v = $('sujets-vider'); v.disabled = !d.sujets.length; delete v.dataset.confirmer; v.textContent = T('Remettre les compteurs à zéro', 'Reset the counts');
+    var v = $('sujets-vider'); v.disabled = !d.sujets.length; v.textContent = T('Remettre les compteurs à zéro', 'Reset the counts');
   }).catch(function () {});
 }
 $('sujets-vider').onclick = function () {
   var b = this;
-  if (!b.dataset.confirmer) {
-    b.dataset.confirmer = '1'; b.textContent = T('Toucher encore pour confirmer', 'Tap again to confirm');
-    setTimeout(function () { if (b.dataset.confirmer) sujets(); }, 5000);
-    return;
-  }
+  if (!deuxTemps(b, { texte: T('Toucher encore pour confirmer', 'Tap again to confirm'), retour: sujets })) return;
   b.disabled = true;
-  poster('recherches/vider', {}).then(sujets);
+  envoyer('/admin-api/recherches/vider', {}).then(sujets);
 };
 sujets();
 
@@ -1566,7 +1539,7 @@ sujets();
 var nbEcrits = null;
 function compterEcrits() {
   Promise.all(['messages', 'registre', 'entraide'].map(function (f) {
-    return fetch('/api/' + f, { cache: 'no-store' }).then(function (r) { return r.json(); })
+    return lire('/api/' + f)
       .then(function (d) { if (d.radio) attenteRadio = d.radio.attente; return (d.messages || d.fiches || d.annonces || []).length; }).catch(function () { return 0; });
   })).then(function (n) {
     nbEcrits = n;
@@ -1586,11 +1559,11 @@ $('bouton-effacer-tout').onclick = function () {
 $('effacer-annuler').onclick = function () { $('confirmation-effacer').hidden = true; $('bouton-effacer-tout').hidden = false; };
 $('effacer-oui').onclick = function () {
   var b = this; b.disabled = true;
-  poster('effacer-ecrits', {}).then(function (r) {
+  envoyer('/admin-api/effacer-ecrits', {}).then(function (r) {
     b.disabled = false; $('confirmation-effacer').hidden = true; $('bouton-effacer-tout').hidden = false;
     $('note-effacer').textContent = r.ok ? T('C’est fait : tout ce que les visiteurs avaient écrit a été effacé.', 'Done: everything visitors had written has been erased.') +
       (r.d.radio_annules ? T(' ' + r.d.radio_annules + ' message(s) radio en attente ont été annulés.', ' ' + r.d.radio_annules + ' waiting radio message(s) were cancelled.') : '')
-      : (TE(r.d.erreur) || T('Erreur.', 'Error.'));
+      : r.erreur;
     compterEcrits(); compterMessages(); communaute();
   });
 };
@@ -1598,24 +1571,17 @@ compterEcrits();
 
 // ----- Redemarrer ou eteindre la station (chacun en deux temps)
 function actionStation(bouton, nomOrdre, libelle, encore, enCours, fait, message) {
-  bouton.onclick = function () {
-    var b = this;
-    if (!b.classList.contains('confirmer')) {
-      b.classList.add('confirmer'); b.textContent = encore;
-      setTimeout(function () { if (!b.disabled) { b.classList.remove('confirmer'); b.textContent = libelle; } }, 5000);
-      return;
-    }
+  deuxTemps(bouton, { texte: encore, action: function () {
+    var b = bouton;
     $('bouton-redemarrer-station').disabled = $('bouton-eteindre').disabled = true;
     b.textContent = enCours;
     ordre(nomOrdre).then(function (r) {
-      if (!r.ok) throw new Error();
-      b.textContent = fait; $('note-eteindre').textContent = message;
-    }).catch(function () {
+      if (r.ok) { b.textContent = fait; $('note-eteindre').textContent = message; return; }
       $('bouton-redemarrer-station').disabled = $('bouton-eteindre').disabled = false;
-      b.classList.remove('confirmer'); b.textContent = libelle;
+      b.textContent = libelle;
       $('note-eteindre').textContent = T('La station n’a pas répondu. Réessayez.', 'The station did not answer. Try again.');
     });
-  };
+  } });
 }
 actionStation($('bouton-redemarrer-station'), 'redemarrer', T('Redémarrer', 'Restart'), T('Toucher encore', 'Tap again'),
   T('Redémarrage…', 'Restarting…'), T('Redémarrage', 'Restarting'),
@@ -1630,7 +1596,7 @@ $('bouton-choisir').onclick = function () { $('fichier-restaurer').click(); };
 $('fichier-restaurer').onchange = function () {
   fichierChoisi = this.files[0] || null;
   var b = $('bouton-restaurer');
-  b.hidden = !fichierChoisi; b.disabled = false; delete b.dataset.confirmer;
+  b.hidden = !fichierChoisi; b.disabled = false;
   b.textContent = T('Remettre ', 'Restore ') + (fichierChoisi ? fichierChoisi.name : '');
   $('note-restaurer').textContent = '';
 };
@@ -1638,22 +1604,18 @@ $('bouton-restaurer').onclick = function () {
   var b = this;
   if (!fichierChoisi) return;
   if (fichierChoisi.size > 10e6) { $('note-restaurer').textContent = T('Ce fichier est trop gros pour être une sauvegarde de la station.', 'This file is too big to be a station backup.'); return; }
-  if (!b.dataset.confirmer) {
-    b.dataset.confirmer = '1';
-    b.textContent = T('Toucher encore : les réglages actuels seront remplacés', 'Tap again: the current settings will be replaced');
-    setTimeout(function () { if (b.dataset.confirmer && !b.disabled) { delete b.dataset.confirmer; b.textContent = T('Remettre ', 'Restore ') + fichierChoisi.name; } }, 5000);
-    return;
-  }
+  if (!deuxTemps(b, { texte: T('Toucher encore : les réglages actuels seront remplacés', 'Tap again: the current settings will be replaced'),
+                      retour: function () { if (fichierChoisi) b.textContent = T('Remettre ', 'Restore ') + fichierChoisi.name; } })) return;
   b.disabled = true; b.textContent = T('Envoi…', 'Uploading…');
   var debut = Date.now() / 1000 - 5;
-  fetch('/parametres/restaurer', { method: 'PUT', body: fichierChoisi }).then(function (r) {
+  envoyer('/parametres/restaurer', fichierChoisi, 'PUT').then(function (r) {
     if (!r.ok) throw new Error();
     b.textContent = T('Vérification…', 'Checking…');
     return ordre('restaurer');
   }).then(function () {
     var essais = 0;
     (function attendre() {
-      lire().then(function (e) {
+      lireEtat().then(function (e) {
         var r = e.restauration;
         if (r && r.heure >= debut) {
           if (r.resultat === 'ok') {
@@ -1672,7 +1634,7 @@ $('bouton-restaurer').onclick = function () {
       });
     })();
   }).catch(function () {
-    b.disabled = false; delete b.dataset.confirmer; b.textContent = T('Remettre ', 'Restore ') + fichierChoisi.name;
+    b.disabled = false; b.textContent = T('Remettre ', 'Restore ') + fichierChoisi.name;
     $('note-restaurer').textContent = T('L’envoi a échoué. Réessayez.', 'The upload failed. Try again.');
   });
 };
@@ -1685,16 +1647,16 @@ function modifie() {
   var b = $('bouton-panneau');
   b.disabled = false; b.textContent = T('Enregistrer', 'Save');
 }
-fetch('/api/panneau', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+lire('/api/panneau').then(function (d) {
   zone.value = d.texte || ''; apercu();
 }).catch(function () {});
 zone.addEventListener('input', modifie);
 $('bouton-panneau').onclick = function () {
   var b = this;
   b.disabled = true; b.textContent = T('Enregistrement…', 'Saving…');
-  poster('panneau', { texte: zone.value }).then(function (r) {
+  envoyer('/admin-api/panneau', { texte: zone.value }).then(function (r) {
     if (r.ok) { b.textContent = T('Enregistré', 'Saved'); $('note-panneau').textContent = ''; }
-    else { b.disabled = false; b.textContent = T('Enregistrer', 'Save'); $('note-panneau').textContent = TE(r.d.erreur) || T('Erreur.', 'Error.'); }
+    else { b.disabled = false; b.textContent = T('Enregistrer', 'Save'); $('note-panneau').textContent = r.erreur; }
   });
 };
 // Gras, italique, souligne : entoure la selection (ou place le curseur entre les deux signes)

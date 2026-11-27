@@ -7,6 +7,7 @@
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <title>Prometheus Station — affiche</title>
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <style>
   /* Affiche A4 a imprimer : noir sur blanc, lisible de loin, dans les deux langues */
@@ -92,8 +93,8 @@ function dessiner(ssid, reglages) {
 }
 
 Promise.all([
-  fetch('/ajouter/etat.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return {}; }),
-  fetch('/api/reglages', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return {}; })
+  lire('/ajouter/etat.json').catch(function () { return {}; }),
+  lire('/api/reglages').catch(function () { return {}; })
 ]).then(function (r) { dessiner(r[0].ssid || 'Prometheus-Station', r[1]); });
 </script>
 </body>

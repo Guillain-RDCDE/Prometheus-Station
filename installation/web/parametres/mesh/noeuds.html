@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/communaute.css">
 <link rel="stylesheet" href="mesh.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="mesh.js"></script>
 </head>
 <body>
@@ -102,7 +103,7 @@ function fiche(n) {
   var a = el('div', 'liens');
   function action(texte, faire, complet, confirmer) {
     var b = el('button', 'lien' + (confirmer ? ' danger' : '') + (complet ? ' complet-seul' : ''), texte); b.type = 'button';
-    if (confirmer) deuxTemps(b, T('Toucher encore', 'Tap again'), faire); else b.onclick = faire;
+    if (confirmer) deuxTemps(b, { texte: T('Toucher encore', 'Tap again'), action: faire }); else b.onclick = faire;
     a.appendChild(b);
   }
   function demande(quoi, p) {

@@ -3,14 +3,14 @@
 .choix-deux button { font: inherit; font-weight: 600; font-size: .98rem; padding: 18px 10px; border-radius: var(--rayon); border: 1px solid var(--trait); background: var(--carte); color: var(--encre); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: border-color .15s ease; }
 .choix-deux button:hover { border-color: var(--pale); }
 .choix-deux button svg { width: 22px; height: 22px; }
-.choix-deux button.vert svg { color: #2b8a3e; } .choix-deux button.orange svg { color: #d9480f; }
+.choix-deux button.vert svg { color: var(--vert); } .choix-deux button.orange svg { color: var(--orange); }
 .choix-deux button.choisi { border-color: var(--encre); box-shadow: inset 0 0 0 1px var(--encre); }
 .formulaire { padding: 20px 0 4px; }
 .formulaire[hidden] { display: none; }
 .formulaire label { display: block; font-size: .85rem; font-weight: 600; color: var(--gris); margin: 6px 2px 6px; }
 .formulaire textarea.champ { resize: vertical; min-height: 80px; }
 .formulaire .bouton { margin-top: 6px; }
-.erreur { color: #c92a2a; font-size: .88rem; margin: 8px 2px 0; }
+.erreur { color: var(--rouge-urgence); font-size: .88rem; margin: 8px 2px 0; }
 .recherche-nom { margin: 34px 0 6px; }
 /* Fiches : des lignes separees par des filets ; l'etat (sain et sauf, recherche) est dit par un point de couleur et un mot */
 .fiches { border-top: 1px solid var(--trait); }
@@ -19,13 +19,16 @@
 .fiche .nom { font-weight: 650; font-size: 1.06rem; }
 .badge { display: inline-flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gris); }
 .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.badge.vert { color: #2b8a3e; } .badge.orange { color: #d9480f; }
+.badge.vert { color: var(--vert); } .badge.orange { color: var(--orange); }
 .badge.gris { color: var(--gris); }
 .fiche .texte { margin: 6px 0 2px; white-space: pre-wrap; overflow-wrap: break-word; }
 .fiche .detail { color: var(--gris); font-size: .92rem; margin-top: 2px; }
 .fiche .bas { display: flex; align-items: center; gap: 10px; margin-top: 8px; color: var(--pale); font-size: .8rem; }
 .fiche .effacer { margin-left: auto; font: inherit; font-size: .8rem; color: var(--pale); background: none; border: 0; cursor: pointer; padding: 0; }
-.fiche .effacer:hover { color: #c92a2a; }
+.fiche .effacer:hover { color: var(--rouge-urgence); }
+/* Effacer en deux temps (deuxTemps, /commun.js) : arme, il passe au rouge ; un refus de la station s'ecrit a cote */
+.fiche .effacer.confirmer { color: var(--rouge-urgence); font-weight: 600; }
+.fiche .bas .erreur { margin: 0; }
 .puces { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; }
 .puces::-webkit-scrollbar { display: none; }
 .puce { flex: none; font: inherit; font-size: .88rem; font-weight: 550; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--trait); background: transparent; color: var(--gris); cursor: pointer; transition: border-color .15s ease, color .15s ease; }

@@ -158,3 +158,33 @@ function sectionFormulaire(cle, schemaChamps, valeurs, drapeaux, ouverte) {
     }
   };
 }
+
+// La barre du bas des pages Configuration et Modules : ecrire d'un coup tous les reglages changes (une seule ecriture,
+// un redemarrage). Un reglage risque : l'avertissement s'ecrit sous le bouton et il faut toucher une deuxieme fois
+// (/commun.js, deuxTemps : son minuteur s'arrete des le 2e toucher, « Écriture… » reste affiche jusqu'a la reponse).
+// recharger() : relire la radio (Annuler, et 40 s apres une ecriture, le temps qu'elle redemarre).
+function barreEcriture(z, formulaires, recharger) {
+  var b = el('div', 'barre-ecrire');
+  var res = el('p', 'erreur'); res.id = 'ecr-res'; res.style.flex = '1'; res.style.margin = '0';
+  var annuler = el('button', 'bouton secondaire', T('Annuler', 'Cancel')); annuler.type = 'button';
+  var ecrire = el('button', 'bouton', T('Écrire dans la radio', 'Write to the radio')); ecrire.type = 'button';
+  b.appendChild(res); b.appendChild(annuler); b.appendChild(ecrire); z.appendChild(b);
+  annuler.onclick = function () { recharger(); };
+  ecrire.onclick = function () {
+    var sections = {}, risques = [];
+    try {
+      formulaires.forEach(function (f) { var c = f.changements(); if (Object.keys(c.valeurs).length) { sections[f.cle] = c.valeurs; risques = risques.concat(c.risques); } });
+    } catch (e) { dire(res, false, e.message); return; }
+    if (!Object.keys(sections).length) { dire(res, true, T('Rien n’a changé.', 'Nothing changed.')); return; }
+    if (!deuxTemps(ecrire, { si: risques.length > 0, texte: T('Toucher encore pour écrire', 'Tap again to write'), delai: DELAI_RISQUE, avertir: function () {
+      dire(res, false, T('Attention : ', 'Warning: ') + risques.filter(function (x, i) { return risques.indexOf(x) === i; }).map(function (r) { return T(RISQUES[r][0], RISQUES[r][1]); }).join(' '));
+    } })) return;
+    ecrire.textContent = T('Écriture…', 'Writing…'); ecrire.disabled = true;
+    ordre('config-ecrire', { sections: sections }).then(function (r) {
+      dire(res, true, apresEcriture(r));
+      setTimeout(recharger, 40000);
+    }).catch(function (e) { dire(res, false, e.message); }).then(function () {
+      ecrire.disabled = false; ecrire.textContent = T('Écrire dans la radio', 'Write to the radio');
+    });
+  };
+}

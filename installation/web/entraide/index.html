@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/communaute.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/annonce.js"></script>
 <script>
 addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
@@ -50,7 +51,6 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <p class="eteinte" id="eteinte" hidden data-en="This feature is not turned on at this station.">Cette fonction n’est pas activée sur cette station.</p>
 </main>
 <script>
-function $(id) { return document.getElementById(id); }
 if (new URLSearchParams(location.search).get('depuis') === 'parametres') {
   $('retour').href = '/parametres/#entraide'; $('retour').dataset.en = '← Settings'; $('retour').textContent = '← Paramètres';
 }
@@ -63,13 +63,6 @@ var donnees = null, type = null, categorie = null, filtreType = '', filtreCat = 
 try { cles = JSON.parse(localStorage.getItem('cles-entraide') || '{}'); } catch (e) {}
 try { $('nom').value = localStorage.getItem('nom') || ''; } catch (e) {}
 
-function depuis(t) {
-  var s = Math.max(0, Math.round(donnees.maintenant - t));
-  if (s < 60) return T('à l’instant', 'just now');
-  if (s < 3600) return T('il y a ', '') + Math.round(s / 60) + T(' min', ' min ago');
-  if (s < 86400) return T('il y a ', '') + Math.round(s / 3600) + T(' h', ' h ago');
-  return T('il y a ', '') + Math.round(s / 86400) + T(' j', ' d ago');
-}
 
 function puces(zone, liste, actuel, choisir) {
   zone.innerHTML = '';
@@ -115,14 +108,19 @@ function afficher() {
       dt.textContent = [a.nom, a.contact].filter(Boolean).join(' · '); c.appendChild(dt);
     }
     var bas = document.createElement('div'); bas.className = 'bas';
-    bas.appendChild(document.createTextNode(depuis(a.heure)));
+    bas.appendChild(document.createTextNode(ilya(a.heure)));
     if (cles[a.id] || donnees.admin) {
       var x = document.createElement('button'); x.className = 'effacer';
       x.textContent = cles[a.id] ? T('Retirer mon annonce', 'Remove my post') : T('Effacer', 'Delete');
-      x.onclick = function () {
-        fetch('/api/entraide/effacer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: a.id, cle: cles[a.id] || '' }) })
-          .then(function () { delete cles[a.id]; try { localStorage.setItem('cles-entraide', JSON.stringify(cles)); } catch (e) {} charger(); });
-      };
+      // En deux temps ; la cle ne quitte le telephone que si la station a bien efface (sinon on ne pourrait plus reessayer)
+      deuxTemps(x, { texte: T('Toucher encore pour effacer', 'Tap again to delete'), action: function () {
+        x.disabled = true;
+        envoyer('/api/entraide/effacer', { id: a.id, cle: cles[a.id] || '' }).then(function (r) {
+          if (!r.ok) { x.disabled = false; bas.appendChild(el('span', 'erreur', r.erreur)); return; }
+          delete cles[a.id]; try { localStorage.setItem('cles-entraide', JSON.stringify(cles)); } catch (e) {}
+          charger();
+        });
+      } });
       bas.appendChild(x);
     }
     c.appendChild(bas);
@@ -134,8 +132,8 @@ function afficher() {
 }
 
 function charger() {
-  fetch('/api/entraide', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
-    donnees = d;
+  lire('/api/entraide').then(function (d) {
+    donnees = d; ecart = d.maintenant - Date.now() / 1000;   // « il y a » compte avec l'heure de la station
     $('ouvert').hidden = !d.active; $('eteinte').hidden = d.active;
     afficher();
   }).catch(function () {});
@@ -147,19 +145,16 @@ $('form').onsubmit = function (ev) {
   if (!categorie) { $('erreur').textContent = T('Choisissez une catégorie.', 'Choose a category.'); return; }
   $('envoyer').disabled = true;
   try { localStorage.setItem('nom', $('nom').value.trim()); } catch (e) {}
-  fetch('/api/entraide', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: type, categorie: categorie, texte: $('texte').value, nom: $('nom').value, contact: $('contact').value }) })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+  envoyer('/api/entraide', { type: type, categorie: categorie, texte: $('texte').value, nom: $('nom').value, contact: $('contact').value })
     .then(function (r) {
       $('envoyer').disabled = false;
-      if (!r.ok) { $('erreur').textContent = TE(r.d.erreur) || T('Erreur.', 'Error.'); return; }
+      if (!r.ok) { $('erreur').textContent = r.erreur; return; }
       cles[r.d.id] = r.d.cle;   // ce telephone pourra retirer son annonce
       try { localStorage.setItem('cles-entraide', JSON.stringify(cles)); } catch (e) {}
       $('texte').value = ''; $('contact').value = ''; $('form').hidden = true; type = null; categorie = null;
       document.querySelectorAll('[data-type]').forEach(function (b) { b.classList.remove('choisi'); });
       charger();
-    })
-    .catch(function () { $('envoyer').disabled = false; $('erreur').textContent = T('La station ne répond pas.', 'The station does not respond.'); });
+    });
 };
 
 charger();

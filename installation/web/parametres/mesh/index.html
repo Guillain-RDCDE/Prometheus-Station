@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="mesh.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="mesh.js"></script>
 </head>
 <body>
@@ -45,10 +46,8 @@ finOutil = function () { charger(); };
 function afficherEtat() {
   var e = station.etat, d = station.details || {}, moi = d.moi || {}, z = $('etat');
   z.innerHTML = '';
-  var ETATS = { ok: [T('Connectée', 'Connected'), 'bien'], absente: [T('Pas branchée', 'Not plugged in'), 'alerte'],
-                muette: [T('Ne répond pas', 'Not responding'), 'alerte'], eteinte: [T('Désactivée', 'Turned off'), ''] };
-  var et = ETATS[e.etat] || [e.etat, ''];
-  z.appendChild(ligneEtat(T('Radio', 'Radio'), e.nom ? e.nom + ' · ' + et[0] : et[0], et[1]));
+  var er = texteRadio(e), classe = er.genre === 'bien' || er.genre === 'alerte' ? er.genre : '';
+  z.appendChild(ligneEtat(T('Radio', 'Radio'), (e.nom && er.genre !== 'eteinte' ? e.nom + ' · ' : '') + er.court, classe));
   var connue = e.etat === 'ok' && d.heure;
   if (connue) {
     if (d.depuis) z.appendChild(ligneEtat(T('Connectée depuis', 'Connected for'), duree(maintenant() - d.depuis)));
@@ -59,9 +58,9 @@ function afficherEtat() {
     var c = el('div', 'complet-seul'); c.appendChild(el('dt', '', T('Numéro de la radio', 'Radio number'))); c.appendChild(el('dd', 'mono', moi.id || '')); z.appendChild(c);
   }
   z.appendChild(ligneEtat(T('Messages en attente d’envoi', 'Messages waiting to leave'), String(e.attente)));
-  var g = station.garde_fou;
-  $('garde-fou').hidden = !g;
-  if (g) $('garde-fou').textContent = T('Réglage risqué écrit ', 'Risky setting written ') + ilya(g.heure) + ' (' + g.raison + T(') : si la radio ne revient pas, la station remet seule ses réglages d’avant.', '): if the radio does not come back, the station puts its previous settings back by itself.');
+  var gf = texteGardeFou(station.garde_fou);   // suit l'etat du garde-fou (mesh.js)
+  $('garde-fou').hidden = !gf;
+  if (gf) { $('garde-fou').textContent = gf.texte; $('garde-fou').className = gf.genre === 'abandon' ? 'avertir' : 'alerte'; }
 }
 function afficherNoeuds() {
   var d = station.details || {}, moi = d.moi || {}, z = $('noeuds'), l = d.noeuds || [];
@@ -113,7 +112,7 @@ function afficherReseau() {
   m.textContent = T('Mettre à jour la radio de la station (', 'Update the station radio (') + (neuve || '') + ')';
   boutonsOutil();
 }
-deuxTemps($('b-reseau'), T('Toucher encore : la radio sera coupée 1 à 3 minutes', 'Tap again: the radio will be off for 1 to 3 minutes'), function () { lancerOutil('reseau', $('b-reseau').dataset.cible); });
+deuxTemps($('b-reseau'), { texte: T('Toucher encore : la radio sera coupée 1 à 3 minutes', 'Tap again: the radio will be off for 1 to 3 minutes'), action: function () { lancerOutil('reseau', $('b-reseau').dataset.cible); } });
 $('b-maj-station').onclick = function () { lancerOutil('installer', JSON.stringify({ radio: 'station' })); };
 function charger() {
   chargerStation().then(function () { afficherEtat(); afficherNoeuds(); afficherMessages(); afficherReseau(); }).catch(function () {});

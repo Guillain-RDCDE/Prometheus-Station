@@ -1,16 +1,63 @@
 #!/bin/bash
-# Prometheus Station - execute les boutons de la page Mises a jour.
-# La page depose un fichier vide dans /srv/prometheus/commande ; ce programme le lit et l'execute.
-DOSSIER=/srv/prometheus/commande
+# Prometheus Station - execute les ordres des boutons des pages (Parametres, Ajouter, Mesh) : le seul programme
+# qui agit en administrateur (root) pour elles. Lance par le systeme des qu'un fichier arrive dans
+# /srv/prometheus/commande (prometheus-commande.path).
+#
+# Un ordre = un fichier depose d'un coup (nginx, ou une ecriture « .tmp puis renommer ») :
+#   <ordre>            ex. sauvegarder, systeme, radio-detecter ; le contenu porte une precision (fichier a supprimer...)
+#   <ordre>@<numero>   meme chose, et le resultat est ecrit dans ajouter/resultats/<numero>.json (lu par la page) :
+#                      {"ordre", "etat": fait | lance | attente | refuse | inconnu, "message", "heure"}
+#                      « lance » = l'operation tourne a part (son detail : maj-systeme.txt, radio-outil.txt)
+# Qui peut demander quoi : nginx (www-data, administrateur connecte) tout ; le service radio (prometheus) seulement
+# radio-restaurer, pour son garde-fou. Un ordre radio qui arrive pendant une autre operation radio attend dans
+# commande-attente et repart tout seul quand elle finit (prometheus-commande --reprendre) : il n'est jamais perdu.
+# PROMETHEUS_RACINE et PROMETHEUS_BIN : seulement pour le banc d'essai (tests/banc_commande.sh)
+R=${PROMETHEUS_RACINE:-}
+BIN=${PROMETHEUS_BIN:-/usr/local/bin}
+DOSSIER=$R/srv/prometheus/commande
+ATTENTE=$R/srv/prometheus/commande-attente
+RESULTATS=$R/var/www/prometheus/ajouter/resultats
+
+# Fin d'une operation radio : l'ordre en attente le plus ancien revient dans le dossier surveille
+if [ "$1" = --reprendre ]; then
+  # Noms faits par ce programme (horodatage + ordre), sans espace : ls suffit
+  # shellcheck disable=SC2012
+  P=$(ls -1 "$ATTENTE" 2>/dev/null | sort | head -n1)
+  [ -n "$P" ] && mv "$ATTENTE/$P" "$DOSSIER/${P#*_}" && echo "Ordre en attente repris : ${P#*_}"
+  exit 0
+fi
+
+resultat() {   # resultat <etat> <message> : seulement si l'ordre porte un numero
+  [ -n "$NUMERO" ] || return 0
+  mkdir -p "$RESULTATS"
+  python3 -c 'import json,sys,time; print(json.dumps({"ordre": sys.argv[1], "etat": sys.argv[2], "message": sys.argv[3], "heure": time.time()}, ensure_ascii=False))' \
+    "$ORDRE" "$1" "$2" > "$RESULTATS/.$NUMERO.tmp" && mv "$RESULTATS/.$NUMERO.tmp" "$RESULTATS/$NUMERO.json"
+}
+
+# Les resultats de plus d'un jour ne servent plus
+find "$RESULTATS" -maxdepth 1 -name '*.json' -mmin +1440 -delete 2>/dev/null
+
 for F in "$DOSSIER"/*; do
   [ -f "$F" ] || continue
-  ORDRE=$(basename "$F")
+  NOM=$(basename "$F")
+  case "$NOM" in *.tmp) continue ;; esac          # pas encore fini d'ecrire : il sera renomme
+  QUI=$(stat -c %U "$F")
   CONTENU=$(head -c 300 "$F")   # certains ordres portent une precision (ex. le fichier a supprimer)
   rm -f "$F"
+  ORDRE=${NOM%@*}
+  NUMERO=
+  [ "$ORDRE" != "$NOM" ] && NUMERO=${NOM##*@}
+  [[ "$NUMERO" =~ ^[A-Za-z0-9]{1,40}$ ]] || NUMERO=
+  if [ "$QUI" = prometheus ] && [ "$ORDRE" != radio-restaurer ]; then
+    echo "Refuse : « $ORDRE » ne peut pas etre demande par un service (seul le garde-fou de la radio le peut)"
+    resultat refuse "Ordre refusé."
+    continue
+  fi
   case "$ORDRE" in
     mettre-a-jour)
       echo "Mise a jour demandee depuis la page"
       systemctl start --no-block prometheus-telechargement.service
+      resultat lance "Téléchargement lancé."
       sleep 5 ;;
     verifier)
       echo "Verification demandee depuis la page"
@@ -18,7 +65,8 @@ for F in "$DOSSIER"/*; do
       if [ -z "$(find /var/lib/apt/lists -maxdepth 0 -mmin -60 2>/dev/null)" ]; then
         timeout 120 apt-get -o DPkg::Lock::Timeout=60 update -qq >/dev/null 2>&1 || true
         touch /var/lib/apt/lists
-      fi ;;
+      fi
+      resultat fait "Vérification faite." ;;
     systeme)
       echo "Mise a jour du systeme demandee depuis la page"
       # Garde nos fichiers de reglage (--force-confold) ; tourne a part pour ne pas bloquer la page.
@@ -39,6 +87,9 @@ for F in "$DOSSIER"/*; do
              echo "== Nettoyage" && apt-get $O -y autoremove; } > "$L" 2>&1 || R=$?
            echo "### FIN $R" >> "$L"
            echo $R > /srv/prometheus/.maj-systeme ; /usr/local/bin/prometheus-etat'
+        resultat lance "Mise à jour lancée."
+      else
+        resultat refuse "Une mise à jour tourne déjà."
       fi
       sleep 3 ;;
     radio-sauvegarder|radio-regler|radio-reseau|radio-chercher|radio-installer|radio-t-echo|radio-detecter|radio-restaurer|radio-identifier|radio-carte)
@@ -46,66 +97,82 @@ for F in "$DOSSIER"/*; do
       # son detail s'ecrit dans ajouter/radio-outil.txt (le contenu de l'ordre = ses reglages, verifies par l'outil)
       echo "Radio : ${ORDRE#radio-} demande depuis la page"
       if systemctl is-active --quiet prometheus-radio-outil; then
-        echo "Refuse : une operation radio est deja en cours"
+        # Une seule operation radio a la fois : celle-ci attend la fin de la precedente (rien n'est perdu,
+        # surtout pas une remise demandee par le garde-fou de la radio)
+        mkdir -p "$ATTENTE"
+        printf '%s' "$CONTENU" > "$ATTENTE/$(date +%s%N)_$NOM"
+        echo "En attente : une operation radio est deja en cours, celle-ci partira juste apres"
+        resultat attente "Une opération radio est en cours : celle-ci partira juste après."
       else
         systemctl reset-failed prometheus-radio-outil 2>/dev/null
+        # A la fin de l'operation (reussie ou non), l'ordre suivant en attente repart
         systemd-run --unit=prometheus-radio-outil --description="Prometheus Station - outil radio" \
-          /usr/local/bin/prometheus-radio-outil "${ORDRE#radio-}" "$CONTENU"
+          -p ExecStopPost="$BIN/prometheus-commande --reprendre" \
+          "$BIN"/prometheus-radio-outil "${ORDRE#radio-}" "$CONTENU"
+        resultat lance "Opération radio lancée."
       fi
       sleep 2 ;;
     redemarrer)
       echo "Redemarrage demande depuis la page"
-      /usr/local/bin/prometheus-etat
+      resultat fait "La station redémarre."
+      "$BIN"/prometheus-etat
       systemd-run --on-active=5 systemctl reboot
       exit 0 ;;
     eteindre)
       # Parametres > Eteindre la station (l'ecran e-ink affiche « Station eteinte »)
       echo "Extinction demandee depuis la page"
-      /usr/local/bin/prometheus-etat
+      resultat fait "La station s’éteint."
+      "$BIN"/prometheus-etat
       systemd-run --on-active=5 systemctl poweroff
       exit 0 ;;
     restaurer)
       # Fichier depose par Parametres > Sauvegarde > Remettre une sauvegarde
       echo "Remise d'une sauvegarde demandee depuis la page"
-      F=/srv/prometheus/restauration/sauvegarde.tar.gz
-      if [ -f "$F" ] && /usr/local/bin/prometheus-restaurer "$F"; then
-        echo "ok $(date +%s)" > /srv/prometheus/.restauration
+      F="$R"/srv/prometheus/restauration/sauvegarde.tar.gz
+      if [ -f "$F" ] && "$BIN"/prometheus-restaurer "$F"; then
+        echo "ok $(date +%s)" > "$R"/srv/prometheus/.restauration
+        resultat fait "Sauvegarde remise : la station redémarre."
         rm -f "$F"
-        /usr/local/bin/prometheus-etat
+        "$BIN"/prometheus-etat
         systemd-run --on-active=5 systemctl reboot   # les wifis et le nom du wifi sont repris au redemarrage
         exit 0
       fi
-      echo "refuse $(date +%s)" > /srv/prometheus/.restauration
+      echo "refuse $(date +%s)" > "$R"/srv/prometheus/.restauration
+      resultat refuse "Ce fichier n’est pas une sauvegarde de la station. Rien n’a changé."
       rm -f "$F" ;;
     sauvegarder)
       echo "Sauvegarde demandee depuis la page"
-      /usr/local/bin/prometheus-sauvegarde ;;
+      if "$BIN"/prometheus-sauvegarde; then resultat fait "Sauvegarde faite."; else resultat refuse "La sauvegarde a échoué."; fi ;;
     supprimer-*)
       # Le contenu de l'ordre = le nom du fichier a supprimer (un nom simple, jamais un chemin)
       NOM=$CONTENU
-      case "$NOM" in */*|.*|"") echo "Suppression refusee : nom invalide" ; continue ;; esac
-      if [ -f "/srv/prometheus/encyclopedies/$NOM" ] && [[ "$NOM" == *.zim ]]; then
-        rm -f "/srv/prometheus/encyclopedies/$NOM"
+      case "$NOM" in */*|.*|"") echo "Suppression refusee : nom invalide" ; resultat refuse "Nom invalide." ; continue ;; esac
+      if [ -f "$R/srv/prometheus/encyclopedies/$NOM" ] && [[ "$NOM" == *.zim ]]; then
+        rm -f "$R/srv/prometheus/encyclopedies/$NOM"
         # On ne la retelecharge plus : on la retire de la liste des contenus
         BASE=$(echo "$NOM" | sed -E 's/_[0-9]{4}-[0-9]{2}[a-z]?\.zim$//')
-        sed -i "/^${BASE}\$/d" /srv/prometheus/contenus.txt
-        runuser -u prometheus -- /usr/local/bin/prometheus-catalogue
-        runuser -u prometheus -- /usr/local/bin/prometheus-index-livres >/dev/null
+        sed -i "/^${BASE}\$/d" "$R"/srv/prometheus/contenus.txt
+        runuser -u prometheus -- "$BIN"/prometheus-catalogue
+        runuser -u prometheus -- "$BIN"/prometheus-index-livres >/dev/null
         systemctl restart prometheus-kiwix   # libere vraiment la place (Kiwix gardait le fichier ouvert)
         echo "Encyclopedie supprimee : $NOM"
-      elif [ -f "/srv/prometheus/bibliotheque/$NOM" ] && [[ "${NOM,,}" == *.epub || "${NOM,,}" == *.pdf ]]; then
-        rm -f "/srv/prometheus/bibliotheque/$NOM"
-        runuser -u prometheus -- /usr/local/bin/prometheus-index-livres >/dev/null
-        [ -x /usr/local/bin/prometheus-doublons ] && /usr/local/bin/prometheus-doublons >/dev/null
+        resultat fait "Encyclopédie supprimée."
+      elif [ -f "$R/srv/prometheus/bibliotheque/$NOM" ] && [[ "${NOM,,}" == *.epub || "${NOM,,}" == *.pdf ]]; then
+        rm -f "$R/srv/prometheus/bibliotheque/$NOM"
+        runuser -u prometheus -- "$BIN"/prometheus-index-livres >/dev/null
+        [ -x "$BIN"/prometheus-doublons ] && "$BIN"/prometheus-doublons >/dev/null
         echo "Livre supprime : $NOM"
+        resultat fait "Livre supprimé."
       else
         echo "Suppression refusee : $NOM introuvable"
+        resultat refuse "Fichier introuvable."
       fi ;;
     garder-doublon-*)
       # « Garder les deux » sur la page Ajouter : le contenu de l'ordre = l'empreinte du livre en double
-      /usr/local/bin/prometheus-doublons --garder "$CONTENU" ;;
-    *) echo "Ordre inconnu ignore : $ORDRE" ;;
+      "$BIN"/prometheus-doublons --garder "$CONTENU"
+      resultat fait "Les deux sont gardés." ;;
+    *) echo "Ordre inconnu ignore : $ORDRE" ; resultat inconnu "Ordre inconnu." ;;
   esac
 done
-/usr/local/bin/prometheus-etat
+"$BIN"/prometheus-etat
 exit 0

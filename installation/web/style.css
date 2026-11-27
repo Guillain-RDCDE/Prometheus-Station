@@ -73,17 +73,16 @@ footer a { color: var(--gris); }
 /* Barre d'envoi : epaisse et contrastee, visible avec tous les jeux de couleurs */
 .jauge { height: 16px; margin: 8px 0 6px; border-radius: 8px; background: var(--accent-pale); border: 1px solid var(--pale); overflow: hidden; }
 .jauge span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
-.jauge.fini span { background: #1f8a4c; }
+.jauge.fini span { background: var(--vert); }
 .jauge.echec span { background: var(--rouge-urgence); }
 .envois .etat-envoi { font-size: .95rem; color: var(--gris); }
 .envois .etat-envoi b { color: var(--encre); }
 /* Livre en double sur la page Ajouter */
-.doublon { margin: 20px 0 0; padding: 14px 16px; border: 2px solid #d9750a; border-radius: var(--rayon); background: var(--carte); }
+.doublon { margin: 20px 0 0; padding: 14px 16px; border: 2px solid var(--orange); border-radius: var(--rayon); background: var(--carte); }
 .doublon p { margin: 0 0 10px; overflow-wrap: anywhere; }
-.doublon .doublon-titre { font-weight: 700; color: #b35f00; margin-bottom: 4px; }
+.doublon .doublon-titre { font-weight: 700; color: var(--orange); margin-bottom: 4px; }
 .doublon-boutons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .doublon-boutons .bouton { margin-top: 0; padding: 11px 8px; font-size: .95rem; }
-.bouton.danger { background: var(--rouge-urgence); border-color: var(--rouge-urgence); color: #fff; }
 
 /* Boutons et champs */
 .bouton { display: block; width: 100%; font: inherit; font-size: 1rem; font-weight: 600; padding: 15px; border: 1px solid var(--encre); border-radius: var(--rayon); background: var(--encre); color: var(--fond); cursor: pointer; margin-top: 8px; text-align: center; transition: opacity .15s ease; }
@@ -92,9 +91,11 @@ footer a { color: var(--gris); }
 .bouton.secondaire { background: transparent; color: var(--encre); border-color: var(--trait); }
 .bouton.secondaire:hover { border-color: var(--encre); opacity: 1; }
 .bouton.secondaire:disabled { color: var(--pale); }
+/* Bouton qui efface ou coupe ; bouton en deux temps arme (classe posee par deuxTemps, /commun.js) : rouge du theme */
+.bouton.danger, .bouton.confirmer { background: var(--rouge-urgence); border-color: var(--rouge-urgence); color: var(--sur-accent); }
 .champ { width: 100%; font: inherit; color: var(--encre); font-size: 1.05rem; padding: 13px 15px; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--carte); margin-bottom: 8px; outline: none; transition: border-color .15s ease; }
 .champ:focus { border-color: var(--encre); }
-.ok { color: #1f8a4c; } .nouveau { color: var(--accent); }
+.ok { color: var(--vert); } .nouveau { color: var(--accent); }
 
 /* Panneau d'accueil : le texte de la station (page /panneau/ et apercu dans les Parametres) */
 .panneau { line-height: 1.65; overflow-wrap: break-word; }

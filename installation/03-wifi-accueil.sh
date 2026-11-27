@@ -3,6 +3,8 @@
 # A lancer sur le Pi, depuis le dossier "installation" : sudo bash 03-wifi-accueil.sh
 set -euo pipefail
 ICI=$(cd "$(dirname "$0")" && pwd)
+# Module commun des programmes, table des dossiers, liste de la sauvegarde : commun.sh (le meme pour chaque etape)
+. "$ICI/commun.sh"
 WEB=/var/www/prometheus
 
 echo "== Serveur web (nginx)"
@@ -52,21 +54,16 @@ rm -rf "$WEB/vendor/pdfjs" && mkdir -p "$WEB/vendor/pdfjs"
 cp /tmp/pdfjs/package/legacy/build/pdf.min.mjs /tmp/pdfjs/package/legacy/build/pdf.worker.min.mjs /tmp/pdfjs/package/LICENSE "$WEB/vendor/pdfjs/"
 cp -r /tmp/pdfjs/package/cmaps /tmp/pdfjs/package/standard_fonts /tmp/pdfjs/package/wasm "$WEB/vendor/pdfjs/"
 rm -rf /tmp/pdfjs
-chown -R root:root "$WEB"
-chown prometheus:prometheus "$WEB/bibliotheque"
+chown -R root:root "$WEB"   # les pages ; la liste des livres et les resultats des ordres : table des dossiers (fin d'etape)
 find "$WEB" -type f -exec chmod 644 {} +
 chown prometheus:prometheus "$WEB/theme.css"   # le serveur du mot de passe change les couleurs
 # Choix des couleurs garde par le serveur du mot de passe (ancien emplacement : /srv/prometheus/.theme)
 mkdir -p /srv/prometheus/.admin
 echo "$THEME" > /srv/prometheus/.admin/theme
-chown -R prometheus:prometheus /srv/prometheus/.admin
 rm -f /srv/prometheus/.theme
 
-echo "== Dossiers de la bibliotheque et du depot"
-mkdir -p /srv/prometheus/bibliotheque /srv/prometheus/depot /srv/prometheus/.envoi /srv/prometheus/restauration
-chown prometheus:prometheus /srv/prometheus/bibliotheque
-chown www-data:www-data /srv/prometheus/depot /srv/prometheus/.envoi /srv/prometheus/restauration
-chmod 700 /srv/prometheus/restauration   # sauvegarde a remettre (contient les mots de passe wifi)
+echo "== Dossiers de la bibliotheque, du depot, des ordres (proprietaires et droits : table des dossiers)"
+appliquer_dossiers
 
 echo "== Programmes : liste des livres et rangement automatique"
 install -m 755 "$ICI/prometheus-index-livres" /usr/local/bin/prometheus-index-livres
@@ -74,8 +71,6 @@ install -m 755 "$ICI/prometheus-ranger" /usr/local/bin/prometheus-ranger
 install -m 755 "$ICI/prometheus-doublons" /usr/local/bin/prometheus-doublons
 install -m 755 "$ICI/prometheus-etat" /usr/local/bin/prometheus-etat
 install -m 755 "$ICI/prometheus-commande" /usr/local/bin/prometheus-commande
-mkdir -p /srv/prometheus/commande
-chown www-data:www-data /srv/prometheus/commande
 # Version a jour du programme de telechargement (il appelle aussi la liste des livres)
 sed -n "/^cat > \/usr\/local\/bin\/prometheus-telecharger <<'EOF'$/,/^EOF$/p" "$ICI/02-encyclopedies.sh" | sed '1d;$d' > /tmp/prometheus-telecharger
 install -m 755 /tmp/prometheus-telecharger /usr/local/bin/prometheus-telecharger
@@ -125,18 +120,10 @@ EOF
 
 echo "== Mot de passe des pages d'administration (un seul champ, pas d'identifiant)"
 install -m 755 "$ICI/prometheus-admin" /usr/local/bin/prometheus-admin
-mkdir -p /srv/prometheus/.admin
-chown prometheus:prometheus /srv/prometheus/.admin
-chmod 700 /srv/prometheus/.admin
 rm -f /etc/nginx/prometheus.htpasswd   # ancienne fenetre du navigateur, remplacee
-mkdir -p /srv/prometheus/messages        # tableau des messages
-chown prometheus:prometheus /srv/prometheus/messages
 # Panneau d'accueil (le phare de l'accueil) : un texte de depart, jamais ecrase s'il existe deja
-mkdir -p /srv/prometheus/panneau
+# (.admin, messages, panneau, communaute : crees avec leurs droits par la table des dossiers, plus haut)
 [ -f /srv/prometheus/panneau/panneau.txt ] || cp "$ICI/panneau-depart.txt" /srv/prometheus/panneau/panneau.txt
-chown -R prometheus:prometheus /srv/prometheus/panneau
-mkdir -p /srv/prometheus/communaute       # annonce, registre des personnes, entraide
-chown -R prometheus:prometheus /srv/prometheus/communaute
 cat > /etc/systemd/system/prometheus-admin.service <<'EOF'
 [Unit]
 Description=Prometheus Station - mot de passe des pages d'administration
@@ -340,4 +327,5 @@ systemctl enable nginx
 systemctl restart nginx
 [ "$(nmcli -g connection.autoconnect connection show prometheus-wifi)" = yes ] && nmcli connection up prometheus-wifi
 
+appliquer_dossiers   # le contenu cree pendant l'etape (panneau, couleurs) a ses bons proprietaires
 echo "== Etape 3 terminee. Ouvrir http://<station>/ajouter/ pour choisir le mot de passe."

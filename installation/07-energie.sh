@@ -7,6 +7,8 @@
 # A lancer sur le Pi, depuis le dossier "installation" : sudo bash 07-energie.sh
 set -euo pipefail
 ICI=$(cd "$(dirname "$0")" && pwd)
+# Module commun des programmes, table des dossiers, liste de la sauvegarde : commun.sh (le meme pour chaque etape)
+. "$ICI/commun.sh"
 
 echo "== Surveillant de tension (extinction propre si l'alimentation faiblit 30 secondes)"
 install -m 755 "$ICI/prometheus-tension" /usr/local/bin/prometheus-tension
@@ -40,9 +42,8 @@ nginx -t
 systemctl reload nginx
 rm -f /var/log/nginx/access.log*
 
-echo "== Dossier de travail en memoire (/run/prometheus), vide a chaque demarrage"
-echo 'd /run/prometheus 0755 prometheus prometheus -' > /etc/tmpfiles.d/prometheus.conf
-systemd-tmpfiles --create /etc/tmpfiles.d/prometheus.conf
+echo "== Dossier de travail en memoire (/run/prometheus), vide a chaque demarrage (table des dossiers)"
+appliquer_dossiers
 
 echo "== Mode sobre (Parametres > Energie) : voyants, processeur au ralenti, USB coupe"
 install -m 755 "$ICI/prometheus-sobre" /usr/local/bin/prometheus-sobre

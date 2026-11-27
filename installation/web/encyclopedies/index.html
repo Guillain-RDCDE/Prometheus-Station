@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/theme.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/annonce.js"></script>
 <script>
 // Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
@@ -44,13 +45,6 @@ var ORDRE = ['wikipedia_fr_all', 'wikipedia_en_all', 'mdwiki_en_all', 'wikem_en_
 var LANGUES = { fra: 'FR', eng: 'EN' };
 var livres = [];
 
-function el(tag, classe, texte) {
-  var e = document.createElement(tag);
-  if (classe) e.className = classe;
-  if (texte) e.textContent = texte;
-  return e;
-}
-
 function ligne(lien, icone, titre, sous, etiquette) {
   var li = el('li'), a = el('a'), t = el('div', 'texte');
   a.href = lien;
@@ -71,8 +65,7 @@ function nombre(n) {
 }
 
 // Liste des collections, lue dans le catalogue de Kiwix
-fetch('/encyclopedies/catalog/v2/entries?count=500')
-  .then(function (r) { return r.text(); })
+lireTexte('/encyclopedies/catalog/v2/entries?count=500')
   .then(function (xml) {
     var doc = new DOMParser().parseFromString(xml, 'application/xml');
     Array.prototype.forEach.call(doc.getElementsByTagName('entry'), function (e) {
@@ -99,7 +92,7 @@ fetch('/encyclopedies/catalog/v2/entries?count=500')
       liste.appendChild(ligne(b.lien, b.icone, b.titre, [b.sous, b.articles].filter(Boolean).join(' · '), b.langue));
     });
     if (!livres.length) liste.appendChild(el('li', 'vide', T('Les encyclopédies sont en cours de téléchargement.', 'The encyclopedias are being downloaded.')));
-  });
+  }).catch(function () {});
 
 // Recherche dans toutes les collections a la fois, pendant la frappe
 var minuteur, tour = 0;
@@ -129,8 +122,7 @@ function chercher(q) {
   if (!q) return;
   var ce = ++tour;
   Promise.all(livres.map(function (b) {
-    return fetch('/encyclopedies/suggest?content=' + encodeURIComponent(b.id) + '&term=' + encodeURIComponent(q) + '&count=6')
-      .then(function (r) { return r.json(); })
+    return lire('/encyclopedies/suggest?content=' + encodeURIComponent(b.id) + '&term=' + encodeURIComponent(q) + '&count=6')
       .then(function (s) { return { livre: b, articles: s.filter(function (x) { return x.kind === 'path'; }) }; })
       .catch(function () { return { livre: b, articles: [] }; });
   })).then(function (groupes) {

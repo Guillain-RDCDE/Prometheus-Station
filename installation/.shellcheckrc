@@ -1,0 +1,3 @@
+# Les etapes d'installation lisent commun.sh, a cote d'elles
+source-path=SCRIPTDIR
+external-sources=true

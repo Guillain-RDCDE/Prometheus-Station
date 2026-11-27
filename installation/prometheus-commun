@@ -1,0 +1,3 @@
+#!/bin/sh
+# Prometheus Station - le module commun des programmes, depuis bash : prometheus-commun reglage radio active
+exec python3 /usr/local/lib/prometheus/prometheus_commun.py "$@"

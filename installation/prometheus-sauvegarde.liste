@@ -1,0 +1,9 @@
+# Prometheus Station - LA liste de ce que contient une sauvegarde des reglages (chemins depuis « / »).
+# Lue par prometheus-sauvegarde (ce qu'on met dans l'archive) ET par prometheus-restaurer (ce qu'une archive a le droit
+# de remettre). Pas les encyclopedies (elles se retelechargent) ni les livres (trop gros).
+srv/prometheus/.admin
+srv/prometheus/messages
+srv/prometheus/panneau
+srv/prometheus/communaute
+srv/prometheus/contenus.txt
+etc/NetworkManager/system-connections

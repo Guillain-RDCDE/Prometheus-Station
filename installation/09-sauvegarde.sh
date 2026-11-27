@@ -5,6 +5,8 @@
 # A lancer sur le Pi, depuis le dossier "installation" : sudo bash 09-sauvegarde.sh
 set -euo pipefail
 ICI=$(cd "$(dirname "$0")" && pwd)
+# Module commun des programmes, table des dossiers, liste de la sauvegarde : commun.sh (le meme pour chaque etape)
+. "$ICI/commun.sh"
 
 echo "== Programmes de sauvegarde et de restauration"
 install -m 755 "$ICI/prometheus-sauvegarde" /usr/local/bin/prometheus-sauvegarde
@@ -37,4 +39,5 @@ echo "== Premiere sauvegarde"
 /usr/local/bin/prometheus-sauvegarde
 /usr/local/bin/prometheus-etat
 
+appliquer_dossiers   # le dossier des sauvegardes (root:www-data 750)
 echo "== Etape 9 terminee"

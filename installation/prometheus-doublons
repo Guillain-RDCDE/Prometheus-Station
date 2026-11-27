@@ -7,11 +7,14 @@
 # « Garder les deux » : l'empreinte est notee dans /srv/prometheus/.admin/doublons-gardes et n'est plus signalee.
 #   prometheus-doublons              -> recalcule la liste
 #   prometheus-doublons --garder H   -> ne plus signaler le groupe d'empreinte H, puis recalcule
-import hashlib, json, os, re, sys, time
+import hashlib, os, re, sys, time
 
-BIBLIOTHEQUE = '/srv/prometheus/bibliotheque'
-SORTIE = '/var/www/prometheus/ajouter/doublons.json'
-GARDES = '/srv/prometheus/.admin/doublons-gardes'
+sys.path[:0] = [os.path.dirname(os.path.realpath(__file__)), '/usr/local/lib/prometheus']
+import prometheus_commun as pc
+
+BIBLIOTHEQUE = os.path.join(pc.SRV, 'bibliotheque')
+SORTIE = os.path.join(pc.WEB, 'ajouter', 'doublons.json')
+GARDES = os.path.join(pc.ADMIN, 'doublons-gardes')
 
 
 def empreinte(chemin):
@@ -54,11 +57,8 @@ def calculer():
             groupes.append({'empreinte': h, 'taille': taille, 'garder': memes[0][1],
                             'doublons': [nom for _, nom in memes[1:]], 'depuis': int(memes[-1][0])})
     groupes.sort(key=lambda g: -g['depuis'])
-    tmp = SORTIE + '.tmp'
-    with open(tmp, 'w') as f:
-        json.dump({'heure': int(time.time()), 'groupes': groupes}, f, ensure_ascii=False)
-    os.chmod(tmp, 0o644)
-    os.replace(tmp, SORTIE)
+    # Ecriture sure : le rangement des livres et le telechargement peuvent lancer ce programme en meme temps
+    pc.ecrire_json(SORTIE, {'heure': int(time.time()), 'groupes': groupes})
     return groupes
 
 

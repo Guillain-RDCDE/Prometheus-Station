@@ -6,6 +6,8 @@
 # A lancer sur le Pi, depuis le dossier "installation" : sudo bash 10-radio.sh
 set -euo pipefail
 ICI=$(cd "$(dirname "$0")" && pwd)
+# Module commun des programmes, table des dossiers, liste de la sauvegarde : commun.sh (le meme pour chaque etape)
+. "$ICI/commun.sh"
 
 echo "== Bibliotheques Meshtastic et MeshCore, outil d'ecriture des radios (environnement a part, /opt/prometheus-radio)"
 apt-get install -y -qq python3-venv bluez >/dev/null
@@ -17,16 +19,11 @@ echo "== Programmes et dossiers d'echange"
 install -m 755 "$ICI/prometheus-radio" /usr/local/bin/prometheus-radio
 install -m 755 "$ICI/prometheus-radio-outil" /usr/local/bin/prometheus-radio-outil
 install -m 755 "$ICI/prometheus-horloge" /usr/local/bin/prometheus-horloge
-install -d -o prometheus -g prometheus -m 755 /srv/prometheus/radio \
-  /srv/prometheus/radio/a-envoyer /srv/prometheus/radio/partis /srv/prometheus/radio/recus
-# Logiciels des radios (telecharges par l'outil) et sauvegardes des reglages (identite des radios : root seulement)
-install -d -m 755 /srv/prometheus/radio/logiciels
-install -d -m 700 /srv/prometheus/radio/sauvegardes
-# Section Mesh : ordres de la page a la radio, reponses, sauvegardes prises avant chaque changement (cles : station seulement)
-install -d -o prometheus -g prometheus -m 755 /srv/prometheus/radio/ordres /srv/prometheus/radio/reponses
-install -d -o prometheus -g prometheus -m 700 /srv/prometheus/radio/mesh-sauvegardes
-# Garde-fou : prometheus-radio peut demander a l'outil radio de remettre une sauvegarde (comme le fait la page)
-chgrp prometheus /srv/prometheus/commande && chmod 2775 /srv/prometheus/commande
+# Modules partages par la radio, l'outil radio et la page (materiel, tailles, sauvegardes, garde-fou, secrets) :
+# Python pur, installes a cote de prometheus_commun.py par commun.sh (plus haut)
+# Dossiers d'echange (messages, ordres et reponses prives, sauvegardes, logiciels) et le droit du garde-fou de deposer
+# un ordre : table des dossiers (prometheus-dossiers.conf)
+appliquer_dossiers
 
 cat > /etc/systemd/system/prometheus-radio.service <<'EOF'
 [Unit]

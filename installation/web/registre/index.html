@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/communaute.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/annonce.js"></script>
 <script>
 addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
@@ -47,7 +48,6 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   <p class="eteinte" id="eteinte" hidden data-en="This feature is not turned on at this station.">Cette fonction n’est pas activée sur cette station.</p>
 </main>
 <script>
-function $(id) { return document.getElementById(id); }
 if (new URLSearchParams(location.search).get('depuis') === 'parametres') {
   $('retour').href = '/parametres/#registre'; $('retour').dataset.en = '← Settings'; $('retour').textContent = '← Paramètres';
 }
@@ -57,9 +57,9 @@ try { cles = JSON.parse(localStorage.getItem('cles-registre') || '{}'); } catch 
 // Recherche sans tenir compte des accents ni des majuscules
 function simple(s) { return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
 function quand(t) {
-  var d = new Date(t * 1000), l = LANGUE === 'en' ? 'en-GB' : 'fr-FR';
-  return d.toLocaleDateString(l, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + T(' à ', ', ') +
-         d.toLocaleTimeString(l, { hour: '2-digit', minute: '2-digit' });
+  var d = new Date(t * 1000);
+  return d.toLocaleDateString(LOC, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + T(' à ', ', ') +
+         d.toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' });
 }
 
 function choisir(t) {
@@ -93,10 +93,15 @@ function afficher() {
     if (cles[f.id] || donnees.admin) {
       var x = document.createElement('button'); x.className = 'effacer';
       x.textContent = cles[f.id] ? T('Effacer ma fiche', 'Delete my entry') : T('Effacer', 'Delete');
-      x.onclick = function () {
-        fetch('/api/registre/effacer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: f.id, cle: cles[f.id] || '' }) })
-          .then(function () { delete cles[f.id]; try { localStorage.setItem('cles-registre', JSON.stringify(cles)); } catch (e) {} charger(); });
-      };
+      // En deux temps ; la cle ne quitte le telephone que si la station a bien efface (sinon on ne pourrait plus reessayer)
+      deuxTemps(x, { texte: T('Toucher encore pour effacer', 'Tap again to delete'), action: function () {
+        x.disabled = true;
+        envoyer('/api/registre/effacer', { id: f.id, cle: cles[f.id] || '' }).then(function (r) {
+          if (!r.ok) { x.disabled = false; bas.appendChild(el('span', 'erreur', r.erreur)); return; }
+          delete cles[f.id]; try { localStorage.setItem('cles-registre', JSON.stringify(cles)); } catch (e) {}
+          charger();
+        });
+      } });
       bas.appendChild(x);
     }
     c.appendChild(bas);
@@ -107,7 +112,7 @@ function afficher() {
 }
 
 function charger() {
-  fetch('/api/registre', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+  lire('/api/registre').then(function (d) {
     donnees = d;
     $('ouvert').hidden = !d.active; $('eteinte').hidden = d.active;
     $('bloc-lieu').hidden = !d.lieu;
@@ -119,20 +124,17 @@ $('cherche').addEventListener('input', function () { if (donnees) afficher(); })
 $('form').onsubmit = function (ev) {
   ev.preventDefault();
   $('envoyer').disabled = true; $('erreur').textContent = '';
-  fetch('/api/registre', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: type, nom: $('nom').value, lieu: $('lieu').value, message: $('message').value }) })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+  envoyer('/api/registre', { type: type, nom: $('nom').value, lieu: $('lieu').value, message: $('message').value })
     .then(function (r) {
       $('envoyer').disabled = false;
-      if (!r.ok) { $('erreur').textContent = TE(r.d.erreur) || T('Erreur.', 'Error.'); return; }
+      if (!r.ok) { $('erreur').textContent = r.erreur; return; }
       cles[r.d.id] = r.d.cle;   // ce telephone pourra effacer sa fiche
       try { localStorage.setItem('cles-registre', JSON.stringify(cles)); } catch (e) {}
       $('nom').value = ''; $('lieu').value = ''; $('message').value = '';
       $('form').hidden = true; type = null;
       document.querySelectorAll('[data-type]').forEach(function (b) { b.classList.remove('choisi'); });
       $('cherche').value = ''; charger();
-    })
-    .catch(function () { $('envoyer').disabled = false; $('erreur').textContent = T('La station ne répond pas.', 'The station does not respond.'); });
+    });
 };
 
 charger();

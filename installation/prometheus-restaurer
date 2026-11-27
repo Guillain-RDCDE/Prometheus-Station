@@ -6,23 +6,24 @@ set -e
 F=${1:?Usage : sudo prometheus-restaurer prometheus-sauvegarde-AAAA-MM-JJ-HHMM.tar.gz}
 [ -f "$F" ] || { echo "Fichier introuvable : $F"; exit 1; }
 refuser() { echo "Ce fichier n'est pas une sauvegarde de la station. Rien n'a change."; exit 1; }
-# 1. Une archive lisible, qui n'ecrit que dans les dossiers des reglages
+# 1. Une archive lisible, qui n'ecrit que dans ce qu'une sauvegarde contient (la meme liste que prometheus-sauvegarde)
+PERMIS=$(grep -vE '^(#|$)' /usr/local/lib/prometheus/sauvegarde.liste | sed 's/[.]/\\./g' | paste -sd'|')
+[ -n "$PERMIS" ] || refuser
 LISTE=$(tar tzf "$F" 2>/dev/null) || refuser
 [ -n "$LISTE" ] || refuser
-printf '%s\n' "$LISTE" | grep -vqE '^(srv/prometheus/(\.admin|messages|panneau|communaute|contenus\.txt)|etc/NetworkManager/system-connections)' && refuser
+printf '%s\n' "$LISTE" | grep -vqE "^($PERMIS)(/|$)" && refuser
 printf '%s\n' "$LISTE" | grep -qE '(^|/)\.\.(/|$)' && refuser
 # 2. Seulement des fichiers et des dossiers ordinaires (aucun lien qui pointerait ailleurs)
 tar tvzf "$F" | cut -c1 | grep -vq '[-d]' && refuser
 
 tar xzf "$F" -C / --no-same-owner
-mkdir -p /srv/prometheus/communaute
-chown -R prometheus:prometheus /srv/prometheus/.admin /srv/prometheus/messages /srv/prometheus/panneau /srv/prometheus/communaute
+# Proprietaires et droits des dossiers remis : la table de la station (la meme qu'a l'installation et au demarrage)
+systemd-tmpfiles --create /etc/tmpfiles.d/prometheus.conf
 chown prometheus:prometheus /srv/prometheus/contenus.txt 2>/dev/null || true
-chmod 700 /srv/prometheus/.admin
 chown root:root /etc/NetworkManager/system-connections/* 2>/dev/null || true
 chmod 600 /etc/NetworkManager/system-connections/* 2>/dev/null || true
 # Les couleurs de la sauvegarde
-THEME=$(cat /srv/prometheus/.admin/theme 2>/dev/null || echo ocean)
+THEME=$(prometheus-commun theme 2>/dev/null || echo neutre)   # un theme disparu redevient celui par defaut
 if [ -f "/var/www/prometheus/themes/$THEME.css" ]; then
   cp "/var/www/prometheus/themes/$THEME.css" /var/www/prometheus/theme.css
   chown prometheus:prometheus /var/www/prometheus/theme.css

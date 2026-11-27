@@ -1,0 +1,1140 @@
+{
+ "fichiers": {
+  "/run/prometheus/extinction": "0o644",
+  "/srv/prometheus/.admin/mot-de-passe": "0o600",
+  "/srv/prometheus/.admin/nom-demande": "0o600",
+  "/srv/prometheus/.admin/sessions.json": "0o600",
+  "/srv/prometheus/.admin/sobre-demande": "0o600",
+  "/srv/prometheus/.admin/ssid-demande": "0o600",
+  "/srv/prometheus/.admin/theme": "0o644",
+  "/srv/prometheus/communaute/entraide.json": "0o644",
+  "/srv/prometheus/communaute/recherches.json": "0o644",
+  "/srv/prometheus/communaute/registre.json": "0o644",
+  "/srv/prometheus/communaute/reglages.json": "0o644",
+  "/srv/prometheus/messages/messages.json": "0o644",
+  "/srv/prometheus/panneau/panneau.txt": "0o644",
+  "/srv/prometheus/radio/cartes-suivies.json": "0o644",
+  "/srv/prometheus/radio/code-ble": "0o600",
+  "/srv/prometheus/radio/effacer-journal": "0o644",
+  "/srv/prometheus/radio/reponses/<numero>.json": "0o644",
+  "/var/www/prometheus/theme.css": "0o644"
+ },
+ "resultats": [
+  {
+   "code": 401,
+   "reponse": {},
+   "scenario": "GET /verif (sans connexion)"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "connecte": false,
+    "defini": false
+   },
+   "scenario": "GET /etat (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /energie (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /sante (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /recherches (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /radio (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /balise (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /mesh/reponse?id=abc (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /mesh/resultats?depuis=0 (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /mesh/historique?quoi=stats (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /mesh/schema (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /mesh/sauvegardes (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /mesh/atelier (sans connexion)"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "admin": false,
+    "maintenant": "<variable>",
+    "messages": [],
+    "radio": {
+     "active": false,
+     "attente": 0,
+     "delai": 60,
+     "etat": "eteinte",
+     "maj": "",
+     "max": 228,
+     "nom": "",
+     "peut": false,
+     "qui": "tous",
+     "reseau": "meshtastic"
+    }
+   },
+   "scenario": "GET /api/messages (sans connexion)"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": false,
+    "attente": 0,
+    "delai": 60,
+    "etat": "eteinte",
+    "maj": "",
+    "max": 228,
+    "nom": "",
+    "peut": false,
+    "qui": "tous",
+    "reseau": "meshtastic"
+   },
+   "scenario": "GET /api/radio (sans connexion)"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "texte": ""
+   },
+   "scenario": "GET /api/panneau (sans connexion)"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "annonce": {
+     "active": false,
+     "couleur": "info",
+     "defile": true,
+     "ecran": false,
+     "texte": "",
+     "vitesse": "normale"
+    },
+    "balise": {
+     "active": false,
+     "canal": 0,
+     "heures": 3,
+     "texte": "{nom} : station de savoir hors ligne et messages. Wifi ouvert « {wifi} ». {position}",
+     "urgence_seulement": true
+    },
+    "ecran": {
+     "active": false,
+     "veille": 5
+    },
+    "eink": {
+     "active": true
+    },
+    "entraide": {
+     "active": false,
+     "categories": [
+      "eau",
+      "nourriture",
+      "sante",
+      "abri",
+      "energie",
+      "… 9"
+     ],
+     "duree": 72
+    },
+    "mesh": {
+     "distance": false,
+     "historique_jours": 90,
+     "toutes_cartes": false
+    },
+    "radio": {
+     "active": false,
+     "delai": 60,
+     "ecran_minutes": 0,
+     "qui": "tous"
+    },
+    "recherches": {
+     "epingles": []
+    },
+    "registre": {
+     "active": false,
+     "lieu": true
+    },
+    "urgence": {
+     "active": false
+    }
+   },
+   "scenario": "GET /api/reglages (sans connexion)"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": false,
+    "admin": false,
+    "fiches": [],
+    "lieu": true,
+    "maintenant": "<variable>"
+   },
+   "scenario": "GET /api/registre (sans connexion)"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": false,
+    "admin": false,
+    "annonces": [],
+    "categories": [
+     "eau",
+     "nourriture",
+     "sante",
+     "abri",
+     "energie",
+     "… 9"
+    ],
+    "duree": 72,
+    "maintenant": "<variable>"
+   },
+   "scenario": "GET /api/entraide (sans connexion)"
+  },
+  {
+   "code": 404,
+   "reponse": {},
+   "scenario": "GET /inconnue (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /api/messages/effacer (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /api/messages/vider (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /api/registre/vider (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /api/entraide/vider (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Ancien mot de passe incorrect."
+   },
+   "scenario": "POST /changer (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /theme (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /wifi (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /adresse (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /recherches/epingler (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /recherches/vider (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /radio/envoyer (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /mesh/ordre (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /mesh/atelier/suivies (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /radio/code (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /effacer-ecrits (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /reglages (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /panneau (sans connexion)"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "POST /energie (sans connexion)"
+  },
+  {
+   "code": 404,
+   "reponse": {},
+   "scenario": "POST /inconnue (sans connexion)"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Au moins 4 caractères."
+   },
+   "scenario": "premier : trop court"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "premier : bon"
+  },
+  {
+   "code": 403,
+   "reponse": {
+    "erreur": "Le mot de passe est déjà choisi."
+   },
+   "scenario": "premier : deja choisi"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Mot de passe incorrect."
+   },
+   "scenario": "connexion : faux"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "connexion : bonne"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "GET /verif"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "connecte": true,
+    "defini": true
+   },
+   "scenario": "GET /etat"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "ecran_installe": false,
+    "extinction": 0,
+    "restant": "<variable>",
+    "sobre": false
+   },
+   "scenario": "GET /energie"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "allumee": "<variable>",
+    "batterie": null,
+    "personnes": 0,
+    "temperature": "<variable>",
+    "tension": null
+   },
+   "scenario": "GET /sante"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "epingles": [],
+    "sujets": []
+   },
+   "scenario": "GET /recherches"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "details": {},
+    "etat": {
+     "active": false,
+     "attente": 0,
+     "delai": 60,
+     "etat": "eteinte",
+     "maj": "",
+     "max": 228,
+     "nom": "",
+     "peut": false,
+     "qui": "tous",
+     "reseau": "meshtastic"
+    },
+    "garde_fou": null,
+    "journal": [],
+    "maintenant": "<variable>",
+    "mesh": {
+     "distance": false,
+     "historique_jours": 90,
+     "toutes_cartes": false
+    },
+    "outil": {
+     "radios": []
+    },
+    "reseau": {
+     "puce": null,
+     "reseau": "meshtastic"
+    }
+   },
+   "scenario": "GET /radio"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "apercu": ": station de savoir hors ligne et messages. Wifi ouvert « ».",
+    "canaux": [],
+    "coupe": false,
+    "derniere": null,
+    "max": 228,
+    "octets": 62,
+    "position": false
+   },
+   "scenario": "GET /balise"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "attente": true,
+    "id": "<variable>"
+   },
+   "scenario": "GET /mesh/reponse?id=abc"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "maintenant": "<variable>",
+    "resultats": []
+   },
+   "scenario": "GET /mesh/resultats?depuis=0"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "donnees": [],
+    "maintenant": "<variable>"
+   },
+   "scenario": "GET /mesh/historique?quoi=stats"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "GET /mesh/schema"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "sauvegardes": []
+   },
+   "scenario": "GET /mesh/sauvegardes"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "atelier": {},
+    "catalogue": {},
+    "maintenant": "<variable>",
+    "outil": {},
+    "ports": [],
+    "station": "",
+    "suivies": {},
+    "toutes_cartes": false
+   },
+   "scenario": "GET /mesh/atelier"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "admin": true,
+    "maintenant": "<variable>",
+    "messages": [],
+    "radio": {
+     "active": false,
+     "attente": 0,
+     "delai": 60,
+     "etat": "eteinte",
+     "maj": "",
+     "max": 228,
+     "nom": "",
+     "peut": false,
+     "qui": "tous",
+     "reseau": "meshtastic"
+    }
+   },
+   "scenario": "GET /api/messages"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": false,
+    "attente": 0,
+    "delai": 60,
+    "etat": "eteinte",
+    "maj": "",
+    "max": 228,
+    "nom": "",
+    "peut": false,
+    "qui": "tous",
+    "reseau": "meshtastic"
+   },
+   "scenario": "GET /api/radio"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "texte": ""
+   },
+   "scenario": "GET /api/panneau"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "annonce": {
+     "active": false,
+     "couleur": "info",
+     "defile": true,
+     "ecran": false,
+     "texte": "",
+     "vitesse": "normale"
+    },
+    "balise": {
+     "active": false,
+     "canal": 0,
+     "heures": 3,
+     "texte": "{nom} : station de savoir hors ligne et messages. Wifi ouvert « {wifi} ». {position}",
+     "urgence_seulement": true
+    },
+    "ecran": {
+     "active": false,
+     "veille": 5
+    },
+    "eink": {
+     "active": true
+    },
+    "entraide": {
+     "active": false,
+     "categories": [
+      "eau",
+      "nourriture",
+      "sante",
+      "abri",
+      "energie",
+      "… 9"
+     ],
+     "duree": 72
+    },
+    "mesh": {
+     "distance": false,
+     "historique_jours": 90,
+     "toutes_cartes": false
+    },
+    "radio": {
+     "active": false,
+     "delai": 60,
+     "ecran_minutes": 0,
+     "qui": "tous"
+    },
+    "recherches": {
+     "epingles": []
+    },
+    "registre": {
+     "active": false,
+     "lieu": true
+    },
+    "urgence": {
+     "active": false
+    }
+   },
+   "scenario": "GET /api/reglages"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": false,
+    "admin": true,
+    "fiches": [],
+    "lieu": true,
+    "maintenant": "<variable>"
+   },
+   "scenario": "GET /api/registre"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": false,
+    "admin": true,
+    "annonces": [],
+    "categories": [
+     "eau",
+     "nourriture",
+     "sante",
+     "abri",
+     "energie",
+     "… 9"
+    ],
+    "duree": 72,
+    "maintenant": "<variable>"
+   },
+   "scenario": "GET /api/entraide"
+  },
+  {
+   "code": 404,
+   "reponse": {},
+   "scenario": "GET /inconnue"
+  },
+  {
+   "code": 401,
+   "reponse": {
+    "erreur": "Ancien mot de passe incorrect."
+   },
+   "scenario": "absurde /changer"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Couleurs inconnues."
+   },
+   "scenario": "absurde /theme"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Entre 1 et 32 caractères."
+   },
+   "scenario": "absurde /wifi"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Lettres minuscules, chiffres et tirets seulement."
+   },
+   "scenario": "absurde /adresse"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Six chiffres."
+   },
+   "scenario": "absurde /radio/code"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Réglage invalide."
+   },
+   "scenario": "absurde /reglages"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Réglage invalide."
+   },
+   "scenario": "absurde /energie"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Texte trop long."
+   },
+   "scenario": "absurde /panneau"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Réglage invalide."
+   },
+   "scenario": "absurde /mesh/ordre"
+  },
+  {
+   "code": 403,
+   "reponse": {
+    "erreur": "Cette fonction est désactivée."
+   },
+   "scenario": "absurde /radio/envoyer"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Réglage invalide."
+   },
+   "scenario": "absurde /recherches/epingler"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "meshcore": [],
+    "meshtastic": []
+   },
+   "scenario": "absurde /mesh/atelier/suivies"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "juste /theme {\"nom\": \"nuit\"}"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "juste /wifi {\"nom\": \"Station du banc\"}"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "juste /adresse {\"nom\": \"station-banc\"}"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "juste /radio/code {\"code\": \"123456\"}"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "juste /panneau {\"texte\": \"Bienvenue *banc*\"}"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "ecran_installe": false,
+    "extinction": 30,
+    "restant": "<variable>",
+    "sobre": false
+   },
+   "scenario": "juste /energie {\"extinction\": 30}"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "ecran_installe": false,
+    "extinction": 0,
+    "restant": "<variable>",
+    "sobre": true
+   },
+   "scenario": "juste /energie {\"extinction\": 0, \"sobre\": true}"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": true,
+    "lieu": true
+   },
+   "scenario": "juste /reglages {\"section\": \"registre\", \"valeurs\": {\"active\": true}}"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": true,
+    "categories": [
+     "eau",
+     "nourriture",
+     "sante",
+     "abri",
+     "energie",
+     "… 9"
+    ],
+    "duree": 24
+   },
+   "scenario": "juste /reglages {\"section\": \"entraide\", \"valeurs\": {\"active\": true, \"duree\": 24}}"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": true,
+    "delai": 30,
+    "ecran_minutes": 0,
+    "qui": "tous"
+   },
+   "scenario": "juste /reglages {\"section\": \"radio\", \"valeurs\": {\"active\": true, \"delai\": 30}}"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": false,
+    "veille": 15
+   },
+   "scenario": "juste /reglages {\"section\": \"ecran\", \"valeurs\": {\"veille\": 15}}"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Message vide."
+   },
+   "scenario": "message vide"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "message"
+  },
+  {
+   "code": 429,
+   "reponse": {
+    "erreur": "Attendez quelques secondes avant le message suivant."
+   },
+   "scenario": "message trop tot"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Trop long pour la radio."
+   },
+   "scenario": "message radio trop long"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "message radio"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "cle": "<variable>",
+    "id": "<variable>"
+   },
+   "scenario": "registre : fiche"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Indiquez un nom."
+   },
+   "scenario": "registre : invalide"
+  },
+  {
+   "code": 403,
+   "reponse": {
+    "erreur": "Effacement refusé."
+   },
+   "scenario": "registre : effacer, mauvaise cle"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "registre : effacer, sa cle"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "cle": "<variable>",
+    "id": "<variable>"
+   },
+   "scenario": "entraide : annonce"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Réglage invalide."
+   },
+   "scenario": "entraide : categorie inconnue"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "recherche comptee"
+  },
+  {
+   "code": 400,
+   "reponse": {
+    "erreur": "Réglage invalide."
+   },
+   "scenario": "recherche refusee"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "admin": true,
+    "maintenant": "<variable>",
+    "messages": [
+     {
+      "heure": "<variable>",
+      "id": "<variable>",
+      "nom": "Bob",
+      "radio": "attente",
+      "texte": "Par radio"
+     },
+     {
+      "heure": "<variable>",
+      "id": "<variable>",
+      "nom": "Ana",
+      "texte": "Bonjour"
+     }
+    ],
+    "radio": {
+     "active": true,
+     "attente": 1,
+     "delai": 30,
+     "etat": "eteinte",
+     "maj": "",
+     "max": 228,
+     "nom": "",
+     "peut": true,
+     "qui": "tous",
+     "reseau": "meshtastic"
+    }
+   },
+   "scenario": "apres : GET /api/messages"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": true,
+    "admin": true,
+    "fiches": [],
+    "lieu": true,
+    "maintenant": "<variable>"
+   },
+   "scenario": "apres : GET /api/registre"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "active": true,
+    "admin": true,
+    "annonces": [
+     {
+      "categorie": "eau",
+      "contact": "",
+      "heure": "<variable>",
+      "id": "<variable>",
+      "nom": "D",
+      "texte": "Bidons",
+      "type": "propose"
+     }
+    ],
+    "categories": [
+     "eau",
+     "nourriture",
+     "sante",
+     "abri",
+     "energie",
+     "… 9"
+    ],
+    "duree": 24,
+    "maintenant": "<variable>"
+   },
+   "scenario": "apres : GET /api/entraide"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "epingles": [],
+    "sujets": [
+     {
+      "lien": "/encyclopedies/content/wikipedia_fr/Eau",
+      "n": 1,
+      "titre": "Eau potable"
+     }
+    ]
+   },
+   "scenario": "apres : GET /recherches"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "annonce": {
+     "active": false,
+     "couleur": "info",
+     "defile": true,
+     "ecran": false,
+     "texte": "",
+     "vitesse": "normale"
+    },
+    "balise": {
+     "active": false,
+     "canal": 0,
+     "heures": 3,
+     "texte": "{nom} : station de savoir hors ligne et messages. Wifi ouvert « {wifi} ». {position}",
+     "urgence_seulement": true
+    },
+    "ecran": {
+     "active": false,
+     "veille": 15
+    },
+    "eink": {
+     "active": true
+    },
+    "entraide": {
+     "active": true,
+     "categories": [
+      "eau",
+      "nourriture",
+      "sante",
+      "abri",
+      "energie",
+      "… 9"
+     ],
+     "duree": 24
+    },
+    "mesh": {
+     "distance": false,
+     "historique_jours": 90,
+     "toutes_cartes": false
+    },
+    "radio": {
+     "active": true,
+     "delai": 30,
+     "ecran_minutes": 0,
+     "qui": "tous"
+    },
+    "recherches": {
+     "epingles": []
+    },
+    "registre": {
+     "active": true,
+     "lieu": true
+    },
+    "urgence": {
+     "active": false
+    }
+   },
+   "scenario": "apres : GET /api/reglages"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "ecran_installe": false,
+    "extinction": 0,
+    "restant": "<variable>",
+    "sobre": true
+   },
+   "scenario": "apres : GET /energie"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "erreur": "",
+    "heure": "<variable>",
+    "id": "<variable>",
+    "ok": true,
+    "r": {
+     "action": "config-lire"
+    }
+   },
+   "scenario": "mesh : ordre avec reponse"
+  },
+  {
+   "code": 200,
+   "reponse": {
+    "entraide": 1,
+    "messages": 2,
+    "radio_annules": 1,
+    "registre": 0
+   },
+   "scenario": "effacer les ecrits"
+  },
+  {
+   "code": 200,
+   "reponse": {},
+   "scenario": "changer le mot de passe"
+  }
+ ]
+}

@@ -3,6 +3,8 @@
 # A lancer sur le Pi, depuis le dossier "installation" : sudo bash 06-ecran.sh
 set -euo pipefail
 ICI=$(cd "$(dirname "$0")" && pwd)
+# Module commun des programmes, table des dossiers, liste de la sauvegarde : commun.sh (le meme pour chaque etape)
+. "$ICI/commun.sh"
 
 echo "== Bibliotheques Python (images, QR code, police)"
 export DEBIAN_FRONTEND=noninteractive

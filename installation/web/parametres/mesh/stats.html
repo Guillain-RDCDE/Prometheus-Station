@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/communaute.css">
 <link rel="stylesheet" href="mesh.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="mesh.js"></script>
 </head>
 <body>
@@ -63,7 +64,7 @@ function charger() {
     z.appendChild(ligneEtat(T('Paquets émis par la station', 'Packets sent by the station'), String(emis)));
     z.appendChild(ligneEtat(T('Radios différentes entendues', 'Different radios heard'), String(c.par_radio.filter(function (x) { return x.id; }).length)));
     var hz = el('div', 'complet-seul'); hz.appendChild(el('dt', '', T('Historique gardé', 'History kept')));
-    hz.appendChild(el('dd', '', c.total + T(' paquets depuis le ', ' packets since ') + dateCourte(c.premier) + ' · ' + Math.round(c.taille / 1024) + ' Ko')); z.appendChild(hz);
+    hz.appendChild(el('dd', '', c.total + T(' paquets depuis le ', ' packets since ') + dateCourte(c.premier) + ' · ' + taille(c.taille))); z.appendChild(hz);
 
     // Graphiques : une mesure chacun
     var g = $('graphes'); g.innerHTML = '';

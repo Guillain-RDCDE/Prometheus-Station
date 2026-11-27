@@ -5,7 +5,7 @@
 # prometheus-ecran --si-extinction : affiche « Station eteinte » si la station est en train de s'eteindre.
 # Parametres > Ecran et clavier > Ecran e-ink : desactive, le programme ne touche plus du tout a l'ecran
 # (utile quand il n'est pas branche : le pilote attendrait sans fin un ecran absent).
-import glob, json, subprocess, sys, time
+import glob, json, os, subprocess, sys, time
 sys.path.insert(0, '/opt/prometheus')
 from PIL import Image, ImageDraw, ImageFont
 import qrcode
@@ -13,6 +13,10 @@ import qrcode
 AP = 'prometheus-wifi'
 GRAS = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 NORMAL = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+
+
+sys.path[:0] = [os.path.dirname(os.path.realpath(__file__)), '/usr/local/lib/prometheus']
+import prometheus_commun as pc  # noqa: E402  (reglages et valeurs par defaut, comme la page Parametres)
 
 
 def cmd(*a):
@@ -24,10 +28,7 @@ def cmd(*a):
 
 def active():
     """L'ecran e-ink est-il active ? (Parametres ; active par defaut, pour qui l'a pose sur le Pi)"""
-    try:
-        return json.load(open('/srv/prometheus/communaute/reglages.json')).get('eink', {}).get('active') is not False
-    except (OSError, ValueError, AttributeError):
-        return True
+    return pc.reglage('eink', 'active') is not False
 
 
 def pilote():
@@ -38,32 +39,26 @@ def pilote():
 
 def annonce():
     """Le texte de l'annonce, si elle est allumee avec « Aussi sur l'ecran de la station » (Parametres > Annonce)."""
-    try:
-        a = json.load(open('/srv/prometheus/communaute/reglages.json'))['annonce']
-        return a['texte'] if a.get('active') and a.get('ecran') and a.get('texte') else ''
-    except (OSError, ValueError, KeyError, TypeError):
-        return ''
+    a = pc.reglages()['annonce']
+    return a['texte'] if a['active'] and a['ecran'] and a['texte'] else ''
 
 
 def message_radio():
     """Le dernier message arrive par radio, s'il est assez recent pour l'ecran : (nom, texte, heure) ou None."""
-    try:
-        minutes = json.load(open('/srv/prometheus/communaute/reglages.json'))['radio']
-        minutes = minutes['ecran_minutes'] if minutes.get('active') else 0
-    except (OSError, ValueError, KeyError, TypeError):
-        minutes = 0
+    r = pc.reglages()['radio']
+    minutes = r['ecran_minutes'] if r['active'] else 0
     if not minutes:
         return None
     recus = []
     # Pas encore range dans le tableau (personne n'a ouvert la page) ...
-    for f in glob.glob('/srv/prometheus/radio/recus/*.json'):
+    for f in glob.glob(os.path.join(pc.RADIO, 'recus', '*.json')):
         try:
             recus.append(json.load(open(f)))
         except (OSError, ValueError):
             pass
     # ... ou deja range
     try:
-        recus += [m for m in json.load(open('/srv/prometheus/messages/messages.json'))[:20] if m.get('radio') == 'recu']
+        recus += [m for m in json.load(open(os.path.join(pc.SRV, 'messages', 'messages.json')))[:20] if m.get('radio') == 'recu']
     except (OSError, ValueError, TypeError):
         pass
     if not recus:

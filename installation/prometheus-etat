@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # Prometheus Station - etat des contenus pour la page Mises a jour (etat.json).
 # Compare la version installee de chaque contenu a la derniere version en ligne chez Kiwix.
-import json, os, re, shutil, socket, subprocess, time, urllib.request
+import json, os, re, shutil, socket, subprocess, sys, time, urllib.request
+sys.path[:0] = [os.path.dirname(os.path.realpath(__file__)), '/usr/local/lib/prometheus']
+import prometheus_commun as pc
 
-LISTE = '/srv/prometheus/contenus.txt'
-DIR = '/srv/prometheus/encyclopedies'
-SORTIE = '/var/www/prometheus/ajouter/etat.json'
+LISTE = os.path.join(pc.SRV, 'contenus.txt')
+DIR = os.path.join(pc.SRV, 'encyclopedies')
+SORTIE = os.path.join(pc.WEB, 'ajouter', 'etat.json')
 DATE = re.compile(r'_(\d{4}-\d{2})\.zim$')
 
 
@@ -34,7 +36,8 @@ def progression():
 actif = subprocess.run(['systemctl', 'is-active', 'prometheus-telechargement'],
                        capture_output=True, text=True).stdout.strip() in ('active', 'activating')
 fichiers = os.listdir(DIR) if os.path.isdir(DIR) else []
-noms = [l.strip() for l in open(LISTE) if l.strip() and not l.startswith('#')]
+# Liste absente ou illisible : aucun contenu suivi, mais l'etat est quand meme ecrit (la page n'attend pas pour rien)
+noms = [l.strip() for l in pc.lire_texte(LISTE).splitlines() if l.strip() and not l.startswith('#')]
 libre = shutil.disk_usage(DIR).free
 internet = False
 contenus = []
@@ -66,42 +69,26 @@ for nom in noms:
 def lancer(*a):
     return subprocess.run(a, capture_output=True, text=True).stdout
 paquets = [l.split('/')[0] for l in lancer('apt', 'list', '--upgradable').splitlines() if '/' in l]
-JOURNAL_MAJ = '/var/www/prometheus/ajouter/maj-systeme.txt'
-
-
-def maj_en_cours():
-    """Detail de la derniere mise a jour (prometheus-commande) : « ### FIN » en derniere ligne = terminee,
-    meme si ce programme est appele par la mise a jour elle-meme, juste avant qu'elle s'arrete."""
-    try:
-        finie = open(JOURNAL_MAJ, encoding='utf-8', errors='replace').read().rstrip().splitlines()[-1].startswith('### FIN')
-    except (OSError, IndexError):
-        finie = True
-    return not finie and lancer('systemctl', 'is-active', 'prometheus-maj-systeme').strip() in ('active', 'activating')
+JOURNAL_MAJ = pc.JOURNAL_MAJ
 
 
 systeme = {
     'a_jour': len(paquets),
     'paquets': paquets[:50],
     'journal': os.path.exists(JOURNAL_MAJ),
-    'redemarrage': os.path.exists('/run/reboot-required') or os.path.exists('/var/run/reboot-required'),
+    'redemarrage': os.path.exists(pc.chemin('/run/reboot-required')) or os.path.exists(pc.chemin('/var/run/reboot-required')),
 }
-try:
-    systeme['echec'] = open('/srv/prometheus/.maj-systeme').read().strip() != '0'
-except OSError:
-    systeme['echec'] = False
+systeme['echec'] = pc.lire_texte(os.path.join(pc.SRV, '.maj-systeme'), '0') != '0'
 
-try:
-    theme = open('/srv/prometheus/.admin/theme').read().strip()
-except OSError:
-    theme = 'ocean'
+theme = pc.theme()
 
 adresse = socket.gethostname()   # la station se trouve aussi a http://<adresse>.local
-ssid = subprocess.run(['nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', 'prometheus-wifi'],
+ssid = subprocess.run(['nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', pc.WIFI_STATION],
                       capture_output=True, text=True).stdout.strip()
 
 # Ce qui occupe la carte : encyclopedies et livres, du plus gros au plus petit
 fichiers = []
-for dossier, genre in ((DIR, 'encyclopedie'), ('/srv/prometheus/bibliotheque', 'livre')):
+for dossier, genre in ((DIR, 'encyclopedie'), (os.path.join(pc.SRV, 'bibliotheque'), 'livre')):
     for f in (os.listdir(dossier) if os.path.isdir(dossier) else []):
         chemin = os.path.join(dossier, f)
         if f.lower().endswith(('.zim', '.epub', '.pdf')) and os.path.isfile(chemin) and not os.path.exists(chemin + '.aria2'):
@@ -111,7 +98,7 @@ for dossier, genre in ((DIR, 'encyclopedie'), ('/srv/prometheus/bibliotheque', '
 fichiers.sort(key=lambda x: -x['octets'])
 
 # Derniere sauvegarde des reglages (Parametres > Sauvegarde)
-SAUVEGARDES = '/srv/prometheus/sauvegardes'
+SAUVEGARDES = os.path.join(pc.SRV, 'sauvegardes')
 s = sorted(f for f in (os.listdir(SAUVEGARDES) if os.path.isdir(SAUVEGARDES) else [])
            if f.startswith('prometheus-sauvegarde-') and f.endswith('.tar.gz'))
 sauvegarde = {'fichier': s[-1], 'octets': os.path.getsize(os.path.join(SAUVEGARDES, s[-1])),
@@ -119,7 +106,7 @@ sauvegarde = {'fichier': s[-1], 'octets': os.path.getsize(os.path.join(SAUVEGARD
 
 # Resultat de la derniere remise d'une sauvegarde depuis la page ('ok' ou 'refuse', avec son heure)
 try:
-    r = open('/srv/prometheus/.restauration').read().split()
+    r = pc.lire_texte(os.path.join(pc.SRV, '.restauration')).split()
     restauration = {'resultat': r[0], 'heure': float(r[1])}
 except (OSError, IndexError, ValueError):
     restauration = None
@@ -128,9 +115,5 @@ etat = {'restauration': restauration, 'sauvegarde': sauvegarde, 'fichiers': fich
         'libre_go': round(libre / 1e9), 'contenus': contenus}
 # Au dernier moment : deux calculs de l'etat peuvent se chevaucher (l'un lance au debut de la mise a jour,
 # l'autre a sa fin) ; le plus lent ne doit pas ecrire « en cours » alors qu'elle vient de finir
-systeme['en_cours'] = maj_en_cours()
-tmp = SORTIE + '.%d.tmp' % os.getpid()
-with open(tmp, 'w', encoding='utf-8') as f:
-    json.dump(etat, f, ensure_ascii=False, indent=1)
-os.chmod(tmp, 0o644)
-os.replace(tmp, SORTIE)
+systeme['en_cours'] = pc.maj_en_cours()
+pc.ecrire_texte(SORTIE, json.dumps(etat, ensure_ascii=False, indent=1))

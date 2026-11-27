@@ -2,13 +2,14 @@
 # Prometheus Station - etape 2 : les encyclopedies (Kiwix)
 # A lancer sur le Pi : sudo bash 02-encyclopedies.sh
 set -euo pipefail
+ICI=$(cd "$(dirname "$0")" && pwd)
+# Module commun des programmes, table des dossiers, liste de la sauvegarde : commun.sh (le meme pour chaque etape)
+. "$ICI/commun.sh"
 
 echo "== Utilisateur systeme 'prometheus' (fait tourner les services)"
 id prometheus >/dev/null 2>&1 || useradd --system --home-dir /srv/prometheus --shell /usr/sbin/nologin prometheus
 
-echo "== Dossiers"
-mkdir -p /srv/prometheus/encyclopedies /srv/prometheus/bibliotheque
-chown -R prometheus:prometheus /srv/prometheus
+appliquer_dossiers   # /srv/prometheus et ses dossiers (table prometheus-dossiers.conf), jamais un chown -R de tout
 
 echo "== Kiwix (paquet Debian)"
 export DEBIAN_FRONTEND=noninteractive
@@ -151,12 +152,12 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
-# prometheus-catalogue ecrit library.xml : il doit pouvoir le faire en tant que prometheus
-chown prometheus:prometheus /srv/prometheus/encyclopedies
+# prometheus-catalogue ecrit library.xml en tant que prometheus : le dossier lui appartient (table des dossiers)
 
 systemctl daemon-reload
 systemctl enable --now prometheus-kiwix.service
 systemctl enable prometheus-telechargement.timer
 systemctl start --no-block prometheus-telechargement.service
 
+appliquer_dossiers
 echo "== Etape 2 terminee. Telechargements lances (suivre : journalctl -fu prometheus-telechargement)"

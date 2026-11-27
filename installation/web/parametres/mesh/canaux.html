@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="mesh.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="mesh.js"></script>
 <style>
@@ -70,9 +71,9 @@ function pageMeshtastic() {
     var res = el('p', 'note');
     if (c.role === 2) {
       var sup = el('button', 'lien danger', T('Supprimer', 'Delete')); sup.type = 'button';
-      deuxTemps(sup, T('Toucher encore pour supprimer', 'Tap again to delete'), function () {
+      deuxTemps(sup, { texte: T('Toucher encore pour supprimer', 'Tap again to delete'), action: function () {
         ordre('canal', { index: c.index, supprimer: true }).then(function (r) { dire(res, true, apresEcriture(r)); setTimeout(charger, 3000); }).catch(function (e) { dire(res, false, e.message); });
-      });
+      } });
       liens.appendChild(sup);
     }
     li.appendChild(liens); li.appendChild(res);
@@ -105,11 +106,8 @@ function pageMeshtastic() {
   f.onsubmit = function (ev) {
     ev.preventDefault();
     var ajouter = $('url-ajouter').checked, b = f.querySelector('.bouton');
-    if (!ajouter && !b.classList.contains('confirmer')) {
-      b.classList.add('confirmer'); b.textContent = T('Toucher encore : tout est remplacé', 'Tap again: everything is replaced');
-      dire('url-res', false, T(RISQUES.reseau[0], RISQUES.reseau[1])); return;
-    }
-    b.classList.remove('confirmer'); b.textContent = T('Importer', 'Import');
+    if (!deuxTemps(b, { si: !ajouter, texte: T('Toucher encore : tout est remplacé', 'Tap again: everything is replaced'), delai: DELAI_RISQUE,
+                        avertir: function () { dire('url-res', false, T(RISQUES.reseau[0], RISQUES.reseau[1])); } })) return;
     ordre('canaux-lien', { url: $('url').value.trim(), ajouter: ajouter }).then(function (r) { dire('url-res', true, apresEcriture(r)); setTimeout(charger, ajouter ? 3000 : 40000); })
       .catch(function (e) { dire('url-res', false, e.message); });
   };
@@ -147,11 +145,8 @@ function formCanal(c) {
               muet: f.muet.checked, montee: f.montee.checked, descente: f.descente.checked };
     if (c) p.index = c.index;
     if (octets(p.nom) > 11) { dire(res, false, T('Nom : 11 octets au plus.', 'Name: 11 bytes at most.')); return; }
-    if (c && c.role === 1 && p.psk !== 'garder' && !f.querySelector('.bouton').classList.contains('confirmer')) {
-      f.querySelector('.bouton').classList.add('confirmer');
-      dire(res, false, T('Changer la clé du canal principal : ', 'Changing the primary channel key: ') + T(RISQUES.reseau[0], RISQUES.reseau[1]) + T(' Toucher encore.', ' Tap again.'));
-      return;
-    }
+    if (!deuxTemps(f.querySelector('.bouton'), { si: c && c.role === 1 && p.psk !== 'garder', texte: T('Toucher encore pour enregistrer', 'Tap again to save'), delai: DELAI_RISQUE,
+                   avertir: function () { dire(res, false, T('Changer la clé du canal principal : ', 'Changing the primary channel key: ') + T(RISQUES.reseau[0], RISQUES.reseau[1])); } })) return;
     ordre('canal', p).then(function (r) { dire(res, true, apresEcriture(r)); edite = null; setTimeout(charger, 3000); }).catch(function (e) { dire(res, false, e.message); });
   };
   return f;
@@ -175,9 +170,9 @@ function pageMeshCore() {
     liens.appendChild(b);
     if (c.index) {
       var s = el('button', 'lien danger', T('Supprimer', 'Delete')); s.type = 'button';
-      deuxTemps(s, T('Toucher encore pour supprimer', 'Tap again to delete'), function () {
+      deuxTemps(s, { texte: T('Toucher encore pour supprimer', 'Tap again to delete'), action: function () {
         ordre('canal', { index: c.index, supprimer: true }).then(function (r) { dire(res, true, apresEcriture(r)); setTimeout(charger, 2000); }).catch(function (e) { dire(res, false, e.message); });
-      });
+      } });
       liens.appendChild(s);
     }
     li.appendChild(liens); li.appendChild(res);

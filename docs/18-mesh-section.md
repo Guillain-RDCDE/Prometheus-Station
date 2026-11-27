@@ -67,7 +67,7 @@ Some settings are marked in red when you change them, and the write needs a seco
 | **Internet** | MQTT, the public map | sends the station's traffic to the internet |
 | **Hardware** | pin numbers | a wrong pin can block a feature of the board |
 
-**The safety net.** After a *link* setting is written, the station watches its radio. If it does not come back within **3 minutes**, the station puts back the settings saved just before, **by itself**; if the radio no longer answers over its cable at all, it reinstalls its software first, then the settings, then checks its identity. Nobody needs to be there.
+**The safety net.** After a *link* setting is written, the station watches its radio — on Meshtastic and, since 27 November 2026, on MeshCore too (Bluetooth PIN, radio settings). If it does not come back within **3 minutes**, the station puts back the settings saved just before, **by itself**; if the radio no longer answers over its cable at all, it reinstalls its software first, then the settings, then checks its identity. Nobody needs to be there. If the radio tool is busy with another operation at that moment, the request waits and starts right after it. Still silent 10 minutes later, the station asks again, three times at most; then the Overview says so in orange (*the radio does not come back*): put a backup back from *Backups*, or plug the radio in again. A request that arrives after the radio came back on its own is ignored: it never undoes a setting that worked.
 
 ## Statistics
 
@@ -128,7 +128,8 @@ The pages never talk to the radio themselves. They send **orders** to `prometheu
 | `/srv/prometheus/radio/historique.db` | SQLite: packets heard and sent, statistics every minute, telemetry of the other radios. *Erase what visitors wrote* also blanks the texts in it |
 | `/srv/prometheus/radio/resultats.json` | answers that came back by radio (traceroute, position, remote settings…) |
 | `/srv/prometheus/radio/mesh-sauvegardes/` | the settings saved before each change, keys included: readable by the station only |
-| `/srv/prometheus/radio/garde-fou.json` | present while the safety net is watching after a risky setting |
+| `/srv/prometheus/radio/garde-fou.json` | present while the safety net is watching after a risky setting; its `etat` says where it is: `surveille` (watching), `restauration-demandee` (putting the previous settings back), `abandon` (gave up, a person must act) |
+| `/srv/prometheus/radio/ordres/`, `reponses/` | the orders of the Mesh pages and their answers; they can hold keys (settings read, channels): readable by the station only |
 | `/srv/prometheus/radio/catalogue.json`, `atelier.json`, `cartes-suivies.json` | the boards known, the radios recognised, *My boards* (also filled from `installation/cartes.txt`) |
 | `/srv/prometheus/radio/logiciels/meshtastic/<version>/archives/`, `…/meshcore/<version>/cartes/` | the Workshop's software, by chip family (Meshtastic) and by board (MeshCore) |
 

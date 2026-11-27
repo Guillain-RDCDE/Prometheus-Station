@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/theme.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/annonce.js"></script>
 <script>
 // Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
@@ -30,7 +31,7 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .signe-radio { font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gris); border: 1px solid var(--trait); border-radius: 4px; padding: 1px 5px; }
   .texte-msg { white-space: pre-wrap; overflow-wrap: break-word; line-height: 1.5; }
   .effacer { margin-left: auto; font: inherit; font-size: .8rem; color: var(--pale); background: none; border: 0; cursor: pointer; padding: 0 2px; }
-  .effacer:hover { color: #c92a2a; }
+  .effacer:hover { color: var(--rouge-urgence); }
 
   .vide-fil { color: var(--gris); padding: 40px 2px; border-top: 1px solid var(--trait); }
 
@@ -45,14 +46,14 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
   .saisie textarea:focus { border-color: var(--encre); }
   .envoyer { width: 46px; height: 46px; flex: none; border-radius: var(--rayon); border: 0; background: var(--encre); color: var(--fond); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity .15s ease; }
   .envoyer:disabled { opacity: .25; cursor: default; }
-  .erreur { color: #c92a2a; font-size: .85rem; margin: 6px 2px 0; min-height: 0; }
+  .erreur { color: var(--rouge-urgence); font-size: .85rem; margin: 6px 2px 0; min-height: 0; }
 
   /* Radio : case « envoyer aussi par radio » et compteur */
   .radio-choix { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--gris); margin: 8px 2px 0; cursor: pointer; }
   .radio-choix[hidden] { display: none; }
   .radio-choix input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
   .radio-compte { margin-left: auto; font-variant-numeric: tabular-nums; }
-  .radio-compte.trop { color: #d62828; font-weight: 600; }
+  .radio-compte.trop { color: var(--rouge-urgence); font-weight: 600; }
   .radio-note { font-size: .82rem; color: var(--gris); margin: 4px 4px 0; }
   .radio-note:empty { display: none; }
 </style>
@@ -90,23 +91,22 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
 </div>
 
 <script>
-function $(id) { return document.getElementById(id); }
 // Ouverte depuis les Parametres : le lien de retour y ramene
 if (new URLSearchParams(location.search).get('depuis') === 'parametres') {
   $('retour').href = '/parametres/#messages';
   $('retour').dataset.en = '← Settings';
   $('retour').textContent = '← Paramètres';
 }
-var ecart = 0, nom = '', dernierId = null, radio = { active: false, peut: false };
+var nom = '', dernierId = null, radio = { active: false, peut: false };
 var MAX_RADIO = 228;   // octets au plus dans un message radio (le prenom part devant le texte)
 
 // La date complete, une fois par jour en intertitre (utile des mois plus tard) ; l'heure sous chaque message
 function leJour(t) {
-  var j = new Date(t * 1000).toLocaleDateString(LANGUE === 'en' ? 'en-GB' : 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  var j = new Date(t * 1000).toLocaleDateString(LOC, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   return j.charAt(0).toUpperCase() + j.slice(1);
 }
 function lHeure(t) {
-  return new Date(t * 1000).toLocaleTimeString(LANGUE === 'en' ? 'en-GB' : 'fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return new Date(t * 1000).toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' });
 }
 
 function afficherNom() {
@@ -122,7 +122,7 @@ function afficherNom() {
 }
 
 function charger() {
-  fetch('/api/messages', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+  lire('/api/messages').then(function (d) {
     ecart = d.maintenant - Date.now() / 1000;
     if (d.radio) { radio = d.radio; afficherRadio(); }
     var messages = d.messages.slice().reverse();   // le plus ancien en haut, le plus recent en bas
@@ -150,7 +150,7 @@ function charger() {
       if (d.admin) {
         var x = document.createElement('button'); x.className = 'effacer'; x.textContent = T('Effacer', 'Delete');
         x.onclick = function () {
-          fetch('/api/messages/effacer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: m.id }) }).then(charger);
+          envoyer('/api/messages/effacer', { id: m.id }).then(charger);
         };
         tete.appendChild(x);
       }
@@ -167,7 +167,6 @@ function charger() {
 }
 
 // Radio : la case n'apparait que si la radio est activee (et permise a ce telephone)
-function octets(t) { return new TextEncoder().encode(t).length; }
 function resteRadio() {
   var n = ($('nom').hidden ? nom : $('nom').value.trim());
   var envoi = (n ? n + ' : ' : '') + $('texte').value.trim().split(/\s+/).join(' ');
@@ -204,13 +203,11 @@ $('form').onsubmit = function (ev) {
   if (!texte) return;
   if (!$('nom').hidden) { nom = $('nom').value.trim(); try { localStorage.setItem('nom', nom); } catch (e) {} }
   $('envoyer').disabled = true; $('erreur').textContent = '';
-  fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom: nom, texte: texte, radio: $('par-radio').checked }) })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+  envoyer('/api/messages', { nom: nom, texte: texte, radio: $('par-radio').checked })
     .then(function (r) {
       if (r.ok) { $('texte').value = ''; $('texte').style.height = 'auto'; afficherNom(); dernierId = 'x'; charger(); setTimeout(function () { scrollTo(0, document.body.scrollHeight); }, 300); }
-      else { $('erreur').textContent = TE(r.d.erreur) || T('Erreur.', 'Error.'); $('envoyer').disabled = false; }
-    })
-    .catch(function () { $('erreur').textContent = T('La station ne répond pas.', 'The station does not respond.'); $('envoyer').disabled = false; });
+      else { $('erreur').textContent = r.erreur; $('envoyer').disabled = false; }
+    });
 };
 
 try { nom = localStorage.getItem('nom') || ''; $('par-radio').checked = localStorage.getItem('par-radio') === '1'; } catch (e) {}

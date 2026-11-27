@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="mesh.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="mesh.js"></script>
 <script src="champs.js"></script>
 <script src="formulaire.js"></script>
@@ -46,27 +47,7 @@ function charger() {
       if (actif) f.zone.querySelector('summary b').textContent += T(' · allumé', ' · on');
       formulaires.push(f); z.appendChild(f.zone);
     });
-    var b = el('div', 'barre-ecrire');
-    b.innerHTML = '<p class="erreur" id="ecr-res" style="flex:1;margin:0"></p>';
-    var annuler = el('button', 'bouton secondaire', T('Annuler', 'Cancel')), ecrire = el('button', 'bouton', T('Écrire dans la radio', 'Write to the radio'));
-    annuler.type = ecrire.type = 'button'; b.appendChild(annuler); b.appendChild(ecrire); z.appendChild(b);
-    annuler.onclick = charger;
-    ecrire.onclick = function () {
-      var sections = {}, risques = [];
-      try { formulaires.forEach(function (f) { var c = f.changements(); if (Object.keys(c.valeurs).length) { sections[f.cle] = c.valeurs; risques = risques.concat(c.risques); } }); }
-      catch (e) { dire('ecr-res', false, e.message); return; }
-      if (!Object.keys(sections).length) { dire('ecr-res', true, T('Rien n’a changé.', 'Nothing changed.')); return; }
-      if (risques.length && !ecrire.classList.contains('confirmer')) {
-        ecrire.classList.add('confirmer'); ecrire.textContent = T('Toucher encore pour écrire', 'Tap again to write');
-        dire('ecr-res', false, T('Attention : ', 'Warning: ') + risques.filter(function (r, i) { return risques.indexOf(r) === i; }).map(function (r) { return T(RISQUES[r][0], RISQUES[r][1]); }).join(' '));
-        setTimeout(function () { ecrire.classList.remove('confirmer'); ecrire.textContent = T('Écrire dans la radio', 'Write to the radio'); }, 8000);
-        return;
-      }
-      ecrire.classList.remove('confirmer'); ecrire.disabled = true; ecrire.textContent = T('Écriture…', 'Writing…');
-      ordre('config-ecrire', { sections: sections }).then(function (r) { dire('ecr-res', true, apresEcriture(r)); setTimeout(charger, 40000); })
-        .catch(function (e) { dire('ecr-res', false, e.message); })
-        .then(function () { ecrire.disabled = false; ecrire.textContent = T('Écrire dans la radio', 'Write to the radio'); });
-    };
+    barreEcriture(z, formulaires, charger);
   }).catch(function (e) { $('chargement').hidden = true; $('erreur-page').textContent = e.message; });
 }
 charger();

@@ -12,7 +12,7 @@
 # Pour l'essayer sans rien eteindre (service arrete d'abord : les broches ne se partagent pas) :
 #   PROMETHEUS_BATTERIE_ESSAI=1 PROMETHEUS_BATTERIE_SEUIL=99 prometheus-batterie
 #   (journal a part dans /tmp ; SEUIL = pourcentage sous lequel il faudrait s'eteindre, pour le declencher tout de suite)
-import json, os, subprocess, sys, threading, time
+import os, subprocess, sys, threading, time
 
 JAUGE = 0x36
 BOUTON, SECTEUR, BOOT, COUPER = 5, 6, 12, 26
@@ -28,7 +28,9 @@ COURBE = [(4.111, 1.0), (4.081, 0.946), (4.065, 0.893), (4.051, 0.839), (4.036, 
           (3.81, 0.356), (3.786, 0.303), (3.753, 0.249), (3.727, 0.196), (3.698, 0.142), (3.666, 0.088),
           (3.633, 0.035), (3.614, 0.0)]
 AUTONOMIE_MESUREE = 559 * 60   # secondes, accus pleins -> extinction, le 25/11/2026
-ETAT = '/run/prometheus/batterie'
+sys.path[:0] = [os.path.dirname(os.path.realpath(__file__)), '/usr/local/lib/prometheus']
+import prometheus_commun as commun  # noqa: E402  (pas « pc » : main() appelle deja ainsi le pourcentage)
+ETAT = os.path.join(commun.RUN, 'batterie')
 DOSSIER = '/var/lib/prometheus-batterie'
 JOURNAL = os.path.join(DOSSIER, 'journal.csv')
 ESSAI = bool(os.environ.get('PROMETHEUS_BATTERIE_ESSAI'))
@@ -243,11 +245,8 @@ def main():
             restant = estimer_restant(releves, maintenant)
         try:
             os.makedirs(os.path.dirname(ETAT), exist_ok=True)
-            with open(ETAT + '.tmp', 'w') as f:
-                json.dump({'heure': int(maintenant), 'tension': tension, 'pourcent': round(pourcent),
-                           'secteur': secteur, 'restant': restant}, f)
-            os.chmod(ETAT + '.tmp', 0o644)
-            os.replace(ETAT + '.tmp', ETAT)
+            commun.ecrire_json(ETAT, {'heure': int(maintenant), 'tension': tension, 'pourcent': round(pourcent),
+                                  'secteur': secteur, 'restant': restant})
         except OSError:
             pass
         if maintenant - derniere_note >= 60:

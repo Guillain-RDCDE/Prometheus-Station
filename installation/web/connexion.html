@@ -9,13 +9,14 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/theme.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/annonce.js"></script>
 <script>
 // Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
 addEventListener('pageshow', function (e) { if (e.persisted) document.querySelector('link[href^="/theme.css"]').href = '/theme.css?' + Date.now(); });
 </script>
 <style>
-  .erreur { color: #d62828; min-height: 1.5em; margin: 10px 0 0; }
+  .erreur { color: var(--rouge-urgence); min-height: 1.5em; margin: 10px 0 0; }
 </style>
 </head>
 <body>
@@ -35,7 +36,7 @@ var retour = new URLSearchParams(location.search).get('retour') || '/parametres/
 if (retour.charAt(0) !== '/' || retour.charAt(1) === '/') retour = '/parametres/';
 var premier = false;
 
-fetch('/admin-api/etat', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (e) {
+lire('/admin-api/etat').then(function (e) {
   if (e.connecte) { location.replace(retour); return; }
   if (!e.defini) {
     premier = true;
@@ -45,20 +46,18 @@ fetch('/admin-api/etat', { cache: 'no-store' }).then(function (r) { return r.jso
     document.getElementById('mdp2').hidden = false;
     document.getElementById('bouton').textContent = T('Valider', 'Confirm');
   }
-});
+}).catch(function () {});
 
 document.getElementById('form').addEventListener('submit', function (ev) {
   ev.preventDefault();
   var mdp = document.getElementById('mdp').value, erreur = document.getElementById('erreur');
   erreur.textContent = '';
   if (premier && mdp !== document.getElementById('mdp2').value) { erreur.textContent = T('Les deux ne sont pas identiques.', 'The two do not match.'); return; }
-  fetch(premier ? '/admin-api/premier' : '/admin-api/connexion', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(premier ? { nouveau: mdp } : { mdp: mdp })
-  }).then(function (r) {
+  // Ici un refus (401) veut dire « mauvais mot de passe » : envoyer() ne renvoie pas vers cette page
+  envoyer(premier ? '/admin-api/premier' : '/admin-api/connexion', premier ? { nouveau: mdp } : { mdp: mdp }).then(function (r) {
     if (r.ok) { location.replace(retour); return; }
-    return r.json().then(function (d) { erreur.textContent = TE(d.erreur) || T('Erreur.', 'Error.'); });
-  }).catch(function () { erreur.textContent = T('La station ne répond pas.', 'The station does not respond.'); });
+    erreur.textContent = r.erreur;
+  });
 });
 </script>
 </body>

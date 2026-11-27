@@ -1,0 +1,236 @@
+{
+ "restauration": null,
+ "sauvegarde": {
+  "fichier": "prometheus-sauvegarde-2026-11-26-1215.tar.gz",
+  "octets": 3039,
+  "date": "26/11/2026 a 12:15"
+ },
+ "fichiers": [
+  {
+   "fichier": "wikipedia_en_all_maxi_2026-08.zim",
+   "genre": "encyclopedie",
+   "octets": 127418087648,
+   "nom": "wikipedia_en_all_maxi"
+  },
+  {
+   "fichier": "wikipedia_fr_all_maxi_2026-05.zim",
+   "genre": "encyclopedie",
+   "octets": 55438794004,
+   "nom": "wikipedia_fr_all_maxi"
+  },
+  {
+   "fichier": "gutenberg_fr_all_2026-01.zim",
+   "genre": "encyclopedie",
+   "octets": 10534730590,
+   "nom": "gutenberg_fr_all"
+  },
+  {
+   "fichier": "ifixit_fr_all_2026-03.zim",
+   "genre": "encyclopedie",
+   "octets": 3652280723,
+   "nom": "ifixit_fr_all"
+  },
+  {
+   "fichier": "mdwiki_en_all_maxi_2025-11.zim",
+   "genre": "encyclopedie",
+   "octets": 2302838768,
+   "nom": "mdwiki_en_all_maxi"
+  },
+  {
+   "fichier": "zimgit-post-disaster_en_2024-05.zim",
+   "genre": "encyclopedie",
+   "octets": 644665513,
+   "nom": "zimgit-post-disaster_en"
+  },
+  {
+   "fichier": "wikem_en_all_maxi_2026-10.zim",
+   "genre": "encyclopedie",
+   "octets": 268284650,
+   "nom": "wikem_en_all_maxi"
+  },
+  {
+   "fichier": "Les Misérables - Victor Hugo.epub",
+   "genre": "livre",
+   "octets": 106478034,
+   "nom": "Les Misérables - Victor Hugo"
+  },
+  {
+   "fichier": "zimgit-food-preparation_en_2025-04.zim",
+   "genre": "encyclopedie",
+   "octets": 97822565,
+   "nom": "zimgit-food-preparation_en"
+  },
+  {
+   "fichier": "Le Tour du monde en 80 jours - Jules Verne.epub",
+   "genre": "livre",
+   "octets": 82296820,
+   "nom": "Le Tour du monde en 80 jours - Jules Verne"
+  },
+  {
+   "fichier": "Manuel de secourisme (domaine public).pdf",
+   "genre": "livre",
+   "octets": 39266692,
+   "nom": "Manuel de secourisme (domaine public)"
+  },
+  {
+   "fichier": "Notre-Dame de Paris - Victor Hugo.epub",
+   "genre": "livre",
+   "octets": 33374607,
+   "nom": "Notre-Dame de Paris - Victor Hugo"
+  },
+  {
+   "fichier": "Vingt mille lieues sous les mers - Jules Verne.epub",
+   "genre": "livre",
+   "octets": 31151922,
+   "nom": "Vingt mille lieues sous les mers - Jules Verne"
+  },
+  {
+   "fichier": "Germinal - Émile Zola.epub",
+   "genre": "livre",
+   "octets": 22187874,
+   "nom": "Germinal - Émile Zola"
+  },
+  {
+   "fichier": "zimgit-water_en_2024-08.zim",
+   "genre": "encyclopedie",
+   "octets": 20924451,
+   "nom": "zimgit-water_en"
+  },
+  {
+   "fichier": "Le Comte de Monte-Cristo - Alexandre Dumas.epub",
+   "genre": "livre",
+   "octets": 17342828,
+   "nom": "Le Comte de Monte-Cristo - Alexandre Dumas"
+  },
+  {
+   "fichier": "Candide - Voltaire.pdf",
+   "genre": "livre",
+   "octets": 16314055,
+   "nom": "Candide - Voltaire"
+  },
+  {
+   "fichier": "Madame Bovary - Gustave Flaubert.epub",
+   "genre": "livre",
+   "octets": 15145801,
+   "nom": "Madame Bovary - Gustave Flaubert"
+  },
+  {
+   "fichier": "Les Trois Mousquetaires - Alexandre Dumas.epub",
+   "genre": "livre",
+   "octets": 8762309,
+   "nom": "Les Trois Mousquetaires - Alexandre Dumas"
+  },
+  {
+   "fichier": "Le Petit Jardinier (1900).pdf",
+   "genre": "livre",
+   "octets": 6245421,
+   "nom": "Le Petit Jardinier (1900)"
+  },
+  {
+   "fichier": "Fables - Jean de La Fontaine.pdf",
+   "genre": "livre",
+   "octets": 2008956,
+   "nom": "Fables - Jean de La Fontaine"
+  },
+  {
+   "fichier": "Cuisine de campagne (1910).pdf",
+   "genre": "livre",
+   "octets": 1390778,
+   "nom": "Cuisine de campagne (1910)"
+  },
+  {
+   "fichier": "Robinson Crusoé - Daniel Defoe.epub",
+   "genre": "livre",
+   "octets": 853210,
+   "nom": "Robinson Crusoé - Daniel Defoe"
+  },
+  {
+   "fichier": "L’Île mystérieuse - Jules Verne.epub",
+   "genre": "livre",
+   "octets": 345401,
+   "nom": "L’Île mystérieuse - Jules Verne"
+  }
+ ],
+ "total_go": 251,
+ "ssid": "Prometheus-Station",
+ "adresse": "prometheus-station",
+ "theme": "ocean",
+ "systeme": {
+  "a_jour": 0,
+  "paquets": [],
+  "journal": true,
+  "redemarrage": false,
+  "echec": false,
+  "en_cours": false
+ },
+ "verifie": "27/11/2026 a 09:04",
+ "horodatage": 1795766644.6494823,
+ "internet": true,
+ "telechargement": false,
+ "libre_go": 34,
+ "contenus": [
+  {
+   "nom": "zimgit-water_en",
+   "installe": "2024-08",
+   "disponible": "2024-08",
+   "taille_go": 0.0,
+   "etat": "a_jour"
+  },
+  {
+   "nom": "zimgit-food-preparation_en",
+   "installe": "2025-04",
+   "disponible": "2025-04",
+   "taille_go": 0.1,
+   "etat": "a_jour"
+  },
+  {
+   "nom": "zimgit-post-disaster_en",
+   "installe": "2024-05",
+   "disponible": "2024-05",
+   "taille_go": 0.6,
+   "etat": "a_jour"
+  },
+  {
+   "nom": "wikem_en_all_maxi",
+   "installe": "2026-10",
+   "disponible": "",
+   "taille_go": 0.0,
+   "etat": "inconnu"
+  },
+  {
+   "nom": "mdwiki_en_all_maxi",
+   "installe": "2025-11",
+   "disponible": "2025-11",
+   "taille_go": 2.3,
+   "etat": "a_jour"
+  },
+  {
+   "nom": "ifixit_fr_all",
+   "installe": "2026-03",
+   "disponible": "2026-03",
+   "taille_go": 3.7,
+   "etat": "a_jour"
+  },
+  {
+   "nom": "wikipedia_fr_all_maxi",
+   "installe": "2026-05",
+   "disponible": "2026-05",
+   "taille_go": 55.4,
+   "etat": "a_jour"
+  },
+  {
+   "nom": "gutenberg_fr_all",
+   "installe": "2026-01",
+   "disponible": "2026-01",
+   "taille_go": 10.5,
+   "etat": "a_jour"
+  },
+  {
+   "nom": "wikipedia_en_all_maxi",
+   "installe": "2026-08",
+   "disponible": "2026-08",
+   "taille_go": 127.4,
+   "etat": "a_jour"
+  }
+ ]
+}

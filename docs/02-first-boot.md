@@ -85,6 +85,6 @@ Pi$ tail -f ~/step.log
 
 (`Ctrl + C` stops watching the log, not the job.)
 
-Each script ends with a line `== Etape N terminee` ("step N finished"). Every script can be run again safely if something went wrong.
+Each script ends with a line `== Etape N terminee` ("step N finished"). Every script can be run again safely if something went wrong, alone and in any order: who owns each folder of the station, and who may write in it, is written in a single table (`installation/prometheus-dossiers.conf`, installed as `/etc/tmpfiles.d/prometheus.conf`) that every step applies again at its end, and that the system applies at every start.
 
 Next: [3. Base system →](03-base-system.md)

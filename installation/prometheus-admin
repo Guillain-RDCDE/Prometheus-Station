@@ -52,52 +52,37 @@
 #   POST /reglages  -> allumer, eteindre, regler une fonction {section, valeurs}
 #   POST /effacer-ecrits -> effacer d'un coup tout ce que les visiteurs ont ecrit (messages, registre, entraide)
 #                           -> {messages, registre, entraide} = combien il y en avait ; les reglages ne changent pas
-import glob, hashlib, hmac, json, os, re, secrets, subprocess, threading, time
+import glob, hashlib, hmac, json, os, re, secrets, subprocess, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
+# Ce que tous les programmes de la station disent de la meme facon (chemins, reglages, ecriture sure...)
+sys.path[:0] = [os.path.dirname(os.path.realpath(__file__)), '/usr/local/lib/prometheus']
+import prometheus_commun as pc
 
-DOSSIER = '/srv/prometheus/.admin'
+DOSSIER = pc.ADMIN
 MDP = os.path.join(DOSSIER, 'mot-de-passe')
 SESSIONS = os.path.join(DOSSIER, 'sessions.json')
-THEMES = '/var/www/prometheus/themes'
-THEME_ACTIF = '/var/www/prometheus/theme.css'
-THEME_CHOIX = os.path.join(DOSSIER, 'theme')
+THEMES = pc.THEMES
+THEME_ACTIF = pc.THEME_ACTIF
+THEME_CHOIX = pc.THEME_CHOIX
 DUREE = 90 * 24 * 3600          # on reste connecte 90 jours
 ESSAIS = {}                     # anti-devinette : adresse -> (nombre d'echecs, heure)
-MESSAGES = '/srv/prometheus/messages/messages.json'
+MESSAGES = os.path.join(pc.SRV, 'messages', 'messages.json')
 MAX_MESSAGES = 500
 DERNIER_MESSAGE = {}            # adresse -> heure du dernier message (un message toutes les 20 s au plus)
 VERROU = threading.Lock()
 SOBRE = os.path.join(DOSSIER, 'sobre')                  # oui / non, ecrit par prometheus-sobre
-EXTINCTION = '/run/prometheus/extinction'               # minutes ; /run est vide a chaque demarrage
-EXTINCTION_RESTANT = '/run/prometheus/extinction-restant'
-PANNEAU = '/srv/prometheus/panneau/panneau.txt'          # texte du panneau d'accueil
+EXTINCTION = os.path.join(pc.RUN, 'extinction')         # minutes ; /run est vide a chaque demarrage
+EXTINCTION_RESTANT = os.path.join(pc.RUN, 'extinction-restant')
+PANNEAU = os.path.join(pc.SRV, 'panneau', 'panneau.txt')   # texte du panneau d'accueil
 
 # Fonctions « communaute » : annonce, registre des personnes, entraide, page Urgence. Toutes eteintes au depart.
-COMMUNAUTE = '/srv/prometheus/communaute'
-REGLAGES = os.path.join(COMMUNAUTE, 'reglages.json')
+COMMUNAUTE = pc.COMMUNAUTE
+REGLAGES = pc.REGLAGES
 REGISTRE = os.path.join(COMMUNAUTE, 'registre.json')
 ENTRAIDE = os.path.join(COMMUNAUTE, 'entraide.json')
-CATEGORIES = ['eau', 'nourriture', 'sante', 'abri', 'energie', 'transport', 'outils', 'competences', 'autre']
-DEFAUT = {
-    'annonce': {'active': False, 'texte': '', 'couleur': 'info', 'defile': True, 'vitesse': 'normale', 'ecran': False},
-    'registre': {'active': False, 'lieu': True},
-    'entraide': {'active': False, 'categories': CATEGORIES, 'duree': 72},
-    'urgence': {'active': False},
-    'recherches': {'epingles': []},     # sujets epingles sur l'accueil : [{titre, lien}]
-    # Radio Meshtastic reliee au tableau des messages (programme prometheus-radio)
-    'radio': {'active': False, 'qui': 'tous', 'delai': 60, 'ecran_minutes': 0},   # ecran : 0 = pas sur l'ecran e-ink
-    # Section Mesh : duree de l'historique (jours, 0 = toujours), administration a distance des autres radios,
-    # logiciels de toutes les cartes gardes sur la station (sinon : seulement les cartes deja vues ou cochees)
-    'mesh': {'historique_jours': 90, 'distance': False, 'toutes_cartes': False},
-    # Ecran et clavier branches sur la station (etape 11, la « mallette ») : veille en minutes, 0 = jamais
-    'ecran': {'active': False, 'veille': 5},
-    # Petit ecran e-ink pose sur le Pi (etape 6) : a desactiver s'il n'est pas branche
-    'eink': {'active': True},
-    # Balise : un message tout fait envoye seul par radio (toutes les 3 h ; au depart seulement si Urgence est allumee)
-    'balise': {'active': False, 'texte': '{nom} : station de savoir hors ligne et messages. Wifi ouvert « {wifi} ». {position}',
-               'heures': 3, 'canal': 0, 'urgence_seulement': True},
-}
+CATEGORIES = pc.CATEGORIES
+DEFAUT = pc.DEFAUT          # les reglages et leurs valeurs par defaut : prometheus_commun.py
 CHOIX = {'couleur': ('info', 'important', 'urgent'), 'vitesse': ('lente', 'normale', 'rapide'), 'duree': (0, 24, 72, 168),
          'qui': ('tous', 'admin'), 'delai': (30, 60, 300), 'ecran_minutes': (0, 1, 2, 5, 15),
          'historique_jours': (0, 30, 90, 365), 'veille': (0, 2, 5, 15, 60),
@@ -108,12 +93,13 @@ ORDRES_MESH = ('config-lire', 'config-ecrire', 'canal', 'canaux-lien', 'propriet
 MAX_FICHES = 2000
 RECHERCHES = os.path.join(COMMUNAUTE, 'recherches.json')   # {lien: {titre, n}} : aucun visiteur n'y est note
 DEJA_COMPTE = {}                # (adresse, lien) -> heure : un meme telephone ne compte qu'une fois par heure
-VUS = {}                        # adresse -> heure de la derniere page ouverte (pour « personnes connectees »)
 MAX_EPINGLES = 8
 DERNIER_ENVOI = {}              # (adresse, fonction) -> heure du dernier envoi (un toutes les 20 s au plus)
-RADIO = '/srv/prometheus/radio'  # echanges avec prometheus-radio (voir ce programme)
+RADIO = pc.RADIO               # echanges avec prometheus-radio (voir ce programme)
 DERNIER_RADIO = {}              # adresse -> heure du dernier message envoye par radio
-MAX_RADIO = 228                 # octets au plus dans un message Meshtastic (MeshCore : moins, voir etat.json)
+# Octets au plus dans un message radio : radio_limites.maxi (le reseau en service, ecrit dans etat.json par la radio).
+# Les modules radio_*.py (installes par 10-radio.sh) sont importes dans les fonctions qui s'en servent : la page
+# demarre meme sur une station dont la radio n'est pas encore installee.
 
 
 def hacher(mdp, sel=None):
@@ -131,11 +117,8 @@ def bon(mdp):
 
 
 def ecrire(chemin, texte):
-    tmp = chemin + '.tmp'
-    with open(tmp, 'w') as f:
-        f.write(texte)
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, chemin)
+    """Fichier prive (mot de passe, sessions, demandes) : 600."""
+    pc.ecrire_texte(chemin, texte, 0o600)
 
 
 def sessions():
@@ -148,11 +131,7 @@ def sessions():
 
 
 def ecrire_public(chemin, texte):
-    tmp = chemin + '.tmp'
-    with open(tmp, 'w') as f:
-        f.write(texte)
-    os.chmod(tmp, 0o644)
-    os.replace(tmp, chemin)
+    pc.ecrire_texte(chemin, texte, 0o644)
 
 
 def lire_messages():
@@ -208,6 +187,7 @@ def annuler_radio(ids=None):
 
 
 def etat_radio(admin):
+    import radio_limites as lim
     r = reglages()['radio']
     try:
         e = json.load(open(os.path.join(RADIO, 'etat.json')))
@@ -217,7 +197,7 @@ def etat_radio(admin):
             'delai': r['delai'], 'etat': e.get('etat', 'eteinte') if r['active'] else 'eteinte', 'nom': e.get('nom', ''),
             'attente': len(glob.glob(os.path.join(RADIO, 'a-envoyer', '*.json'))),
             # Octets au plus dans un message : depend du reseau (ecrit par prometheus-radio)
-            'reseau': e.get('reseau', 'meshtastic'), 'max': e.get('max') or MAX_RADIO,
+            'reseau': e.get('reseau', 'meshtastic'), 'max': e.get('max') or lim.maxi(e.get('reseau', 'meshtastic')),
             # Une version plus recente que celle de la radio de la station est gardee (Parametres, page Radio)
             'maj': maj_radio(e.get('reseau', 'meshtastic'))}
 
@@ -238,19 +218,17 @@ def maj_radio(reseau):
     return ''
 
 
-def lire_json(chemin, defaut):
-    try:
-        return json.load(open(chemin))
-    except (OSError, ValueError):
-        return defaut
+lire_json = pc.lire_json
 
 
 def ordre_mesh(action, p):
     """Depose un ordre pour prometheus-radio et attend sa reponse (20 s au plus)."""
     ident = secrets.token_hex(8)
     os.makedirs(os.path.join(RADIO, 'ordres'), exist_ok=True)
-    ecrire_public(os.path.join(RADIO, 'ordres', '%d-%s.json' % (time.time() * 1000, ident)),
-                  json.dumps({'id': ident, 'action': action, 'p': p, 'heure': time.time()}, ensure_ascii=False))
+    # 0600 : un ordre peut porter une cle de canal, une cle privee ou un mot de passe (lu par prometheus-radio, meme
+    # utilisateur)
+    ecrire(os.path.join(RADIO, 'ordres', '%d-%s.json' % (time.time() * 1000, ident)),
+           json.dumps({'id': ident, 'action': action, 'p': p, 'heure': time.time()}, ensure_ascii=False))
     reponse = os.path.join(RADIO, 'reponses', ident + '.json')
     fin = time.time() + 20
     while time.time() < fin:
@@ -328,61 +306,35 @@ def historique(q):
 
 
 def apercu_balise(texte):
-    """Le texte de la balise tel que la radio l'enverra (meme calcul que rendre_balise dans prometheus-radio)."""
-    moi = lire_json(os.path.join(RADIO, 'details.json'), {}).get('moi', {})
+    """Le texte de la balise tel que la radio l'enverra : le meme calcul (radio_limites.rendre_balise)."""
+    import radio_limites as lim
+    details = lire_json(os.path.join(RADIO, 'details.json'), {})
+    moi = details.get('moi', {})
     etat = lire_json(os.path.join(RADIO, 'etat.json'), {})
-    try:
-        wifi = subprocess.run(['nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', 'prometheus-wifi'],
-                              capture_output=True, text=True, timeout=10).stdout.strip()
-    except Exception:
-        wifi = ''
-    bat = moi.get('batterie')
-    valeurs = {'nom': moi.get('nom') or etat.get('nom', ''), 'wifi': wifi, 'heure': time.strftime('%H:%M'),
-               'position': '%.4f, %.4f' % (moi['lat'], moi['lon']) if moi.get('lat') and moi.get('lon') else '',
-               'batterie': '' if bat is None else ('secteur' if bat > 100 else '%d %%' % bat)}
-    t = str(texte)
-    for k, v in valeurs.items():
-        t = t.replace('{%s}' % k, v)
-    t = ' '.join(t.split())
-    maxi = etat.get('max') or MAX_RADIO
-    entier = t
-    while len(t.encode()) > maxi:
-        t = t[:-1]
-    return {'apercu': t, 'octets': len(entier.encode()), 'max': maxi, 'coupe': t != entier, 'position': bool(valeurs['position']),
+    wifi = pc.lancer('nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', pc.WIFI_STATION).strip()
+    maxi = etat.get('max') or lim.maxi(etat.get('reseau', 'meshtastic'))
+    t, entier = lim.rendre_balise(texte, maxi, moi, etat.get('nom', ''), wifi)
+    return {'apercu': t, 'octets': len(entier.encode()), 'max': maxi, 'coupe': t != entier,
+            'position': bool(lim.valeurs_balise(moi)['position']),
             'derniere': lire_json(os.path.join(RADIO, 'balise.json'), {}).get('derniere'),
-            'canaux': lire_json(os.path.join(RADIO, 'details.json'), {}).get('canaux', [])}
+            'canaux': details.get('canaux', [])}
 
 
 def port_station():
-    """Le port de la T-Beam de la station (nom dans /dev/serial/by-id) : celui note par l'outil radio, sinon sa puce."""
-    ports = [os.path.basename(p) for p in sorted(glob.glob('/dev/serial/by-id/*'))]
-    note = lire_json(os.path.join(RADIO, 'reseau.json'), {}).get('port')
-    if note in ports:
-        return note
-    return next((p for p in ports if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs'))), '')
+    """Le port de la T-Beam de la station (nom dans /dev/serial/by-id), ou '' : la regle de l'outil radio
+    (radio_materiel.port_station)."""
+    import radio_materiel as mat
+    p = mat.port_station(lire_json(os.path.join(RADIO, 'reseau.json'), {}).get('port'))
+    return os.path.basename(p) if p else ''
 
 
 def sauvegardes_mesh():
-    """Les reglages gardes avant chaque changement (section Mesh et outil radio), les plus recents d'abord."""
-    res = []
-    for f in glob.glob(os.path.join(RADIO, 'mesh-sauvegardes', '*')):
-        try:
-            premiere = open(f, errors='replace').readline().strip()
-        except OSError:
-            continue
-        raison = premiere[len('# Prometheus Station - '):] if premiere.startswith('# Prometheus Station - ') else ''
-        if f.endswith('.json'):
-            raison = lire_json(f, {}).get('raison', '')
-        res.append({'fichier': os.path.basename(f), 'heure': os.path.getmtime(f), 'raison': raison,
-                    'reseau': 'meshcore' if os.path.basename(f).startswith('meshcore') else 'meshtastic'})
-    return sorted(res, key=lambda x: -x['heure'])
+    """Les reglages gardes avant chaque changement (section Mesh), les plus recents d'abord (radio_sauvegarde)."""
+    import radio_sauvegarde as sauv
+    return sauv.liste(os.path.join(RADIO, 'mesh-sauvegardes'))
 
 
-def lire_fichier(chemin, defaut=''):
-    try:
-        return open(chemin).read().strip()
-    except OSError:
-        return defaut
+lire_fichier = pc.lire_texte
 
 
 def energie():
@@ -391,24 +343,12 @@ def energie():
     r = lire_fichier(EXTINCTION_RESTANT)
     return {'sobre': (demande or lire_fichier(SOBRE, 'non')) == 'oui',
             # l'etape 11 (ecran et clavier sur la station) est-elle installee ?
-            'ecran_installe': os.path.exists('/etc/systemd/system/prometheus-kiosque.service'),
+            'ecran_installe': os.path.exists(pc.chemin('/etc/systemd/system/prometheus-kiosque.service')),
             'extinction': int(m) if m.isdigit() else 0,
             'restant': int(r) if r.lstrip('-').isdigit() else None}
 
 
-def reglages():
-    """Les reglages des fonctions communaute, completes par les valeurs par defaut."""
-    r = json.loads(json.dumps(DEFAUT))
-    try:
-        lu = json.load(open(REGLAGES))
-    except (OSError, ValueError):
-        lu = {}
-    for section, valeurs in r.items():
-        if isinstance(lu.get(section), dict):
-            for k in valeurs:
-                if k in lu[section]:
-                    valeurs[k] = lu[section][k]
-    return r
+reglages = pc.reglages      # les reglages, completes par les valeurs par defaut
 
 
 def regler(section, valeurs):
@@ -457,38 +397,21 @@ def publique(fiche):
     return {k: v for k, v in fiche.items() if k != 'cle'}
 
 
-def personnes():
-    """Combien de personnes sont connectees. Wifi de la station ouvert : les telephones accroches a ce wifi.
-    Sinon (a la maison) : les appareils qui ont une page de la station ouverte depuis moins de 3 minutes
-    (chaque page interroge la station chaque minute)."""
-    def lancer(*a):
-        try:
-            return subprocess.run(a, capture_output=True, text=True, timeout=10).stdout
-        except Exception:
-            return ''
-    if lancer('nmcli', '-g', 'GENERAL.CONNECTION', 'device', 'show', 'wlan0').strip() == 'prometheus-wifi':
-        return sum(1 for l in lancer('/usr/sbin/iw', 'dev', 'wlan0', 'station', 'dump').splitlines() if l.startswith('Station'))
-    maintenant = time.time()
-    for ip in [ip for ip, t in VUS.items() if maintenant - t > 3600]:
-        del VUS[ip]
-    return sum(1 for t in VUS.values() if maintenant - t < 180)
-
-
 def sante():
     """Temperature du processeur, tension (relevee par prometheus-tension), duree depuis l'allumage."""
     t = lire_fichier('/sys/class/thermal/thermal_zone0/temp')
     try:
-        v = int(lire_fichier('/run/prometheus/tension'), 16)
+        v = int(lire_fichier(os.path.join(pc.RUN, 'tension')), 16)
     except ValueError:
         v = None
     # bit 0 : tension trop basse en ce moment ; bit 16 : elle l'a ete depuis l'allumage
     tension = None if v is None else 'basse' if v & 0x1 else 'basse_avant' if v & 0x10000 else 'ok'
     # Carte batterie X728 (etape 12) : etat ecrit toutes les 10 s par prometheus-batterie ; trop vieux = absent
-    batterie = lire_json('/run/prometheus/batterie', None)
+    batterie = lire_json(os.path.join(pc.RUN, 'batterie'), None)
     if not isinstance(batterie, dict) or time.time() - batterie.get('heure', 0) > 120:
         batterie = None
     return {'temperature': round(int(t) / 1000) if t.isdigit() else None, 'tension': tension,
-            'allumee': int(float(lire_fichier('/proc/uptime', '0').split()[0])), 'personnes': personnes(),
+            'allumee': int(float(lire_fichier('/proc/uptime', '0').split()[0])), 'personnes': pc.personnes(),
             'batterie': batterie}
 
 
@@ -503,10 +426,21 @@ def regler_heure(ms):
     if not 1.7e9 < tel < 4.1e9 or abs(tel - time.time()) < 120:
         return False
     # Internet : la marque de systemd-timesyncd (la meme que prometheus-horloge et prometheus-radio)
-    if os.path.exists('/run/systemd/timesync/synchronized') or lire_fichier('/run/prometheus-heure') in ('carte', 'radio'):
+    if os.path.exists(pc.chemin('/run/systemd/timesync/synchronized')) or lire_fichier(pc.chemin('/run/prometheus-heure')) in ('carte', 'radio'):
         return False
     # Le service a le droit de regler l'horloge (CAP_SYS_TIME, voir prometheus-admin.service)
     return subprocess.run(['date', '-s', '@%d' % tel], capture_output=True).returncode == 0
+
+
+# Les adresses reservees a l'administrateur connecte (un « / » final : tout ce qui commence ainsi).
+# Les autres sont publiques (/api/... pour les visiteurs, la connexion elle-meme) ; certaines adresses publiques
+# donnent un peu plus a l'administrateur (effacer n'importe quelle fiche) : elles le verifient elles-memes.
+ROUTES_ADMIN = {
+    'GET': ('/recherches', '/mesh', '/mesh/', '/balise', '/radio', '/energie', '/sante'),
+    'POST': ('/api/messages/effacer', '/api/messages/vider', '/api/registre/vider', '/api/entraide/vider',
+             '/theme', '/wifi', '/adresse', '/recherches/', '/radio/envoyer', '/mesh/', '/radio/code',
+             '/effacer-ecrits', '/reglages', '/panneau', '/energie'),
+}
 
 
 class Admin(BaseHTTPRequestHandler):
@@ -547,12 +481,21 @@ class Admin(BaseHTTPRequestHandler):
         except ValueError:
             return {}
 
+    def refuse(self, methode):
+        """Adresse reservee a l'administrateur et navigateur pas connecte : 401 (la page renvoie vers la connexion).
+        Le seul endroit qui decide qui doit etre connecte : ROUTES_ADMIN."""
+        chemin = self.path.split('?', 1)[0]
+        if not any(chemin == r or (r.endswith('/') and chemin.startswith(r)) for r in ROUTES_ADMIN[methode]):
+            return False
+        if self.connecte():
+            return False
+        self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
+        return True
+
     def do_GET(self):
-        if self.path.startswith('/api/'):
-            VUS[self.headers.get('X-Real-IP', '?')] = time.time()
+        if self.refuse('GET'):
+            return
         if self.path == '/recherches':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             try:
                 r = json.load(open(RECHERCHES))
             except (OSError, ValueError):
@@ -560,8 +503,6 @@ class Admin(BaseHTTPRequestHandler):
             sujets = sorted(({'lien': l, 'titre': v['titre'], 'n': v['n']} for l, v in r.items()), key=lambda x: -x['n'])[:30]
             return self.repondre(200, {'sujets': sujets, 'epingles': reglages()['recherches']['epingles']})
         if self.path.startswith('/mesh/') or self.path == '/mesh':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             from urllib.parse import urlsplit, parse_qs
             u = urlsplit(self.path)
             q = parse_qs(u.query)
@@ -597,15 +538,11 @@ class Admin(BaseHTTPRequestHandler):
             return self.repondre(404)
         if self.path.startswith('/balise'):
             # Parametres > Radio > Balise : apercu du texte tel qu'il partira (?texte= : un texte pas encore enregistre)
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             from urllib.parse import urlsplit, parse_qs
             q = parse_qs(urlsplit(self.path).query)
             texte = q.get('texte', [reglages()['balise']['texte']])[0][:400]
             return self.repondre(200, apercu_balise(texte))
         if self.path == '/radio':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             def lu(nom, defaut):
                 try:
                     return json.load(open(os.path.join(RADIO, nom)))
@@ -615,17 +552,13 @@ class Admin(BaseHTTPRequestHandler):
             outil = lu('outil.json', {})
             # Radios branchees en USB autres que celle de la station (les T-Echo), vues en direct, avec ce que
             # l'outil radio en sait (logiciel, version, nom ; par numero de serie, qui ne change pas)
-            ports = sorted(glob.glob('/dev/serial/by-id/*'))
-            station = next((p for p in ports if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs'))), None)
-            if reseau.get('port') and '/dev/serial/by-id/' + reseau['port'] in ports:
-                station = '/dev/serial/by-id/' + reseau['port']   # le port de la T-Beam, note par l'outil radio
+            import radio_materiel as mat
+            ports = mat.ports()
+            station = mat.port_station(reseau.get('port'), ports)   # la regle de l'outil radio
             connus = outil.pop('t_echo', {})
             outil['radios'] = []
-            for p in ports:
-                if p == station:
-                    continue
-                m = re.search(r'_([0-9A-Fa-f]{12,})-if\d+$', p)
-                serie = m.group(1).upper() if m else ''
+            for p in mat.autres_ports(station, ports):
+                serie = mat.serie_de(p) or ''
                 fiche = dict(connus.get(serie, {}))
                 # Le logiciel note ne vaut que si le port est toujours le meme (sinon il a change de logiciel)
                 if fiche.get('port') != os.path.basename(p):
@@ -664,18 +597,16 @@ class Admin(BaseHTTPRequestHandler):
         elif self.path == '/etat':
             self.repondre(200, {'defini': os.path.exists(MDP), 'connecte': self.connecte()})
         elif self.path == '/energie':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             self.repondre(200, energie())
         elif self.path == '/sante':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             self.repondre(200, sante())
         else:
             self.repondre(404)
 
     def do_POST(self):
         d = self.lire()
+        if self.refuse('POST'):
+            return
         ip = self.headers.get('X-Real-IP', '?')
 
         if self.path == '/api/messages':
@@ -712,8 +643,6 @@ class Admin(BaseHTTPRequestHandler):
             return self.repondre(200)
 
         if self.path == '/api/messages/effacer':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             with VERROU:
                 m = [x for x in lire_messages() if x.get('id') != d.get('id')]
                 ecrire_public(MESSAGES, json.dumps(m, ensure_ascii=False))
@@ -721,8 +650,6 @@ class Admin(BaseHTTPRequestHandler):
             return self.repondre(200)
 
         if self.path == '/api/messages/vider':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             with VERROU:
                 ecrire_public(MESSAGES, '[]')
                 annules = annuler_radio()
@@ -802,8 +729,6 @@ class Admin(BaseHTTPRequestHandler):
             return self.repondre(200)
 
         if self.path in ('/api/registre/vider', '/api/entraide/vider'):
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             with VERROU:
                 ecrire_public(REGISTRE if 'registre' in self.path else ENTRAIDE, '[]')
             return self.repondre(200)
@@ -840,18 +765,16 @@ class Admin(BaseHTTPRequestHandler):
         if self.path == '/theme':
             nom = os.path.basename(str(d.get('nom', '')))
             source = os.path.join(THEMES, nom + '.css')
-            if not self.connecte() or not os.path.isfile(source):
+            if not os.path.isfile(source):
                 return self.repondre(400, {'erreur': 'Couleurs inconnues.'})
-            with open(THEME_ACTIF, 'w') as f:
-                f.write(open(source).read())
-            with open(THEME_CHOIX, 'w') as f:
-                f.write(nom)
+            # theme.css est ecrit sur place : il appartient au service, mais pas son dossier (les pages, root)
+            with open(THEME_ACTIF, 'w', encoding='utf-8') as f:
+                f.write(open(source, encoding='utf-8').read())
+            pc.ecrire_texte(THEME_CHOIX, nom)
             return self.repondre(200)
 
         if self.path == '/wifi':
             nom = str(d.get('nom', '')).strip()
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             if not 1 <= len(nom.encode()) <= 32 or any(ord(c) < 32 for c in nom):
                 return self.repondre(400, {'erreur': 'Entre 1 et 32 caractères.'})
             ecrire(os.path.join(DOSSIER, 'ssid-demande'), nom)
@@ -859,16 +782,12 @@ class Admin(BaseHTTPRequestHandler):
 
         if self.path == '/adresse':
             nom = str(d.get('nom', '')).strip().lower()
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             if not re.fullmatch(r'[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?', nom):
                 return self.repondre(400, {'erreur': 'Lettres minuscules, chiffres et tirets seulement.'})
             ecrire(os.path.join(DOSSIER, 'nom-demande'), nom)
             return self.repondre(200)
 
         if self.path in ('/recherches/epingler', '/recherches/vider'):
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             with VERROU:
                 if self.path.endswith('vider'):
                     ecrire_public(RECHERCHES, '{}')
@@ -889,8 +808,6 @@ class Admin(BaseHTTPRequestHandler):
             return self.repondre(200, {'epingles': ep})
 
         if self.path == '/radio/envoyer':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             r = etat_radio(True)
             if not r['active']:
                 return self.repondre(403, {'erreur': 'Cette fonction est désactivée.'})
@@ -908,8 +825,6 @@ class Admin(BaseHTTPRequestHandler):
             return self.repondre(200, {'id': ident})
 
         if self.path == '/mesh/ordre':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             action, p = d.get('action'), d.get('p', {})
             if action not in ORDRES_MESH or not isinstance(p, dict):
                 return self.repondre(400, {'erreur': 'Réglage invalide.'})
@@ -922,8 +837,6 @@ class Admin(BaseHTTPRequestHandler):
 
         if self.path == '/mesh/atelier/suivies':
             # Les cartes dont la station garde les logiciels (cochees dans l'atelier) : {meshtastic: [cibles], meshcore: [cartes]}
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             s = {}
             for k in ('meshtastic', 'meshcore'):
                 v = d.get(k, [])
@@ -935,17 +848,13 @@ class Admin(BaseHTTPRequestHandler):
 
         if self.path == '/radio/code':
             # Premier passage a MeshCore : le code a 6 chiffres affiche sur l'ecran de la radio (lu par prometheus-radio-outil)
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             code = str(d.get('code', '')).strip()
             if not re.fullmatch(r'\d{6}', code):
                 return self.repondre(400, {'erreur': 'Six chiffres.'})
-            ecrire_public(os.path.join(RADIO, 'code-ble'), code)
+            ecrire(os.path.join(RADIO, 'code-ble'), code)      # 0600 : le code d'appairage (lu par l'outil radio, root)
             return self.repondre(200)
 
         if self.path == '/effacer-ecrits':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             with VERROU:
                 n = {'messages': len(lire_messages()), 'registre': len(lire_liste(REGISTRE)), 'entraide': len(lire_liste(ENTRAIDE))}
                 ecrire_public(MESSAGES, '[]')
@@ -958,20 +867,16 @@ class Admin(BaseHTTPRequestHandler):
             return self.repondre(200, n)
 
         if self.path == '/reglages':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             with VERROU:
                 s = regler(d.get('section'), d.get('valeurs'))
             if s is None:
                 return self.repondre(400, {'erreur': 'Réglage invalide.'})
-            if d.get('section') == 'radio':
-                # Le mode sobre coupe les prises USB, sauf quand la radio est activee : on le lui fait reappliquer
-                ecrire(os.path.join(DOSSIER, 'sobre-demande'), 'oui' if energie()['sobre'] else 'non')
+            if d.get('section') in ('radio', 'ecran'):
+                # Le mode sobre coupe les prises USB, sauf pour la radio et l'ecran : on le lui fait reappliquer
+                pc.reappliquer_sobre()
             return self.repondre(200, s)
 
         if self.path == '/panneau':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             texte = str(d.get('texte', '')).replace('\r\n', '\n')
             if len(texte) > 20000:
                 return self.repondre(400, {'erreur': 'Texte trop long.'})
@@ -979,8 +884,6 @@ class Admin(BaseHTTPRequestHandler):
             return self.repondre(200)
 
         if self.path == '/energie':
-            if not self.connecte():
-                return self.repondre(401, {'erreur': 'Connectez-vous d’abord.'})
             m = d.get('extinction')
             if m is not None and (type(m) is not int or not 0 <= m <= 1440):
                 return self.repondre(400, {'erreur': 'Réglage invalide.'})
@@ -1000,4 +903,4 @@ class Admin(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     os.makedirs(DOSSIER, mode=0o700, exist_ok=True)
-    ThreadingHTTPServer(('127.0.0.1', 8091), Admin).serve_forever()
+    ThreadingHTTPServer(('127.0.0.1', int(os.environ.get('PROMETHEUS_ADMIN_PORT', '8091'))), Admin).serve_forever()

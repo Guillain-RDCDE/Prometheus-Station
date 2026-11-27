@@ -127,7 +127,7 @@ Every operation of this page (settings, network switch, software) writes what it
 | `prometheus-radio` | the radio service: one part for Meshtastic (USB), one for MeshCore (Bluetooth), behind the same exchange files. It reads which network is in use in `reseau.json` |
 | `prometheus-radio-outil` | the radio tool, run as administrator: `sauvegarder` (save), `regler` (settings), `reseau` (switch), `chercher` (fetch), `installer` (update), `t-echo` (a plugged T-Echo: update or switch), `detecter` (recognise the plugged T-Echo). One at a time, in its own service, so closing the page doesn't stop it |
 | `prometheus-radio-chercher` (timer) | runs `prometheus-radio-outil chercher-auto` daily: fetch only, with its own details file `radio-chercher.txt`, nothing without internet |
-| `prometheus-commande` | the page drops an order (`radio-…`) in a folder; this service starts the tool. No page ever runs a program itself |
+| `prometheus-commande` | the page drops an order (`radio-…@number`) in a folder; this service starts the tool and writes its answer (`/var/www/prometheus/ajouter/resultats/<number>.json`: done, started, waiting, refused). One radio operation at a time: an order that arrives while another runs **waits** in `/srv/prometheus/commande-attente/` and starts by itself when the first one ends; the page says so. No page ever runs a program itself |
 | `prometheus-admin` | the Radio page's data (`GET /radio`), sending (`/radio/envoyer`), the screen code (`/radio/code`) |
 
 | Path | Content |

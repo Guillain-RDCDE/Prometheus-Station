@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="mesh.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="mesh.js"></script>
 <style>
   .cartes-liste { max-height: 420px; overflow: auto; border-top: 1px solid var(--trait); border-bottom: 1px solid var(--trait); padding: 4px 10px 4px 0; }
@@ -126,13 +127,7 @@ function ligneCarte(r) {
   f.onsubmit = function (ev) {
     ev.preventDefault();
     if (!f.carte.value) { dire(res, false, T('Choisissez d’abord la carte.', 'Choose the board first.')); return; }
-    var b = f.querySelector('.bouton');
-    if (f.mode.value === 'complet' && !b.classList.contains('confirmer')) {
-      b.classList.add('confirmer'); b.textContent = T('Toucher encore : la carte est effacée', 'Tap again: the board is erased');
-      setTimeout(function () { b.classList.remove('confirmer'); b.textContent = T('Lancer', 'Start'); }, 6000);
-      return;
-    }
-    b.classList.remove('confirmer'); b.textContent = T('Lancer', 'Start');
+    if (!deuxTemps(f.querySelector('.bouton'), { si: f.mode.value === 'complet', texte: T('Toucher encore : la carte est effacée', 'Tap again: the board is erased') })) return;
     var p = { reseau: f.reseau.value, carte: f.carte.value, mode: f.mode.value, garder: f.garder.checked };
     if (r.disque) p.disque = r.disque; else p.port = r.port;
     if (p.reseau === 'meshcore') { p.role = f.role.value; if (f.nom.value.trim()) p.nom = f.nom.value.trim(); if (f.mdp.value) p.mot_de_passe = f.mdp.value; }
@@ -231,10 +226,9 @@ function resume() {
 $('cherche-carte').oninput = listeCartes;
 // Enregistrer, puis telecharger tout de suite (l'outil radio ; sans internet il le dit, rien ne change)
 $('b-suivies').onclick = function () {
-  fetch('/admin-api/mesh/atelier/suivies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(suivies) })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+  envoyer('/admin-api/mesh/atelier/suivies', suivies)
     .then(function (r) {
-      if (!r.ok) { dire('suivies-res', false, TE(r.d.erreur)); return; }
+      if (!r.ok) { dire('suivies-res', false, r.erreur); return; }
       coches = false;
       dire('suivies-res', true, T('Enregistré. Téléchargement de leurs logiciels…', 'Saved. Downloading their software…'));
       lancerOutil('chercher', '');

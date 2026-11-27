@@ -7,19 +7,13 @@
 # Pour l'essayer sans rien eteindre : PROMETHEUS_EXTINCTION_ESSAI=1 prometheus-extinction
 REGLAGE=/run/prometheus/extinction
 RESTANT=/run/prometheus/extinction-restant   # secondes avant l'extinction, lu par la page
-AP=prometheus-wifi
 PRECEDENT=
 DERNIERE=0
 
+# Combien de visiteurs : la meme regle que le chiffre « Connectes » de la page Parametres (prometheus-commun)
+# En cas de doute (programme absent ou en erreur), on compte 1 : mieux vaut ne pas eteindre
 visiteurs() {
-  local n=0
-  # Telephones sur le wifi de la station (seulement quand c'est lui qui est ouvert)
-  if [ "$(nmcli -g GENERAL.CONNECTION device show wlan0 2>/dev/null)" = "$AP" ]; then
-    n=$(iw dev wlan0 station dump 2>/dev/null | grep -c '^Station')
-  fi
-  # Pages ouvertes (nginx) et connexions a distance (SSH)
-  n=$((n + $(ss -Htn state established '( sport = :80 or sport = :22 )' 2>/dev/null | wc -l)))
-  echo "$n"
+  prometheus-commun personnes 2>/dev/null || echo 1
 }
 
 while true; do
@@ -36,7 +30,7 @@ while true; do
     RESTE=$((M * 60 - (T - DERNIERE)))
     echo "$RESTE" > "$RESTANT"
     # Jamais au milieu d'une mise a jour du systeme : elle laisserait la station abimee
-    if [ "$RESTE" -le 0 ] && ! systemctl is-active --quiet prometheus-maj-systeme; then
+    if [ "$RESTE" -le 0 ] && ! prometheus-commun maj-en-cours; then
       echo "Personne depuis $M min : extinction"
       if [ -n "$PROMETHEUS_EXTINCTION_ESSAI" ]; then echo "(essai : la station ne s'eteint pas)"; exit 0; fi
       systemctl poweroff

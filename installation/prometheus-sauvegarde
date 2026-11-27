@@ -1,21 +1,20 @@
 #!/bin/bash
 # Prometheus Station - sauvegarde des reglages (chaque jour, et depuis Parametres > Sauvegarde).
 # Contient : mot de passe des Parametres, mode sobre, couleurs, messages, panneau d'accueil,
-# annonce, registre des personnes, entraide,
-# liste des contenus et wifis connus (avec leurs mots de passe).
-# Ne contient PAS les encyclopedies (elles se retelechargent) ni les livres (trop gros).
+# annonce, registre des personnes, entraide, liste des contenus et wifis connus (avec leurs mots de passe).
+# Ce qu'elle contient est ecrit a UN seul endroit : /usr/local/lib/prometheus/sauvegarde.liste (lue aussi par
+# prometheus-restaurer). Le dossier et ses droits : table /etc/tmpfiles.d/prometheus.conf.
 # Les 7 dernieres sont gardees dans /srv/prometheus/sauvegardes, lisibles par l'administrateur connecte seulement.
 set -e
 DOSSIER=/srv/prometheus/sauvegardes
+LISTE=/usr/local/lib/prometheus/sauvegarde.liste
 NOM=prometheus-sauvegarde-$(date +%Y-%m-%d-%H%M).tar.gz
-mkdir -p "$DOSSIER"
-chown root:www-data "$DOSSIER"
-chmod 750 "$DOSSIER"
+[ -d "$DOSSIER" ] || systemd-tmpfiles --create /etc/tmpfiles.d/prometheus.conf
+mapfile -t CHEMINS < <(grep -vE '^(#|$)' "$LISTE")
 
 cd /
 tar czf "$DOSSIER/$NOM.tmp" --exclude=srv/prometheus/.admin/sessions.json --ignore-failed-read \
-  srv/prometheus/.admin srv/prometheus/messages srv/prometheus/panneau srv/prometheus/communaute srv/prometheus/contenus.txt \
-  etc/NetworkManager/system-connections 2>/dev/null || [ $? -eq 1 ]   # 1 = un fichier a change pendant la copie : sans gravite
+  "${CHEMINS[@]}" 2>/dev/null || [ $? -eq 1 ]   # 1 = un fichier a change pendant la copie : sans gravite
 chown root:www-data "$DOSSIER/$NOM.tmp"
 chmod 640 "$DOSSIER/$NOM.tmp"
 mv "$DOSSIER/$NOM.tmp" "$DOSSIER/$NOM"

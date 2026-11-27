@@ -7,6 +7,8 @@
 #   sudo bash 12-batterie.sh
 set -euo pipefail
 ICI=$(cd "$(dirname "$0")" && pwd)
+# Module commun des programmes, table des dossiers, liste de la sauvegarde : commun.sh (le meme pour chaque etape)
+. "$ICI/commun.sh"
 
 echo "== Bibliotheques (bus I2C de la jauge, broches)"
 export DEBIAN_FRONTEND=noninteractive

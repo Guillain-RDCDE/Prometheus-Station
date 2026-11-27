@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/theme.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="/annonce.js"></script>
 <script>
 // Bouton « retour » : le navigateur reaffiche une page gardee en memoire ; on reprend les couleurs du moment
@@ -31,11 +32,11 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
 var acceptes = /\.(epub|pdf|zim)$/i;
 
 // ----- Livres en double (meme contenu, octet pour octet) : proposer de supprimer le plus recent ou de garder les deux
-function mo(o) { if (o < 1048576) return Math.max(1, Math.round(o / 1024)) + T(' Ko', ' KB'); var m = o / 1048576; return (m < 10 ? m.toFixed(1) : Math.round(m)).toString().replace('.', LANGUE === 'en' ? '.' : ',') + T(' Mo', ' MB'); }
-function ordre(nom, contenu) { return fetch('/ajouter/commande/' + nom + '-' + Date.now(), { method: 'PUT', body: contenu }); }
+// Tailles : taille() de /commun.js (1 Mo = 1 000 000 octets, comme partout sur la station)
+function ordre(nom, contenu) { return commander(nom + '-' + Date.now(), contenu); }   // numerote (/commun.js)
 function doublons() {
-  return fetch('/ajouter/doublons.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : { groupes: [] }; })
-    .then(function (d) { afficherDoublons(d.groupes || []); }).catch(function () {});
+  return lire('/ajouter/doublons.json').catch(function () { return { groupes: [] }; })
+    .then(function (d) { afficherDoublons(d.groupes || []); });
 }
 function afficherDoublons(groupes) {
   var zone = document.getElementById('doublons');
@@ -46,18 +47,17 @@ function afficherDoublons(groupes) {
     t.textContent = T('Livre en double', 'Duplicate book');
     var p = document.createElement('p');
     p.textContent = (g.doublons.length > 1 ? g.doublons.map(function (n) { return '« ' + n + ' »'; }).join(T(' et ', ' and ')) + T(' sont identiques', ' are identical')
-      : '« ' + g.doublons[0] + ' »' + T(' est identique', ' is identical')) + T(' à « ', ' to “') + g.garder + T(' », déjà dans la bibliothèque (même contenu, ', '”, already in the library (same content, ') + mo(g.taille) + ').';
+      : '« ' + g.doublons[0] + ' »' + T(' est identique', ' is identical')) + T(' à « ', ' to “') + g.garder + T(' », déjà dans la bibliothèque (même contenu, ', '”, already in the library (same content, ') + taille(g.taille) + ').';
     var boutons = document.createElement('div'); boutons.className = 'doublon-boutons';
     var sup = document.createElement('button'); sup.className = 'bouton';
     sup.textContent = g.doublons.length > 1 ? T('Supprimer les doublons', 'Delete the duplicates') : T('Supprimer le doublon', 'Delete the duplicate');
     var garder = document.createElement('button'); garder.className = 'bouton secondaire';
     garder.textContent = T('Garder les deux', 'Keep both');
-    sup.onclick = function () {
-      // En deux temps, comme toute suppression
-      if (!sup.dataset.confirmer) { sup.dataset.confirmer = '1'; sup.classList.add('danger'); sup.textContent = T('Toucher encore pour supprimer', 'Tap again to delete'); return; }
+    // En deux temps, comme toute suppression
+    deuxTemps(sup, { texte: T('Toucher encore pour supprimer', 'Tap again to delete'), action: function () {
       sup.disabled = garder.disabled = true; sup.textContent = T('Suppression…', 'Deleting…');
       Promise.all(g.doublons.map(function (n) { return ordre('supprimer', n); })).then(attendre, attendre);
-    };
+    } });
     garder.onclick = function () {
       sup.disabled = garder.disabled = true;
       ordre('garder-doublon', g.empreinte).then(attendre, attendre);
@@ -71,7 +71,8 @@ function afficherDoublons(groupes) {
 function attendre() { [2000, 5000, 10000, 20000, 40000].forEach(function (ms) { setTimeout(doublons, ms); }); }
 doublons();
 
-function envoyer(f) {
+// Deposer un fichier sur la station (XMLHttpRequest : lui seul donne l'avancement de l'envoi)
+function deposer(f) {
   var li = document.createElement('li');
   var nom = document.createElement('div');
   nom.className = 'nom-envoi';
@@ -97,7 +98,7 @@ function envoyer(f) {
     etat.innerHTML = '';
     var b = document.createElement('b'); b.textContent = pc + ' %';
     etat.appendChild(b);
-    etat.appendChild(document.createTextNode(' · ' + mo(fait) + T(' sur ', ' of ') + mo(total)));
+    etat.appendChild(document.createTextNode(' · ' + taille(fait) + T(' sur ', ' of ') + taille(total)));
   }
   avance(0, f.size);
   var x = new XMLHttpRequest();
@@ -108,7 +109,7 @@ function envoyer(f) {
     plein.style.width = '100%';
     barre.classList.add(ok ? 'fini' : 'echec');
     etat.textContent = ok
-      ? T('Reçu (', 'Received (') + mo(f.size) + T('). Il sera rangé dans un instant.', '). It will be filed in a moment.')
+      ? T('Reçu (', 'Received (') + taille(f.size) + T('). Il sera rangé dans un instant.', '). It will be filed in a moment.')
       : T('Échec de l’envoi (erreur ', 'Upload failed (error ') + x.status + ').';
     if (ok) attendre();
   };
@@ -121,7 +122,7 @@ function envoyer(f) {
 
 var depot = document.getElementById('depot');
 document.getElementById('choix').addEventListener('change', function (e) {
-  Array.prototype.forEach.call(e.target.files, envoyer);
+  Array.prototype.forEach.call(e.target.files, deposer);
   e.target.value = '';
 });
 ['dragenter', 'dragover'].forEach(function (t) {
@@ -130,7 +131,7 @@ document.getElementById('choix').addEventListener('change', function (e) {
 ['dragleave', 'drop'].forEach(function (t) {
   depot.addEventListener(t, function (e) { e.preventDefault(); depot.classList.remove('survol'); });
 });
-depot.addEventListener('drop', function (e) { Array.prototype.forEach.call(e.dataTransfer.files, envoyer); });
+depot.addEventListener('drop', function (e) { Array.prototype.forEach.call(e.dataTransfer.files, deposer); });
 </script>
 </body>
 </html>

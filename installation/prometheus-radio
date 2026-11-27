@@ -18,11 +18,23 @@
 #   historique.db           SQLite : paquets entendus, statistiques, telemetrie (90 jours par defaut)
 #   mesh-sauvegardes/       reglages gardes avant chaque changement fait depuis la section Mesh
 #   garde-fou.json          un reglage risque vient d'etre ecrit : si la radio ne revient pas, on remet la sauvegarde
+#                           (radio_gardefou.py, meme regle pour Meshtastic et MeshCore)
 #   balise.json             dernier envoi de la balise (Parametres > Radio > Balise)
 # Avant d'utiliser l'outil « meshtastic » a la main : sudo systemctl stop prometheus-radio (un seul programme a la fois).
-import asyncio, base64, glob, json, os, secrets, sqlite3, threading, time
+# Refonte du 27/11/2026 : un pilote par reseau derriere la meme porte (classe Pilote), un seul chemin pour les ordres
+# (traiter_ordre : delai, sauvegarde avant changement, garde-fou) ; tailles, materiel, sauvegardes, secrets et
+# garde-fou dans les modules radio_*.py partages avec l'outil radio et la page (/usr/local/lib/prometheus/).
+import asyncio, base64, glob, json, os, secrets, sqlite3, sys, threading, time
 
-DOSSIER = '/srv/prometheus/radio'
+sys.path[:0] = [os.path.dirname(os.path.realpath(__file__)), '/usr/local/lib/prometheus']
+import prometheus_commun as pc
+import radio_gardefou as gf
+import radio_limites as lim
+import radio_materiel as mat
+import radio_sauvegarde as sauv
+import radio_surete as sur
+
+DOSSIER = pc.RADIO
 A_ENVOYER = os.path.join(DOSSIER, 'a-envoyer')
 PARTIS = os.path.join(DOSSIER, 'partis')
 RECUS = os.path.join(DOSSIER, 'recus')
@@ -39,24 +51,22 @@ HISTORIQUE = os.path.join(DOSSIER, 'historique.db')
 SAUVE_MESH = os.path.join(DOSSIER, 'mesh-sauvegardes')
 GARDE_FOU = os.path.join(DOSSIER, 'garde-fou.json')
 ATTENTE_CONTACTS = os.path.join(DOSSIER, 'contacts-attente.json')   # MeshCore : radios annoncees, pas encore ajoutees
-COMMANDE = '/srv/prometheus/commande'                         # ordres pour prometheus-commande (outil radio, root)
-REGLAGES = '/srv/prometheus/communaute/reglages.json'
+COMMANDE = pc.COMMANDE                                        # ordres pour prometheus-commande (outil radio, root)
+REGLAGES = pc.REGLAGES
 ECART = 15            # secondes au moins entre deux emissions (temps d'emission limite en Europe)
 SILENCE = 600         # sans nouvelles de la radio depuis 10 min : on verifie qu'elle repond encore
-MAX_TEXTE = 500
+MAX_TEXTE = lim.MAX_TEXTE
 MAX_JOURNAL = 300
 PHOTO = 30            # secondes entre deux mises a jour de details.json
 RELEVE = 60           # secondes entre deux releves des statistiques dans l'historique
-MAX_MESHTASTIC = 228  # octets par message
-MAX_MESHCORE = 160    # octets par message (MAX_TEXT_LEN) ; sur un canal, « Nom: » part devant
+MAX_MESHTASTIC = lim.MAX_MESHTASTIC   # octets par message (radio_limites.py)
 ANNONCE_MESHCORE = 6 * 3600   # MeshCore : la station s'annonce (advert) au plus toutes les 6 h, et a chaque connexion
-ATTENTE_RADIO = 180   # garde-fou : secondes laissees a la radio pour revenir apres un reglage risque
+DELAI_ORDRE = 90      # secondes au plus pour un ordre de la section Mesh (les deux reseaux)
 MAX_RESULTATS = 200
-GARDER_SAUVEGARDES = 30
 # L'heure par la radio (quand la station n'a ni Internet ni l'horloge de la carte X728) : voir heure_entendue()
-HEURE_SOURCE = '/run/prometheus-heure'             # ecrit par prometheus-horloge : « carte » ou « radio »
-HEURE_INTERNET = '/run/systemd/timesync/synchronized'
-HEURE_DEMANDE = '/run/prometheus/heure-radio.json'  # lu par prometheus-horloge --radio (root), qui met a l'heure
+HEURE_SOURCE = pc.chemin('/run/prometheus-heure')   # ecrit par prometheus-horloge : « carte » ou « radio »
+HEURE_INTERNET = pc.chemin('/run/systemd/timesync/synchronized')
+HEURE_DEMANDE = os.path.join(pc.RUN, 'heure-radio.json')   # lu par prometheus-horloge --radio (root), qui met a l'heure
 HEURE_ACCORD = 120    # secondes : deux radios « d'accord » sur l'heure
 HEURE_GARDE = 2 * 3600   # on oublie l'heure entendue d'une radio au bout de 2 h
 
@@ -96,11 +106,13 @@ def reseau():
 
 
 def ecrire(chemin, donnees, mode=0o644):
-    tmp = chemin + '.tmp'
-    with open(tmp, 'w') as f:
-        json.dump(donnees, f, ensure_ascii=False, default=str)
-    os.chmod(tmp, mode)
-    os.replace(tmp, chemin)
+    # Nom temporaire unique (prometheus_commun) : le fil de la radio et la boucle peuvent ecrire en meme temps
+    pc.ecrire_texte(chemin, json.dumps(donnees, ensure_ascii=False, default=str), mode)
+
+
+def dire(*morceaux):
+    """Le journal du service (journalctl) : jamais une cle, un secret ni un lien de canaux."""
+    print(sur.masquer(' '.join(str(m) for m in morceaux)), flush=True)
 
 
 def lire(chemin, defaut):
@@ -112,11 +124,12 @@ def lire(chemin, defaut):
 
 ETAT_ACTUEL = None
 def noter_etat(etat, nom='', res='meshtastic', maxi=MAX_MESHTASTIC):
+    """etat.json (lu par la page) ; maxi : octets au plus dans un message sur ce reseau (radio_limites)."""
     global ETAT_ACTUEL
     if ETAT_ACTUEL != (etat, nom, res, maxi):
         ETAT_ACTUEL = (etat, nom, res, maxi)
         ecrire(ETAT, {'etat': etat, 'nom': nom, 'depuis': time.time(), 'reseau': res, 'max': maxi})
-        print('Radio :', res, etat, nom, flush=True)
+        dire('Radio :', res, etat, nom)
 
 
 def noter_journal(entree):
@@ -127,7 +140,7 @@ def noter_journal(entree):
         try:
             ecrire(JOURNAL, journal)
         except OSError as e:
-            print('Journal radio impossible a ecrire :', e, flush=True)
+            dire('Journal radio impossible a ecrire :', e)
 
 
 def statut(ident, valeur, raison=''):
@@ -196,7 +209,7 @@ def heure_entendue(radio_, horodatage, gps=False):
         if ecart is None:
             return
         sources = [k[:12] for k, (e, _) in heures_entendues.items() if abs(e - ecart) <= HEURE_ACCORD]
-    print('Heure par la radio : ecart de %+d s (%s)' % (ecart, ', '.join(sources)), flush=True)
+    dire('Heure par la radio : ecart de %+d s (%s)' % (ecart, ', '.join(sources)))
     heure_demandee[0] = maintenant
     ecrire(HEURE_DEMANDE, {'heure': maintenant, 'ecart': ecart, 'sources': sources})
 
@@ -216,8 +229,10 @@ def effacer_journal_si_demande():
         os.remove(EFFACER_JOURNAL)
 
 
-def prochain_message():
-    """Le plus ancien message en attente (fichier, contenu), en respectant l'ecart entre deux emissions."""
+def prochain_message(maxi=MAX_MESHTASTIC):
+    """Le plus ancien message en attente (fichier, contenu), en respectant l'ecart entre deux emissions.
+    Le texte est coupe a maxi octets, la limite du reseau EN SERVICE : un message mis dans la file sous Meshtastic
+    (228 octets) ne part pas trop long apres un passage a MeshCore (160 octets moins le nom)."""
     if time.time() - derniere_emission < ECART:
         return None
     fichiers = sorted(glob.glob(os.path.join(A_ENVOYER, '*.json')))
@@ -234,7 +249,7 @@ def prochain_message():
         return None
     if not os.path.exists(f):       # efface depuis le tableau a l'instant : on ne l'envoie pas
         return None
-    m['texte'] = str(m.get('texte', ''))[:MAX_TEXTE]
+    m['texte'] = lim.couper(str(m.get('texte', ''))[:MAX_TEXTE], maxi)
     m['canal'] = m.get('canal') if isinstance(m.get('canal'), int) and 0 <= m.get('canal') < 8 else 0
     m['a'] = str(m.get('a') or '')
     return f, m
@@ -264,31 +279,17 @@ balise_ssid = [0, '']                                # le nom du wifi, relu tout
 
 def nom_wifi():
     if time.time() - balise_ssid[0] > 600:
-        try:
-            import subprocess
-            balise_ssid[1] = subprocess.run(['nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', 'prometheus-wifi'],
-                                            capture_output=True, text=True, timeout=10).stdout.strip()
-        except Exception:
-            pass
+        code, sortie = sur.executer(['nmcli', '-g', '802-11-wireless.ssid', 'connection', 'show', pc.WIFI_STATION], 10)
+        if code == 0:
+            balise_ssid[1] = sortie.strip()
         balise_ssid[0] = time.time()
     return balise_ssid[1]
 
 
 def rendre_balise(texte, maxi):
-    """Le texte de la balise, cases remplies : {nom} {position} {wifi} {heure} {batterie}. Le meme calcul est fait
-    par prometheus-admin pour l'apercu des Parametres (garder les deux pareils)."""
-    moi = lire(DETAILS, {}).get('moi', {})
-    pos = '%.4f, %.4f' % (moi['lat'], moi['lon']) if moi.get('lat') and moi.get('lon') else ''
-    bat = moi.get('batterie')
-    valeurs = {'nom': moi.get('nom') or lire(ETAT, {}).get('nom', ''), 'position': pos, 'wifi': nom_wifi(),
-               'heure': time.strftime('%H:%M'), 'batterie': '' if bat is None else ('secteur' if bat > 100 else '%d %%' % bat)}
-    t = str(texte)
-    for k, v in valeurs.items():
-        t = t.replace('{%s}' % k, v)
-    t = ' '.join(t.split())
-    while len(t.encode()) > maxi:          # trop long pour le reseau en service : coupe a la fin
-        t = t[:-1]
-    return t
+    """Le texte de la balise, cases remplies : {nom} {position} {wifi} {heure} {batterie}, coupe a maxi octets.
+    Le calcul est dans radio_limites.rendre_balise, le meme que l'apercu des Parametres (prometheus-admin)."""
+    return lim.rendre_balise(texte, maxi, lire(DETAILS, {}).get('moi', {}), lire(ETAT, {}).get('nom', ''), nom_wifi())[0]
 
 
 def balise():
@@ -309,7 +310,7 @@ def balise():
     ident = 'b' + secrets.token_hex(6)
     ecrire(os.path.join(A_ENVOYER, '%d-%s.json' % (time.time() * 1000, ident)), {'id': ident, 'texte': texte, 'canal': canal, 'a': ''})
     ecrire(BALISE, {'derniere': time.time(), 'texte': texte, 'canal': canal})
-    print('Balise mise dans la file :', texte, flush=True)
+    dire('Balise mise dans la file :', texte)
 
 
 # =====================================================================  Historique (section Mesh)
@@ -354,7 +355,7 @@ class Historique:
                             db.execute('DELETE FROM %s WHERE heure < ?' % t, (limite,))
                         db.commit()
         except Exception as e:
-            print('Historique impossible a ecrire :', e, flush=True)
+            dire('Historique impossible a ecrire :', e)
 
     def paquet(self, reseau_, sens, de, nom, a, port, canal, snr, rssi, sauts, relais, resume):
         self.ajouter('paquets', (time.time(), reseau_, sens, de, nom, a, port, canal, snr, rssi, sauts, relais,
@@ -373,7 +374,7 @@ class Historique:
                 db.execute("UPDATE paquets SET resume = NULL WHERE resume LIKE '%\"texte\"%'")
                 db.commit()
         except Exception as e:
-            print('Historique : textes non effaces :', e, flush=True)
+            dire('Historique : textes non effaces :', e)
 
 
 HISTO = Historique()
@@ -399,11 +400,14 @@ def ordres_en_attente():
 
 
 def repondre(ordre, ok, r=None, erreur=''):
+    """La reponse a un ordre de la page. 0600 : elle peut porter la cle privee de la radio ou les secrets des canaux
+    (lecture des reglages, action « cle »)."""
     ident = ''.join(c for c in str(ordre.get('id', '')) if c.isalnum())[:32]
     if not ident:
         return
-    ecrire(os.path.join(REPONSES, ident + '.json'),
-           {'id': ident, 'ok': ok, 'r': r if ok else None, 'erreur': '' if ok else str(erreur)[:300], 'heure': time.time()})
+    sur.ecrire_prive(os.path.join(REPONSES, ident + '.json'),
+                     {'id': ident, 'ok': ok, 'r': r if ok else None, 'erreur': '' if ok else str(erreur)[:300],
+                      'heure': time.time()})
     # Les reponses de plus de 10 minutes partent
     for f in glob.glob(os.path.join(REPONSES, '*.json')):
         try:
@@ -425,7 +429,8 @@ def noter_resultat(type_, noeud, donnees, ident=None):
     with VERROU_RESULTATS:
         liste = lire(RESULTATS, [])
         liste.append({'heure': time.time(), 'type': type_, 'noeud': noeud, 'id': ident, 'donnees': donnees})
-        ecrire(RESULTATS, liste[-MAX_RESULTATS:])
+        # 0600 : les reglages lus a distance peuvent porter des cles (securite, canaux d'une autre radio)
+        sur.ecrire_prive(RESULTATS, liste[-MAX_RESULTATS:])
 
 
 def demandes_perimees():
@@ -435,62 +440,149 @@ def demandes_perimees():
             noter_resultat(d['type'], d['noeud'], {'erreur': 'sans réponse'}, ident)
 
 
-def ranger_sauvegarde(nom, contenu):
-    """Une sauvegarde avant changement (dossier lisible par la station seulement : il contient les cles)."""
-    os.makedirs(SAUVE_MESH, mode=0o700, exist_ok=True)
-    f = os.path.join(SAUVE_MESH, nom)
-    with open(f + '.tmp', 'w') as s:
-        s.write(contenu)
-    os.chmod(f + '.tmp', 0o600)
-    os.replace(f + '.tmp', f)
-    base = nom.split('-2')[0]
-    for vieux in sorted(glob.glob(os.path.join(SAUVE_MESH, base + '-2*')))[:-GARDER_SAUVEGARDES]:
-        os.remove(vieux)
-    return nom
-
-
 def demander_outil(ordre, contenu):
-    """Fait faire une operation par l'outil radio (root), comme le ferait la page : un fichier dans commande/."""
+    """Fait faire une operation par l'outil radio (root), comme le ferait la page : un fichier dans commande/,
+    ecrit d'un coup (prometheus-commande ignore les fichiers temporaires « .tmp »). Le meme ordre deux fois
+    ecrase le premier : la remise du garde-fou peut etre redemandee sans danger."""
     try:
-        with open(os.path.join(COMMANDE, 'radio-' + ordre), 'w') as f:
-            f.write(contenu)
+        pc.ecrire_texte(os.path.join(COMMANDE, 'radio-' + ordre), contenu, 0o600)
         return True
     except OSError as e:
-        print('Ordre pour l’outil radio impossible :', e, flush=True)
+        dire('Ordre pour l’outil radio impossible :', e)
         return False
 
 
-def garde_fou(fichier, raison):
-    ecrire(GARDE_FOU, {'heure': time.time(), 'fichier': fichier, 'raison': raison})
+GARDE = gf.GardeFou(GARDE_FOU, demander_outil, dire=dire)
 
 
 def verifier_garde_fou(repond):
-    """Apres un reglage risque : la radio repond de nouveau -> tout va bien ; muette trop longtemps -> on
-    fait remettre la sauvegarde par l'outil radio (il reinstalle le logiciel s'il le faut)."""
-    g = lire(GARDE_FOU, None)
-    if not g:
+    """A chaque tour de boucle, pour les deux reseaux (voir radio_gardefou.py)."""
+    return GARDE.verifier(repond)
+
+
+# =====================================================================  La porte commune aux deux reseaux
+# Les ordres que la page sait envoyer (prometheus-admin, ORDRES_MESH) ; chaque pilote dit lesquels il fait.
+ORDRES_CONNUS = ('config-lire', 'config-ecrire', 'canal', 'canaux-lien', 'proprietaire', 'position', 'messages-prets',
+                 'noeud', 'demande', 'action', 'distant')
+NOMS_RESEAUX = {'meshtastic': 'Meshtastic', 'meshcore': 'MeshCore'}
+
+
+class Pilote:
+    """Ce que chaque reseau fournit au chemin commun des ordres (traiter_ordre)."""
+    reseau = ''
+
+    def actions(self):
+        """{ordre: fonction(p) -> dict} : les ordres que ce reseau sait faire."""
+        return {}
+
+    def maxi(self):
+        """Octets au plus dans un message, maintenant."""
+        return lim.maxi(self.reseau)
+
+    def raison_avant(self, action, p):
+        """Cet ordre change-t-il les reglages de la radio ? Alors la raison de la sauvegarde prise avant (sinon None)."""
+        return None
+
+    def liaison_risquee(self, action, p):
+        """Les reglages de cet ordre qui peuvent couper la station de sa radio (garde-fou), [] sinon."""
+        return []
+
+    async def sauvegarder(self, raison):
+        """Sauvegarde les reglages de la radio (mesh-sauvegardes/) ; renvoie le nom du fichier."""
+        raise NotImplementedError
+
+    async def faire(self, action, p):
+        raise NotImplementedError
+
+
+async def traiter_ordre(pilote, o):
+    """LE chemin d'un ordre de la section Mesh, pour les deux reseaux : ordre connu de ce reseau, sauvegarde avant
+    tout changement, garde-fou arme avant un reglage risque, DELAI_ORDRE secondes au plus, une reponse toujours."""
+    action = o.get('action')
+    p = o.get('p') if isinstance(o.get('p'), dict) else {}
+    if action not in pilote.actions():
+        nom = NOMS_RESEAUX.get(pilote.reseau, pilote.reseau)
+        repondre(o, False, erreur=('Pas possible sous %s.' if action in ORDRES_CONNUS else 'Action inconnue sous %s.') % nom)
         return
-    if repond and time.time() - g.get('heure', 0) > 20:
-        os.remove(GARDE_FOU)
-        print('Garde-fou : la radio est revenue apres le reglage', flush=True)
-    elif not repond and time.time() - g.get('heure', 0) > ATTENTE_RADIO:
-        os.remove(GARDE_FOU)
-        print('Garde-fou : la radio ne revient pas, remise de', g.get('fichier'), flush=True)
-        demander_outil('restaurer', json.dumps({'fichier': g.get('fichier'), 'auto': True}))
+    risques, arme = [], []      # arme : le garde-fou a ete arme par CET ordre
+
+    async def tout():
+        sauvegarde = None
+        raison = pilote.raison_avant(action, p)
+        risques[:] = pilote.liaison_risquee(action, p)
+        if raison or risques:
+            sauvegarde = await pilote.sauvegarder(raison or 'avant : ' + ', '.join(risques))
+        if risques:
+            GARDE.armer(sauvegarde, ', '.join(risques), pilote.reseau)
+            arme.append(True)
+        r = await pilote.faire(action, p)
+        r = dict(r) if isinstance(r, dict) else {}
+        if sauvegarde:
+            r.setdefault('sauvegarde', sauvegarde)
+        if action == 'config-ecrire':
+            r['risques'] = list(risques)
+        return r
+    try:
+        r = await asyncio.wait_for(tout(), DELAI_ORDRE)
+    except Refus as e:
+        if arme:
+            # Refus de nos verifications ou de la radio, peut-etre apres une premiere ecriture : on surveille quand
+            # meme (si la radio repond, le garde-fou s'efface tout seul 20 s plus tard)
+            GARDE.confirmer()
+        repondre(o, False, erreur=e)
+        return
+    except asyncio.TimeoutError:
+        if arme:
+            GARDE.confirmer()        # peut-etre ecrit : on surveille
+        dire('Ordre Mesh', action, ': delai depasse')
+        repondre(o, False, erreur='La radio ne répond pas (délai dépassé).')
+        return
+    except (Exception, SystemExit) as e:   # la bibliotheque Meshtastic quitte (SystemExit) sur certaines erreurs
+        if arme:
+            GARDE.confirmer()
+        dire('Ordre Mesh', action, 'en echec :', repr(e))
+        repondre(o, False, erreur='La radio a refusé : %s' % (str(e) or e.__class__.__name__))
+        return
+    if arme:
+        GARDE.confirmer()
+    repondre(o, True, r)
+    dire('Ordre Mesh :', action, 'fait')
+
+
+def refuser_ordres(erreur):
+    """Radio eteinte ou muette : chaque ordre en attente recoit une reponse tout de suite."""
+    for o in ordres_en_attente():
+        repondre(o, False, erreur=erreur)
+
+
+async def dans_un_fil(fonction, *args):
+    """Fait tourner une fonction bloquante (bibliotheque Meshtastic) dans un fil a part : le delai de l'ordre peut
+    tomber meme si elle ne rend pas la main (le fil, lui, finit seul)."""
+    boucle = asyncio.get_running_loop()
+    futur = boucle.create_future()
+
+    def rendre(r, e):
+        if not futur.done():
+            futur.set_exception(e) if e is not None else futur.set_result(r)
+
+    def fil():
+        try:
+            r, e = fonction(*args), None
+        except BaseException as x:        # SystemExit de la bibliotheque compris
+            r, e = None, x
+        try:
+            boucle.call_soon_threadsafe(rendre, r, e)
+        except RuntimeError:              # la boucle est deja fermee (delai depasse)
+            pass
+    threading.Thread(target=fil, daemon=True).start()
+    return await futur
 
 
 # =====================================================================  Meshtastic (USB)
 def trouver_port():
-    """La carte radio : le port note par l'outil radio (numero de serie USB de la T-Beam), sinon sa puce USB-serie
-    (1a86 = CH9102, CP210x), sinon le premier port. Une carte branchee pour l'atelier n'est jamais prise a sa place."""
-    note = reseau().get('port')
-    if note and os.path.exists('/dev/serial/by-id/' + note):
-        return '/dev/serial/by-id/' + note
-    ports = sorted(glob.glob('/dev/serial/by-id/*'))
-    for p in ports:
-        if any(m in p for m in ('1a86', 'CP210', 'Silicon_Labs')):
-            return p
-    return ports[0] if ports else None
+    """La carte radio de la station, ou None : la meme regle que l'outil radio (radio_materiel.port_station).
+    Une carte branchee pour l'atelier n'est jamais prise a sa place (avant le 27/11 : le premier port venu)."""
+    return mat.port_station(reseau().get('port'))
 
 
 def fermer():
@@ -548,7 +640,7 @@ def recu(packet, interface):
                        'texte': texte, 'snr': packet.get('rxSnr'), 'rssi': packet.get('rxRssi'), 'sauts': sauts})
         deposer_pour_tableau(nom, texte)
     except Exception as e:
-        print('Message recu illisible :', e, flush=True)
+        dire('Message recu illisible :', e)
 
 
 def _sur(d, *cles):
@@ -621,7 +713,7 @@ def paquet_meshtastic(packet, interface):
                      packet.get('channel', 0), packet.get('rxSnr'), packet.get('rxRssi'), sauts,
                      ident_de_num(packet.get('relayNode')) if packet.get('relayNode') else None, resume)
     except Exception as e:
-        print('Paquet illisible :', e, flush=True)
+        dire('Paquet illisible :', e)
 
 
 def nom_preset(lora):
@@ -683,7 +775,7 @@ def photographier():
                                      position_fixe=radio.localNode.localConfig.position.fixed_position),
                          'canaux': canaux, 'noeuds': noeuds[:500]})
     except Exception as e:
-        print('Details de la radio illisibles :', e, flush=True)
+        dire('Details de la radio illisibles :', e)
 
 
 def relever_meshtastic():
@@ -700,7 +792,7 @@ def relever_meshtastic():
                                                       and time.time() - (x.get('lastHeard') or 0) < 3600),
                                    'attente': len(glob.glob(os.path.join(A_ENVOYER, '*.json')))})
     except Exception as e:
-        print('Releve impossible :', e, flush=True)
+        dire('Releve impossible :', e)
 
 
 def ecrire_schema():
@@ -736,7 +828,7 @@ def ecrire_schema():
         schema['bibliotheque'] = meshtastic.version.get_active_version()
         ecrire(SCHEMA, schema)
     except Exception as e:
-        print('Schema des reglages impossible :', e, flush=True)
+        dire('Schema des reglages impossible :', e)
 
 
 def signe(packet, interface):
@@ -747,7 +839,7 @@ def signe(packet, interface):
 
 def perdue(interface, **_):
     if interface is radio:
-        print('Liaison perdue', flush=True)
+        dire('Liaison perdue')
         fermer()
 
 
@@ -773,7 +865,7 @@ def connecter():
         photographier()
         return True
     except (Exception, SystemExit) as e:
-        print('La radio ne repond pas :', e, flush=True)
+        dire('La radio ne repond pas :', e)
         fermer()
         noter_etat('muette')
         return False
@@ -781,7 +873,7 @@ def connecter():
 
 def emettre():
     """Envoie le plus ancien message en attente."""
-    suivant = prochain_message()
+    suivant = prochain_message(MAX_MESHTASTIC)
     if not suivant:
         return
     f, m = suivant
@@ -804,6 +896,8 @@ def emettre():
 
 
 # ---------------------------------------------------------------- Meshtastic : les ordres de la section Mesh
+# Les fonctions mt_* font l'ordre ; la sauvegarde avant changement et le garde-fou sont faits par le chemin commun
+# (traiter_ordre), d'apres PiloteMeshtastic.raison_avant et liaison_risquee.
 # Reglages qui peuvent couper la station de sa radio : apres les avoir ecrits, le garde-fou surveille son retour
 RISQUE_LIAISON = {'config.security.serial_enabled', 'config.device.serial_enabled', 'config.security.is_managed',
                   'config.device.is_managed', 'config.power.is_power_saving', 'config.power.sds_secs',
@@ -823,9 +917,7 @@ def sauvegarder_meshtastic_ici(raison):
     """Les reglages complets de la radio (le meme format que « meshtastic --export-config », que l'outil radio
     sait remettre), garde avant chaque changement. Renvoie le nom du fichier."""
     from meshtastic.__main__ import export_config
-    texte = export_config(radio)
-    return ranger_sauvegarde('meshtastic-%s.yaml' % time.strftime('%Y-%m-%d-%H%M%S'),
-                             '# Prometheus Station - %s\n%s' % (raison, texte))
+    return sauv.ranger(sauv.MESH, 'meshtastic', 'yaml', export_config(radio), raison)
 
 
 def noeud_cible(ident):
@@ -897,14 +989,12 @@ def mt_ecrire_config(p, noeud=None):
         raise Refus('Rien à écrire.')
     n = radio.localNode if noeud is None else noeud
     base = {'config': n.localConfig, 'module': n.moduleConfig}
-    a_ecrire, risques = [], []
+    a_ecrire = []
     for cle, valeurs in sections.items():
         genre, _, nom = str(cle).partition('.')
         if genre not in base or nom not in base[genre].DESCRIPTOR.fields_by_name or not isinstance(valeurs, dict):
             raise Refus('Section inconnue : %s' % cle)
         a_ecrire.append((genre, nom, appliquer(getattr(base[genre], nom), valeurs)))
-        risques += ['%s.%s' % (cle, k) for k in valeurs if '%s.%s' % (cle, k) in RISQUE_LIAISON]
-    sauvegarde = sauvegarder_meshtastic_ici('avant : ' + ', '.join(s.split('.')[1] for s in sections)) if noeud is None else None
     n.beginSettingsTransaction()
     for genre, nom, neuf in a_ecrire:
         a = admin_message()
@@ -912,9 +1002,7 @@ def mt_ecrire_config(p, noeud=None):
         n._sendAdmin(a)
         getattr(base[genre], nom).CopyFrom(neuf)
     n.commitSettingsTransaction()
-    if risques and noeud is None:
-        garde_fou(sauvegarde, ', '.join(risques))
-    return {'sauvegarde': sauvegarde, 'risques': risques, 'redemarre': True}
+    return {'redemarre': True}
 
 
 def psk_de(valeur, actuelle=b''):
@@ -944,9 +1032,8 @@ def mt_canal(p):
         i = p.get('index')
         if type(i) is not int or not 1 <= i < 8:
             raise Refus('Seul un canal secondaire se supprime.')
-        sauvegarde = sauvegarder_meshtastic_ici('avant : suppression du canal %d' % i)
         n.deleteChannel(i)
-        return {'sauvegarde': sauvegarde}
+        return {}
     i = p.get('index')
     if i is None:
         libres = [c.index for c in n.channels if c.role == channel_pb2.Channel.Role.DISABLED]
@@ -959,7 +1046,6 @@ def mt_canal(p):
     nom = str(p.get('nom', c.settings.name))
     if len(nom.encode()) > 11:
         raise Refus('Nom de canal : 11 octets au plus.')
-    sauvegarde = sauvegarder_meshtastic_ici('avant : canal %d' % i)
     c.settings.name = nom
     c.settings.psk = psk_de(p.get('psk'), c.settings.psk)
     for cle, champ in (('montee', 'uplink_enabled'), ('descente', 'downlink_enabled')):
@@ -974,7 +1060,7 @@ def mt_canal(p):
     if c.role == channel_pb2.Channel.Role.DISABLED:
         c.role = channel_pb2.Channel.Role.SECONDARY
     n.writeChannel(i)
-    return {'index': i, 'sauvegarde': sauvegarde}
+    return {'index': i}
 
 
 def mt_lien(p):
@@ -982,36 +1068,33 @@ def mt_lien(p):
     url = str(p.get('url', '')).strip()
     if '/e/' not in url or len(url) > 1000:
         raise Refus('Lien de canaux invalide (https://meshtastic.org/e/#…).')
-    sauvegarde = sauvegarder_meshtastic_ici('avant : import de canaux')
     radio.localNode.setURL(url, addOnly=p.get('ajouter') is True)
-    return {'sauvegarde': sauvegarde, 'redemarre': p.get('ajouter') is not True}
+    return {'redemarre': p.get('ajouter') is not True}
 
 
 def mt_proprietaire(p):
-    nom = ' '.join(str(p.get('long', '')).split())[:39]
+    nom = lim.nom_radio(p.get('long', ''), 'meshtastic')      # 39 octets (et non 39 caracteres)
     court = str(p.get('court', ''))
     if not nom:
         raise Refus('Indiquez un nom.')
-    if not court or len(court.encode()) > 4:
+    if not court or len(court.encode()) > lim.NOM_COURT_MESHTASTIC:
         raise Refus('Nom court : de 1 à 4 octets (un émoji en prend 4).')
-    sauvegarde = sauvegarder_meshtastic_ici('avant : nom de la radio')
     radio.localNode.setOwner(long_name=nom, short_name=court, is_licensed=p.get('licence') is True,
                              is_unmessagable=p.get('muet') is True)
-    return {'sauvegarde': sauvegarde}
+    return {}
 
 
 def mt_position(p):
-    sauvegarde = sauvegarder_meshtastic_ici('avant : position')
     if p.get('fixe') is False:
         radio.localNode.removeFixedPosition()
-        return {'sauvegarde': sauvegarde}
+        return {}
     try:
         lat, lon, alt = float(p['lat']), float(p['lon']), int(p.get('alt') or 0)
         assert -90 <= lat <= 90 and -180 <= lon <= 180 and -500 < alt < 10000
     except (KeyError, TypeError, ValueError, AssertionError):
         raise Refus('Position invalide.')
     radio.localNode.setFixedPosition(lat, lon, alt)
-    return {'sauvegarde': sauvegarde}
+    return {}
 
 
 def mt_messages_prets(p):
@@ -1124,14 +1207,11 @@ def mt_action(p):
     elif quoi == 'heure':
         n.setTime(int(time.time()))
     elif quoi == 'oublier-tout':
-        sauvegarde = sauvegarder_meshtastic_ici('avant : oubli de toutes les radios')
         n.resetNodeDb()
-        return {'sauvegarde': sauvegarde}
     elif quoi in ('usine', 'usine-complete'):
         # Remise a zero : la radio repart de zero (identite comprise pour la complete). La sauvegarde permet de revenir.
-        sauvegarde = sauvegarder_meshtastic_ici('avant : remise à zéro')
         n.factoryReset(full=quoi == 'usine-complete')
-        return {'sauvegarde': sauvegarde, 'redemarre': True}
+        return {'redemarre': True}
     elif quoi == 'annonce':
         # La fiche de la station (nom, cle publique) envoyee a tout le canal, comme le fait la radio de temps en temps
         from meshtastic.protobuf import mesh_pb2, portnums_pb2
@@ -1144,7 +1224,7 @@ def mt_action(p):
         HISTO.paquet('meshtastic', 'emis', '', radio.getLongName() or '', '^all', 'NODEINFO_APP', 0, None, None, None, None,
                      {'demande': 'annonce'})
     elif quoi == 'sauvegarder':
-        return {'sauvegarde': sauvegarder_meshtastic_ici('à la demande')}
+        pass        # la sauvegarde est prise par le chemin commun (raison_avant)
     else:
         raise Refus('Action inconnue.')
     return {}
@@ -1280,24 +1360,63 @@ ACTIONS_MESHTASTIC = {'config-lire': mt_lire_config, 'config-ecrire': mt_ecrire_
                       'action': mt_action, 'distant': mt_distant}
 
 
+class PiloteMeshtastic(Pilote):
+    """La T-Beam sous Meshtastic (USB) : les fonctions mt_* ci-dessus, bloquantes, lancees dans un fil."""
+    reseau = 'meshtastic'
+
+    def actions(self):
+        return ACTIONS_MESHTASTIC
+
+    def raison_avant(self, action, p):
+        quoi = p.get('quoi')
+        if action == 'config-ecrire' and isinstance(p.get('sections'), dict):
+            return 'avant : ' + ', '.join(str(s).split('.')[-1] for s in p['sections'])
+        if action == 'canal':
+            i = p.get('index')
+            return ('avant : suppression du canal %s' % i) if p.get('supprimer') else \
+                'avant : canal %s' % (i if i is not None else '(nouveau)')
+        if action == 'canaux-lien':
+            return 'avant : import de canaux'
+        if action == 'proprietaire':
+            return 'avant : nom de la radio'
+        if action == 'position':
+            return 'avant : position'
+        if action == 'action':
+            return {'oublier-tout': 'avant : oubli de toutes les radios', 'usine': 'avant : remise à zéro',
+                    'usine-complete': 'avant : remise à zéro', 'sauvegarder': 'à la demande'}.get(quoi)
+        return None
+
+    def liaison_risquee(self, action, p):
+        if action != 'config-ecrire' or not isinstance(p.get('sections'), dict):
+            return []
+        return ['%s.%s' % (cle, k) for cle, valeurs in p['sections'].items() if isinstance(valeurs, dict)
+                for k in valeurs if '%s.%s' % (cle, k) in RISQUE_LIAISON]
+
+    async def sauvegarder(self, raison):
+        return await dans_un_fil(sauvegarder_meshtastic_ici, raison)
+
+    async def faire(self, action, p):
+        return await dans_un_fil(ACTIONS_MESHTASTIC[action], p)
+
+
+PILOTE_MESHTASTIC = PiloteMeshtastic()
+
+
+async def traiter_lot(pilote, ordres):
+    for o in ordres:
+        await traiter_ordre(pilote, o)
+
+
 def traiter_ordres_meshtastic():
-    for o in ordres_en_attente():
-        f = ACTIONS_MESHTASTIC.get(o.get('action'))
-        if not f:
-            repondre(o, False, erreur='Action inconnue sous Meshtastic.')
-            continue
-        if radio is None:
+    """Les ordres en attente, l'un apres l'autre, par le chemin commun (la boucle Meshtastic attend leur fin)."""
+    ordres = ordres_en_attente()
+    if not ordres:
+        return
+    if radio is None:
+        for o in ordres:
             repondre(o, False, erreur='La radio ne répond pas.')
-            continue
-        try:
-            p = o.get('p') if isinstance(o.get('p'), dict) else {}
-            repondre(o, True, f(p))
-            print('Ordre Mesh :', o.get('action'), 'fait', flush=True)
-        except Refus as e:
-            repondre(o, False, erreur=e)
-        except (Exception, SystemExit) as e:   # la bibliotheque Meshtastic quitte (SystemExit) sur certaines erreurs
-            print('Ordre Mesh', o.get('action'), 'en echec :', repr(e), flush=True)
-            repondre(o, False, erreur='La radio a refusé : %s' % (str(e) or e.__class__.__name__))
+        return
+    asyncio.run(traiter_lot(PILOTE_MESHTASTIC, ordres))
 
 
 def boucle_meshtastic():
@@ -1313,14 +1432,12 @@ def boucle_meshtastic():
         if not active():
             fermer()
             noter_etat('eteinte')
-            for o in ordres_en_attente():
-                repondre(o, False, erreur='La radio est désactivée dans les Paramètres.')
+            refuser_ordres('La radio est désactivée dans les Paramètres.')
             time.sleep(10)
             continue
         if radio is None and not connecter():
             verifier_garde_fou(False)
-            for o in ordres_en_attente():
-                repondre(o, False, erreur='La radio ne répond pas.')
+            refuser_ordres('La radio ne répond pas.')
             time.sleep(15)
             continue
         verifier_garde_fou(True)
@@ -1337,7 +1454,7 @@ def boucle_meshtastic():
         try:
             emettre()
         except Exception as e:
-            print('Emission impossible :', e, flush=True)
+            dire('Emission impossible :', e)
             fermer()
             noter_etat('muette')
             time.sleep(10)
@@ -1352,8 +1469,15 @@ PAQUETS_MESHCORE = {0: 'REQ', 1: 'RESPONSE', 2: 'TXT_MSG', 3: 'ACK', 4: 'ADVERT'
                     7: 'ANON_REQ', 8: 'PATH', 9: 'TRACE', 10: 'MULTIPART', 11: 'CONTROL', 15: 'RAW_CUSTOM'}
 
 
-class StationMeshCore:
+class StationMeshCore(Pilote):
     """La T-Beam sous MeshCore, pilotee par Bluetooth (adresse dans reseau.json, appairee par prometheus-radio-outil)."""
+    reseau = 'meshcore'
+    # Reglages de config-ecrire qui peuvent couper la liaison Bluetooth (garde-fou) : le code d'appairage, et le
+    # reglage radio (la radio redemarre)
+    RISQUES = {'code': 'code Bluetooth', 'radio': 'réglage radio'}
+    NOMS = {'name': 'nom', 'lat': 'position', 'lon': 'position', 'radio': 'réglage radio', 'tx_power': 'puissance',
+            'autres': 'contacts et télémétrie', 'ajout_auto': 'ajout automatique', 'chemin_mode': 'chemin',
+            'reglage_fin': 'réglage fin', 'code': 'code Bluetooth', 'variables': 'variables', 'portee_defaut': 'portée'}
 
     def __init__(self, adresse):
         self.adresse = adresse
@@ -1366,7 +1490,31 @@ class StationMeshCore:
 
     def maxi(self):
         # Sur un canal, MeshCore met « Nom: » devant le texte, dans la meme limite
-        return MAX_MESHCORE - len(self.nom.encode()) - 2
+        return lim.maxi('meshcore', self.nom)
+
+    # ---- la porte commune (Pilote)
+    def actions(self):
+        return {'config-lire': self.o_config_lire, 'config-ecrire': self.o_config_ecrire, 'noeud': self.o_noeud,
+                'demande': self.o_demande, 'canal': self.o_canal, 'action': self.o_action}
+
+    def raison_avant(self, action, p):
+        v = p.get('valeurs')
+        if action == 'config-ecrire' and isinstance(v, dict) and v:
+            return 'avant : ' + ', '.join(sorted({self.NOMS.get(k, k) for k in v}))
+        if action == 'canal':
+            return 'avant : canal %s' % p.get('index')
+        if action == 'action':
+            return {'usine': 'avant : remise à zéro', 'sauvegarder': 'à la demande'}.get(p.get('quoi'))
+        return None
+
+    def liaison_risquee(self, action, p):
+        v = p.get('valeurs')
+        if action != 'config-ecrire' or not isinstance(v, dict):
+            return []
+        return [self.RISQUES[k] for k in sorted(self.RISQUES) if k in v]
+
+    async def faire(self, action, p):
+        return await self.actions()[action](p)
 
     async def fermer(self):
         if self.mc:
@@ -1380,19 +1528,15 @@ class StationMeshCore:
         from meshcore import MeshCore, EventType
         # Apres un arret du service (ou de l'outil radio), le systeme Bluetooth peut garder l'ancienne
         # connexion ouverte : la nouvelle echoue alors en boucle (vu le 15/10/2026). On la coupe d'abord.
-        try:
-            import subprocess
-            subprocess.run(['bluetoothctl', 'disconnect', self.adresse], capture_output=True, timeout=20)
-            await asyncio.sleep(2)
-        except Exception:
-            pass
+        sur.executer(['bluetoothctl', 'disconnect', self.adresse], 20)
+        await asyncio.sleep(2)
         try:
             self.mc = await asyncio.wait_for(MeshCore.create_ble(self.adresse), 45)
         except Exception as e:
-            print('MeshCore : connexion impossible :', e, flush=True)
+            dire('MeshCore : connexion impossible :', e)
             self.mc = None
         if not self.mc:
-            noter_etat('muette', res='meshcore', maxi=MAX_MESHCORE)
+            noter_etat('muette', res='meshcore', maxi=lim.maxi('meshcore'))
             return False
         mc = self.mc
         self.depuis = time.time()
@@ -1473,7 +1617,7 @@ class StationMeshCore:
             HISTO.paquet('meshcore', 'recu', de, nom, '', type_, None, p.get('snr'), p.get('rssi'),
                          p.get('path_len') if isinstance(p.get('path_len'), int) else None, None, resume)
         except Exception as e:
-            print('MeshCore : paquet illisible :', e, flush=True)
+            dire('MeshCore : paquet illisible :', e)
 
     async def nouveau_contact(self, ev):
         """Ajout manuel des contacts choisi : la radio annoncee attend qu'on l'ajoute depuis la page Noeuds."""
@@ -1512,7 +1656,7 @@ class StationMeshCore:
             if time.time() > limite:
                 del self.acks[code]
                 statut(ident, 'echec', 'sans réponse')
-        suivant = prochain_message()
+        suivant = prochain_message(self.maxi())
         if not suivant:
             return
         f, m = suivant
@@ -1521,7 +1665,7 @@ class StationMeshCore:
         if m['a']:
             contact = self.mc.get_contact_by_key_prefix(m['a'][:12])
             if not contact:
-                print('MeshCore : contact inconnu', m['a'][:12], flush=True)
+                dire('MeshCore : contact inconnu', m['a'][:12])
                 entree.update(statut='echec', raison='contact inconnu', nom_a=m['a'][:12])
                 noter_journal(entree)
                 message_parti(f, m)
@@ -1587,7 +1731,7 @@ class StationMeshCore:
                              'attente': lire(ATTENTE_CONTACTS, [])})
             noter_etat('ok', self.nom, 'meshcore', self.maxi())
         except Exception as e:
-            print('MeshCore : details illisibles :', e, flush=True)
+            dire('MeshCore : details illisibles :', e)
 
     async def relever(self):
         """Chaque minute : compteurs du logiciel MeshCore (paquets, temps d'emission, bruit), dans l'historique."""
@@ -1608,25 +1752,8 @@ class StationMeshCore:
 
     # ---- les ordres de la section Mesh
     async def sauvegarder(self, raison):
-        from meshcore import EventType
-        mc = self.mc
-        moi = (await mc.commands.send_appstart()).payload or {}
-        cle = await mc.commands.export_private_key()
-        canaux = []
-        info = await mc.commands.send_device_query()
-        for i in range(min(40, (info.payload or {}).get('max_channels') or 8) if info.type == EventType.DEVICE_INFO else 8):
-            r = await mc.commands.get_channel(i)
-            if r.type == EventType.CHANNEL_INFO and r.payload.get('channel_name'):
-                canaux.append({'index': i, 'nom': r.payload['channel_name'], 'secret': r.payload['channel_secret'].hex()})
-        contacts = await mc.commands.get_contacts()
-        s = {'raison': raison, 'nom': moi.get('name', ''), 'freq': moi.get('radio_freq'), 'bw': moi.get('radio_bw'),
-             'sf': moi.get('radio_sf'), 'cr': moi.get('radio_cr'), 'tx': moi.get('tx_power'), 'lat': moi.get('adv_lat'),
-             'lon': moi.get('adv_lon'), 'autres': {k: moi.get(k) for k in ('manual_add_contacts', 'telemetry_mode_base',
-                                                                           'telemetry_mode_loc', 'telemetry_mode_env',
-                                                                           'adv_loc_policy', 'multi_acks')},
-             'cle': cle.payload.get('private_key').hex() if cle.type == EventType.PRIVATE_KEY else '', 'canaux': canaux,
-             'contacts': list(contacts.payload.values()) if contacts.type == EventType.CONTACTS else []}
-        return ranger_sauvegarde('meshcore-%s.json' % time.strftime('%Y-%m-%d-%H%M%S'), json.dumps(s, ensure_ascii=False, indent=1))
+        """Les reglages complets (identite comprise), au format unique de radio_sauvegarde."""
+        return sauv.ranger(sauv.MESH, 'meshcore', 'json', await sauv.lire_meshcore(self.mc), raison)
 
     async def o_config_lire(self, p):
         from meshcore import EventType
@@ -1664,10 +1791,6 @@ class StationMeshCore:
         if not isinstance(v, dict) or not v:
             raise Refus('Rien à écrire.')
         mc = self.mc
-        NOMS = {'name': 'nom', 'lat': 'position', 'lon': 'position', 'radio': 'réglage radio', 'tx_power': 'puissance',
-                'autres': 'contacts et télémétrie', 'ajout_auto': 'ajout automatique', 'chemin_mode': 'chemin',
-                'reglage_fin': 'réglage fin', 'code': 'code Bluetooth', 'variables': 'variables', 'portee_defaut': 'portée'}
-        sauvegarde = await self.sauvegarder('avant : ' + ', '.join(sorted({NOMS.get(k, k) for k in v})))
 
         async def ok(r, quoi):
             if r is None or r.type == EventType.ERROR:
@@ -1699,9 +1822,8 @@ class StationMeshCore:
             await ok(await mc.commands.set_tx_power(v['tx_power']), 'puissance')
         if 'autres' in v:
             infos = (await mc.commands.send_appstart()).payload or {}
-            for k, x in v['autres'].items():
-                if k not in ('manual_add_contacts', 'telemetry_mode_base', 'telemetry_mode_loc', 'telemetry_mode_env',
-                             'adv_loc_policy', 'multi_acks') or type(x) not in (int, bool):
+            for k, x in (v['autres'] if isinstance(v['autres'], dict) else {}).items():
+                if k not in sauv.AUTRES or type(x) not in (int, bool):
                     raise Refus('Réglage inconnu : %s' % k)
                 infos[k] = x
             infos['manual_add_contacts'] = bool(infos.get('manual_add_contacts'))
@@ -1734,7 +1856,7 @@ class StationMeshCore:
             await ok(await (mc.commands.set_default_flood_scope(s) if s else mc.commands.reset_default_flood_scope()), 'portée')
         self.nom = ((await mc.commands.send_appstart()).payload or {}).get('name', self.nom)
         await self.photographier()
-        return {'sauvegarde': sauvegarde, 'redemarre': 'radio' in v}
+        return {'redemarre': 'radio' in v}
 
     def contact(self, cle):
         c = self.mc.get_contact_by_key_prefix(str(cle or '')[:12]) if cle else None
@@ -1844,7 +1966,6 @@ class StationMeshCore:
         i = p.get('index')
         if type(i) is not int or not 0 <= i < 40:
             raise Refus('Canal invalide.')
-        sauvegarde = await self.sauvegarder('avant : canal %d' % i)
         if p.get('supprimer'):
             if i == 0:
                 raise Refus('Le canal public ne se supprime pas.')
@@ -1868,7 +1989,7 @@ class StationMeshCore:
         if r.type == EventType.ERROR:
             raise Refus('La radio a refusé.')
         await self.photographier()
-        return {'sauvegarde': sauvegarde}
+        return {}
 
     async def o_action(self, p):
         from meshcore import EventType
@@ -1878,40 +1999,24 @@ class StationMeshCore:
         elif quoi == 'heure':
             await mc.commands.set_time(int(time.time()))
         elif quoi == 'sauvegarder':
-            return {'sauvegarde': await self.sauvegarder('à la demande')}
+            pass        # la sauvegarde est prise par le chemin commun (raison_avant)
         elif quoi == 'cle':
             r = await mc.commands.export_private_key()
             if r.type != EventType.PRIVATE_KEY:
                 raise Refus('La radio refuse de donner sa clé.')
             return {'cle': r.payload['private_key'].hex()}
         elif quoi == 'usine':
-            sauvegarde = await self.sauvegarder('avant : remise à zéro')
             jeton = await mc.commands.request_factory_reset()
             await mc.commands.confirm_factory_reset(jeton)
-            return {'sauvegarde': sauvegarde, 'redemarre': True}
+            return {'redemarre': True}
         else:
             raise Refus('Action inconnue.')
         return {}
 
     async def traiter_ordres(self):
-        actions = {'config-lire': self.o_config_lire, 'config-ecrire': self.o_config_ecrire, 'noeud': self.o_noeud,
-                   'demande': self.o_demande, 'canal': self.o_canal, 'action': self.o_action}
+        """Chaque ordre par le chemin commun (traiter_ordre), en tache de fond : la boucle continue d'emettre."""
         for o in ordres_en_attente():
-            f = actions.get(o.get('action'))
-            if not f:
-                repondre(o, False, erreur='Action inconnue sous MeshCore.')
-                continue
-
-            async def faire(o=o, f=f):
-                try:
-                    repondre(o, True, await asyncio.wait_for(f(o.get('p') if isinstance(o.get('p'), dict) else {}), 90))
-                    print('Ordre Mesh :', o.get('action'), 'fait', flush=True)
-                except Refus as e:
-                    repondre(o, False, erreur=e)
-                except Exception as e:
-                    print('Ordre Mesh', o.get('action'), 'en echec :', repr(e), flush=True)
-                    repondre(o, False, erreur='La radio a refusé : %s' % (str(e) or e.__class__.__name__))
-            t = asyncio.create_task(faire())
+            t = asyncio.create_task(traiter_ordre(self, o))
             self.taches.add(t)
             t.add_done_callback(self.taches.discard)
 
@@ -1921,17 +2026,17 @@ class StationMeshCore:
             demandes_perimees()
             if not active():
                 await self.fermer()
-                noter_etat('eteinte', res='meshcore', maxi=MAX_MESHCORE)
-                for o in ordres_en_attente():
-                    repondre(o, False, erreur='La radio est désactivée dans les Paramètres.')
+                noter_etat('eteinte', res='meshcore', maxi=lim.maxi('meshcore'))
+                refuser_ordres('La radio est désactivée dans les Paramètres.')
                 await asyncio.sleep(10)
                 continue
             if (self.mc is None or not self.mc.is_connected) and not await self.connecter():
                 await self.fermer()
-                for o in ordres_en_attente():
-                    repondre(o, False, erreur='La radio ne répond pas.')
+                verifier_garde_fou(False)
+                refuser_ordres('La radio ne répond pas.')
                 await asyncio.sleep(30)
                 continue
+            verifier_garde_fou(True)
             try:
                 await self.traiter_ordres()
                 balise()
@@ -1944,9 +2049,9 @@ class StationMeshCore:
                     self.annonce = time.time()
                 await self.emettre()
             except Exception as e:
-                print('MeshCore : liaison perdue :', e, flush=True)
+                dire('MeshCore : liaison perdue :', e)
                 await self.fermer()
-                noter_etat('muette', res='meshcore', maxi=MAX_MESHCORE)
+                noter_etat('muette', res='meshcore', maxi=lim.maxi('meshcore'))
                 await asyncio.sleep(10)
                 continue
             await asyncio.sleep(1)
@@ -1968,7 +2073,7 @@ def main():
             if r.get('ble'):
                 asyncio.run(StationMeshCore(r['ble']).boucle())
             else:   # ne devrait pas arriver : l'outil note l'adresse en meme temps que le reseau
-                noter_etat('muette', res='meshcore', maxi=MAX_MESHCORE)
+                noter_etat('muette', res='meshcore', maxi=lim.maxi('meshcore'))
                 time.sleep(30)
         else:
             boucle_meshtastic()

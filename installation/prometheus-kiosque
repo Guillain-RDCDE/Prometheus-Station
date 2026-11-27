@@ -11,7 +11,7 @@ if [ "$1" = veille ] || [ "$1" = reveil ]; then
   done
   exit 0
 fi
-VEILLE=$(python3 -c "import json; print(int(json.load(open('/srv/prometheus/communaute/reglages.json')).get('ecran', {}).get('veille', 5)))" 2>/dev/null || echo 5)
+VEILLE=$(prometheus-commun reglage ecran veille 2>/dev/null || echo 5)
 if [ "$VEILLE" -gt 0 ] 2>/dev/null; then
   swayidle -w timeout $((VEILLE * 60)) "$0 veille" resume "$0 reveil" &
 fi

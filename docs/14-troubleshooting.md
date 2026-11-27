@@ -82,6 +82,26 @@ Wait 5 minutes: the safety net switches it off (step 10). If you had already con
 
 It only checks every **10 minutes**, and only when nobody is connected to its own Wi-Fi. Wait, or restart it.
 
+## A button does nothing, a folder is "permission denied"
+
+Who owns each folder of the station, and who may write in it, is in one table, applied at every start and at the end of every installation step. To apply it now:
+
+```
+Pi$ sudo systemd-tmpfiles --create /etc/tmpfiles.d/prometheus.conf
+```
+
+Each button of the Settings drops a numbered order; the station's answer is in `/var/www/prometheus/ajouter/resultats/` (`fait` done, `lance` started, `attente` waiting for another radio operation, `refuse` refused, with the reason). The log of the service that carries them out: `journalctl -u prometheus-commande`.
+
+## Checking the code after a change
+
+From the repository, on a Mac, a Linux computer or the station itself:
+
+```
+$ bash tests/lancer.sh
+```
+
+It runs every test: the shared module, the radio without a radio plugged in, every address of the settings server (logged in or not, compared with `tests/reference/admin.json`), the buttons' orders (Linux), and each page in a real browser when Chrome is there. It ends with `TOUT EST BON` ("all good") or lists what failed. GitHub runs it on every change.
+
 ## Something else
 
 Each service has its own log. The main ones:

@@ -6,6 +6,8 @@
 # Necessite internet pendant l installation (environ 1 Go avec Chromium). A lancer sur le Pi : sudo bash 11-ecran-local.sh
 set -euo pipefail
 ICI=$(cd "$(dirname "$0")" && pwd)
+# Module commun des programmes, table des dossiers, liste de la sauvegarde : commun.sh (le meme pour chaque etape)
+. "$ICI/commun.sh"
 
 echo "== Affichage minimal et navigateur (cage, Chromium, mise en veille de l'ecran)"
 export DEBIAN_FRONTEND=noninteractive

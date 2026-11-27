@@ -1,33 +1,8 @@
 // Prometheus Station - section Mesh : ce que toutes ses pages partagent (plan Mesh, 19/10/2026).
 // Navigation, version legere / complete, ordres a la radio (prometheus-admin -> prometheus-radio), outil radio
-// (operations longues, detail qui defile), petits graphiques. Necessite /langue.js (T, LANGUE, TE).
-function $(id) { return document.getElementById(id); }
-function el(tag, classe, texte) { var e = document.createElement(tag); if (classe) e.className = classe; if (texte !== undefined && texte !== null) e.textContent = texte; return e; }
-var LOC = LANGUE === 'en' ? 'en-GB' : 'fr-FR';
-var ecart = 0;   // heure de la station - heure du telephone (secondes)
-function maintenant() { return Date.now() / 1000 + ecart; }
-function virgule(x, n) { return (typeof x === 'number' ? x.toFixed(n === undefined ? 1 : n) : String(x)).replace('.', T(',', '.')); }
-
-// « il y a 4 min » ; au-dela d'un jour, la date
-function ilya(t) {
-  if (!t) return '—';
-  var s = Math.max(0, maintenant() - t);
-  if (s < 60) return T('à l’instant', 'just now');
-  if (s < 3600) return T('il y a ', '') + Math.round(s / 60) + T(' min', ' min ago');
-  if (s < 86400) return T('il y a ', '') + Math.round(s / 3600) + T(' h', ' h ago');
-  return new Date(t * 1000).toLocaleDateString(LOC, { day: 'numeric', month: 'short' });
-}
-function heure(t) {
-  var d = new Date(t * 1000), auj = new Date(maintenant() * 1000).toDateString() === d.toDateString();
-  return (auj ? '' : d.toLocaleDateString(LOC, { day: 'numeric', month: 'short' }) + ' ') + d.toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' });
-}
-function heureSec(t) { return new Date(t * 1000).toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
-function dateCourte(t) { return t ? new Date(t * 1000).toLocaleString(LOC, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : T('aucun', 'none'); }
-function duree(s) {
-  if (s < 3600) return Math.round(s / 60) + ' min';
-  if (s < 86400) return Math.floor(s / 3600) + ' h ' + String(Math.round(s % 3600 / 60)).padStart(2, '0');
-  return Math.floor(s / 86400) + T(' j ', ' d ') + Math.round(s % 86400 / 3600) + ' h';
-}
+// (operations longues, detail qui defile), petits graphiques. Necessite /langue.js puis /commun.js.
+// $, el, LOC, ecart, maintenant, virgule, ilya, heure, heureSec, dateCourte, duree, octets, lire, envoyer, deuxTemps,
+// texteRadio, suivreJournal : dans /commun.js (charge avant ce fichier), communs a tout le site.
 // Distance et direction entre deux positions GPS (sans carte : « 2,3 km au nord-est »)
 function distance(a, b) {
   var R = 6371, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
@@ -44,7 +19,6 @@ function sauts(n) {
   if (n === null || n === undefined) return '';
   return n === 0 ? T('en direct', 'direct') : n + T(' relais', n > 1 ? ' hops' : ' hop');
 }
-function octets(t) { return new TextEncoder().encode(t).length; }
 function ligneEtat(nom, valeur, classe) {
   var d = el('div'); d.appendChild(el('dt', '', nom)); d.appendChild(el('dd', classe || '', valeur)); return d;
 }
@@ -114,24 +88,15 @@ function titreAvecAide(parent, fr, en, aideFr, aideEn, classe) {
   return h;
 }
 
-// ----- Echanges avec la station
-function api(chemin) {
-  return fetch('/admin-api' + chemin, { cache: 'no-store' }).then(function (r) {
-    if (r.status === 401) { location.href = '/connexion.html?retour=' + encodeURIComponent(location.pathname); throw new Error('401'); }
-    return r.json().then(function (d) { if (!r.ok) throw new Error(TE(d.erreur) || T('Erreur.', 'Error.')); return d; });
-  });
-}
+// ----- Echanges avec la station (par /commun.js : session expiree -> connexion, station muette -> phrase lisible)
+function api(chemin) { return lire('/admin-api' + chemin); }
 // Un ordre a la radio : la reponse vient en general tout de suite ; sinon on la redemande (2 minutes au plus)
 function ordre(action, p) {
-  return fetch('/admin-api/mesh/ordre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: action, p: p || {} }) })
-    .then(function (r) {
-      if (r.status === 401) { location.href = '/connexion.html?retour=' + encodeURIComponent(location.pathname); throw new Error('401'); }
-      return r.json().then(function (d) { return { code: r.status, d: d }; });
-    }).then(function (x) {
-      if (x.code === 202) return attendreReponse(x.d.id, Date.now() + 120000);
-      if (x.code !== 200) throw new Error(TE(x.d.erreur) || T('Refusé.', 'Refused.'));
-      return x.d.r || {};
-    });
+  return envoyer('/admin-api/mesh/ordre', { action: action, p: p || {} }).then(function (x) {
+    if (x.code === 202) return attendreReponse(x.d.id, Date.now() + 120000);
+    if (!x.ok) throw new Error(x.erreur || T('Refusé.', 'Refused.'));
+    return x.d.r || {};
+  });
 }
 function attendreReponse(id, fin) {
   return new Promise(function (ok, ko) {
@@ -149,15 +114,32 @@ var station = null;
 function chargerStation() {
   return api('/radio').then(function (d) {
     station = d; ecart = d.maintenant - Date.now() / 1000;
-    var e = d.etat, moi = (d.details || {}).moi || {}, r = (d.reseau || {}).reseau || 'meshtastic';
-    var txt = !e.active ? T('La radio est désactivée dans les Paramètres.', 'The radio is turned off in Settings.')
-      : e.etat !== 'ok' ? RESEAUX[r] + ' · ' + ({ absente: T('radio pas branchée', 'radio not plugged in'), muette: T('la radio ne répond pas', 'the radio does not answer'), eteinte: T('désactivée', 'turned off') }[e.etat] || e.etat)
-      : [RESEAUX[r], moi.preset, moi.region].filter(Boolean).join(' · ');
-    if ($('reseau')) { $('reseau').textContent = txt; $('reseau').className = 'reseau' + (e.active && e.etat !== 'ok' ? ' alerte' : ''); }
+    var moi = (d.details || {}).moi || {}, r = (d.reseau || {}).reseau || 'meshtastic', er = texteRadio(d.etat);
+    var txt = er.genre === 'eteinte' ? T('La radio est désactivée dans les Paramètres.', 'The radio is turned off in Settings.')
+      : er.genre === 'bien' ? [RESEAUX[r], moi.preset, moi.region].filter(Boolean).join(' · ') : RESEAUX[r] + ' · ' + er.detail;
+    if ($('reseau')) { $('reseau').textContent = txt; $('reseau').className = 'reseau' + (er.genre === 'alerte' ? ' alerte' : ''); }
     document.body.classList.toggle('sous-meshcore', r === 'meshcore');
-    if (d.garde_fou && $('reseau')) $('reseau').textContent += T(' · réglage risque en cours de vérification', ' · risky setting being checked');
+    var gf = texteGardeFou(d.garde_fou);
+    if (gf && $('reseau')) { $('reseau').textContent += gf.court; if (gf.genre === 'abandon') $('reseau').className = 'reseau avertir'; }
     return d;
   });
+}
+// Garde-fou d'un reglage risque (garde-fou.json, ecrit par radio_gardefou.py ; « garde_fou » de /admin-api/radio).
+// Son champ etat : 'surveille' (les 3 minutes qui suivent le reglage ; en_cours vrai tant que l'ecriture dure),
+// 'restauration-demandee' (la radio ne revient pas : remise des reglages d'avant demandee), 'abandon' (toujours
+// muette apres 3 demandes : il faut agir).
+// -> null, ou {court : ajout a la ligne du haut, texte : la phrase complete, genre : 'ecriture' | 'surveille' | 'remise' | 'abandon'}
+function texteGardeFou(g) {
+  if (!g) return null;
+  var raison = g.raison ? ' (' + g.raison + ')' : '';
+  if (g.etat === 'abandon') return { genre: 'abandon', court: T(' · la radio ne revient pas', ' · the radio does not come back'),
+    texte: T('La radio ne revient pas : remettez une sauvegarde depuis Sauvegardes, ou rebranchez-la.', 'The radio does not come back: put a backup back from Backups, or plug it in again.') };
+  if (g.etat === 'restauration-demandee') return { genre: 'remise', court: T(' · remise des réglages d’avant', ' · putting the previous settings back'),
+    texte: T('La radio ne répondait plus après un réglage risqué', 'The radio stopped answering after a risky setting') + raison + T(' : la station lui remet ses réglages d’avant.', ': the station is putting its previous settings back.') };
+  if (g.en_cours) return { genre: 'ecriture', court: T(' · réglage risqué en cours d’écriture', ' · risky setting being written'),
+    texte: T('Réglage risqué en cours d’écriture', 'Risky setting being written') + raison + T(' : la station surveille la radio et remettra seule ses réglages d’avant si elle ne revient pas.', ': the station watches the radio and will put its previous settings back by itself if it does not come back.') };
+  return { genre: 'surveille', court: T(' · réglage risqué en cours de vérification', ' · risky setting being checked'),
+    texte: T('Réglage risqué écrit ', 'Risky setting written ') + ilya(g.heure) + raison + T(' : si la radio ne revient pas, la station remet seule ses réglages d’avant.', ': if the radio does not come back, the station puts its previous settings back by itself.') };
 }
 function reseauActuel() { return station ? (station.reseau || {}).reseau || 'meshtastic' : 'meshtastic'; }
 function radioPrete() { return station && station.etat.active && station.etat.etat === 'ok'; }
@@ -175,20 +157,6 @@ function apresEcriture(r) {
   if (r && r.redemarre) t += T(' La radio redémarre : environ 30 secondes sans radio.', ' The radio restarts: about 30 seconds without radio.');
   if (r && r.risques && r.risques.length) t += T(' Réglage risqué : si la radio ne revient pas d’ici 3 minutes, la station remet seule ses réglages d’avant.', ' Risky setting: if the radio does not come back within 3 minutes, the station puts its previous settings back by itself.');
   return t;
-}
-
-// Bouton en deux temps (toucher, puis confirmer) pour ce qui coupe ou efface
-function deuxTemps(b, texteConfirmer, action) {
-  b.onclick = function () {
-    if (!b.classList.contains('confirmer')) {
-      b.dataset.texte = b.textContent;
-      b.classList.add('confirmer'); b.textContent = texteConfirmer;
-      setTimeout(function () { if (b.classList.contains('confirmer')) { b.classList.remove('confirmer'); b.textContent = b.dataset.texte; } }, 6000);
-      return;
-    }
-    b.classList.remove('confirmer'); b.textContent = b.dataset.texte;
-    action();
-  };
 }
 
 // ----- Resultats arrives par radio (traceroute, telemetrie, reglages lus a distance...)
@@ -213,8 +181,10 @@ function blocOutil(parent) {
     ev.preventDefault();
     var code = $('code').value.replace(/\D/g, '');
     if (code.length !== 6) return;
-    fetch('/admin-api/radio/code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code }) })
-      .then(function () { $('code').value = ''; $('form-code').hidden = true; });
+    envoyer('/admin-api/radio/code', { code: code }).then(function (r) {
+      if (!r.ok) { resultatOutil(false, r.erreur); return; }
+      $('code').value = ''; $('form-code').hidden = true;
+    });
   };
   $('voir-outil').onclick = function () { lireOutil().then(function (t) { if (t) montrerOutil(t); }); };
   lireOutil().then(function (t) {
@@ -222,10 +192,8 @@ function blocOutil(parent) {
     else if (t) $('voir-outil').hidden = false;
   });
 }
-function lireOutil() {
-  return fetch('/ajouter/radio-outil.txt?' + Date.now(), { cache: 'no-store' })
-    .then(function (r) { return r.ok ? r.text() : ''; }).catch(function () { return null; });
-}
+var JOURNAL_OUTIL = '/ajouter/radio-outil.txt';
+function lireOutil() { return lireJournal(JOURNAL_OUTIL); }
 function montrerOutil(texte) {
   var c = $('console-outil'), enBas = c.scrollTop + c.clientHeight >= c.scrollHeight - 30;
   c.hidden = false; $('voir-outil').hidden = true;
@@ -259,43 +227,40 @@ function boutonsOutil() {
 function resultatOutil(ok, texte) {
   var r = $('resultat-outil'); r.hidden = false; r.className = 'resultat-outil ' + (ok ? 'bien' : 'alerte'); r.textContent = texte;
 }
-var finOutil = null;
+var finOutil = null;   // une page peut y mettre ce qu'elle fait a la fin d'une operation (finOutil(reussi))
+// Suivi d'une operation de l'outil radio par son journal (/commun.js, suivreJournal) : le bouton se libere toujours,
+// qu'elle finisse, qu'elle ne demarre pas ou que la station ne reponde pas.
+function suiviOutil(o) {
+  function libre() { occupe = false; boutonsOutil(); }
+  return Object.assign({
+    surTexte: montrerOutil,
+    surFin: function (code) {
+      libre();
+      resultatOutil(code === 0, code === 0 ? T('Terminé.', 'Done.') : T('Échec : le détail est ci-dessous.', 'Failed: details below.'));
+      if (finOutil) finOutil(code === 0);
+    },
+    surRien: function (raison) {
+      libre();
+      if (raison === 'pas-demarre') resultatOutil(false, T('L’opération n’a pas démarré (une autre est peut-être en cours). Réessayez dans un moment.', 'The operation did not start (another one may be running). Try again in a moment.'));
+    },
+    surPanne: function (message) { libre(); resultatOutil(false, message); },
+    // Une autre operation radio tourne : celle-ci est gardee et partira juste apres (prometheus-commande)
+    surAttente: function (message) { var r = $('resultat-outil'); r.hidden = false; r.className = 'resultat-outil'; r.textContent = message; }
+  }, o);
+}
+// debutAvant : null = reprise a l'ouverture de la page (une operation est peut-etre en cours)
 function suivreOutil(debutAvant) {
   occupe = true; boutonsOutil();
   $('resultat-outil').hidden = true;
-  var depart = Date.now(), vueEnCours = false;
-  (function tour() {
-    lireOutil().then(function (texte) {
-      if (texte === null) { setTimeout(tour, 3000); return; }
-      var nouveau = texte.split('\n')[0] !== debutAvant, fin = nouveau && /### FIN (-?\d+)\s*$/.exec(texte);
-      if (fin && debutAvant === null && !vueEnCours) { occupe = false; boutonsOutil(); return; }
-      if (!fin) vueEnCours = vueEnCours || nouveau;
-      if (nouveau) montrerOutil(texte);
-      if (!fin) {
-        if (!nouveau && Date.now() - depart > 30000) {
-          occupe = false; boutonsOutil();
-          resultatOutil(false, T('L’opération n’a pas démarré (une autre est peut-être en cours). Réessayez dans un moment.', 'The operation did not start (another one may be running). Try again in a moment.'));
-          return;
-        }
-        setTimeout(tour, 2000); return;
-      }
-      occupe = false; boutonsOutil();
-      resultatOutil(fin[1] === '0', fin[1] === '0' ? T('Terminé.', 'Done.') : T('Échec : le détail est ci-dessous.', 'Failed: details below.'));
-      if (finOutil) finOutil(fin[1] === '0');
-    });
-  })();
+  suivreJournal(JOURNAL_OUTIL, suiviOutil({ debutAvant: debutAvant }));
 }
 function lancerOutil(ordre_, corps) {
   if (occupe) return;
   occupe = true; boutonsOutil();
-  lireOutil().then(function (texte) {
-    var debutAvant = (texte || '').split('\n')[0];
-    $('console-outil').textContent = T('Lancement…', 'Starting…'); $('console-outil').hidden = false;
-    $('console-outil').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    fetch('/ajouter/commande/radio-' + ordre_, { method: 'PUT', body: corps || '' })
-      .then(function () { suivreOutil(debutAvant); })
-      .catch(function () { occupe = false; boutonsOutil(); resultatOutil(false, T('La station ne répond pas.', 'The station does not respond.')); });
-  });
+  $('resultat-outil').hidden = true;
+  $('console-outil').textContent = T('Lancement…', 'Starting…'); $('console-outil').hidden = false;
+  $('console-outil').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  suivreJournal(JOURNAL_OUTIL, suiviOutil({ lancer: function () { return commander('radio-' + ordre_, corps); } }));
 }
 
 // ----- Petits graphiques : une mesure par graphique, une seule echelle, bulle au survol

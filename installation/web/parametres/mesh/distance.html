@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="mesh.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="mesh.js"></script>
 <script src="champs.js"></script>
 <script src="formulaire.js"></script>
@@ -65,7 +66,7 @@ function meshtastic(z) {
   });
   [['redemarrer', T('Redémarrer', 'Restart')], ['heure', T('Mettre à l’heure', 'Set the time')], ['oublier-tout', T('Oublier toutes les radios', 'Forget all radios')], ['eteindre', T('Éteindre', 'Turn off')]].forEach(function (x) {
     var b = el('button', 'lien danger', x[1]); b.type = 'button';
-    deuxTemps(b, T('Toucher encore', 'Tap again'), function () { demande({ quoi: 'action', action: x[0] }, T('Envoyé.', 'Sent.')); });
+    deuxTemps(b, { texte: T('Toucher encore', 'Tap again'), action: function () { demande({ quoi: 'action', action: x[0] }, T('Envoyé.', 'Sent.')); } });
     liens.appendChild(b);
   });
   titreAvecAide(z, 'Ses réglages', 'Its settings', 'Lisez une section, changez ce qu’il faut, puis écrivez-la (dans les 5 minutes suivant la lecture : la radio l’exige).', 'Read a section, change what is needed, then write it (within 5 minutes of reading: the radio requires it).');

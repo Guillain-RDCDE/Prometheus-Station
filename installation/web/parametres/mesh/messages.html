@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/communaute.css">
 <link rel="stylesheet" href="mesh.css">
 <script src="/langue.js"></script>
+<script src="/commun.js"></script>
 <script src="mesh.js"></script>
 </head>
 <body>
@@ -126,16 +127,14 @@ $('ecrire').onsubmit = function (ev) {
   var v = $('dest').value, corps = { texte: $('texte').value.trim(), canal: 0, a: '' };
   if (v.slice(0, 2) === 'c:') corps.canal = +v.slice(2); else corps.a = v.slice(2);
   $('envoyer').disabled = true; $('erreur').textContent = ''; $('erreur').className = 'erreur';
-  fetch('/admin-api/radio/envoyer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+  envoyer('/admin-api/radio/envoyer', corps)
     .then(function (r) {
-      if (!r.ok) { $('erreur').textContent = TE(r.d.erreur) || T('Erreur.', 'Error.'); compter(); return; }
+      if (!r.ok) { $('erreur').textContent = r.erreur; compter(); return; }
       $('texte').value = ''; compter();
       dire('erreur', true, T('Message mis dans la file : il part dans quelques secondes.', 'Message queued: it leaves in a few seconds.'));
       setTimeout(function () { $('erreur').textContent = ''; }, 6000);
       setTimeout(charger, 4000); setTimeout(charger, 20000);
-    })
-    .catch(function () { $('erreur').textContent = T('La station ne répond pas.', 'The station does not respond.'); compter(); });
+    });
 };
 
 // ----- Historique (version complete)

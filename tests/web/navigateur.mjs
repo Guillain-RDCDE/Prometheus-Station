@@ -41,14 +41,14 @@ function reglages() {
     entraide: { active: true, categories: ['eau', 'nourriture', 'sante', 'abri', 'energie', 'transport', 'outils', 'competences', 'autre'], duree: 72 },
     radio: { active: sc.radioActive, qui: 'tous', delai: 60, ecran_minutes: 2 }, ecran: { active: false, veille: 5 }, eink: { active: false },
     balise: { active: false, texte: '{nom} · wifi {wifi}', heures: 3, canal: 0, urgence_seulement: true },
-    mesh: { historique_jours: 90, distance: true, toutes_cartes: false },
+    mesh: { historique_jours: 90, distance: true, toutes_cartes: false, trajet: true },
     recherches: { epingles: [{ titre: 'Potabilisation', lien: '/encyclopedies/content/wikipedia_fr_all_maxi/Potabilisation' }] }
   };
 }
 function radioAdmin() {
   const t = n();
   return {
-    maintenant: t, etat: radioPublique(), reseau: { reseau: sc.reseau }, garde_fou: sc.gardeFou || null, mesh: { distance: true },
+    maintenant: t, etat: radioPublique(), reseau: { reseau: sc.reseau }, garde_fou: sc.gardeFou || null, mesh: { distance: true, trajet: true },
     details: {
       heure: t - 20, depuis: t - 7170,
       moi: { id: '!a1b2c3d4', nom: 'Prometheus', preset: 'LONG_FAST', region: 'EU_868', lat: 46.5, lon: -1.78, batterie: 101, occupation: 3.2,
@@ -59,7 +59,8 @@ function radioAdmin() {
       ],
       canaux: [{ index: 0, nom: 'LongFast' }]
     },
-    journal: [{ sens: 'recu', nom: 'Jeanne', texte: 'Bonjour la station', heure: t - 500, canal: 0, snr: 4.5 }, { sens: 'emis', texte: 'Bien reçu', heure: t - 400, canal: 0 }],
+    journal: [{ sens: 'recu', nom: 'Jeanne', texte: 'Bonjour la station', heure: t - 500, canal: 0, snr: 4.5 }, { sens: 'emis', texte: 'Bien reçu', heure: t - 400, canal: 0 },
+              { sens: 'recu', nom: 'Loin', texte: 'Bonjour de loin', heure: t - 300, canal: 0, snr: -3, sauts: 3, chemin: 'ec46d45c2667' }],
     outil: { sauvegardes: { meshtastic: t - 86400, meshcore: 0 }, versions: { meshtastic: ['2.7.15'], meshcore: ['1.10.0'] }, radios: [] }
   };
 }
@@ -106,6 +107,10 @@ function api(meth, u, corps) {
     case '/admin-api/balise': return [200, { apercu: 'Prometheus · wifi Prometheus-Station', octets: 36, max: 228, coupe: false, position: false, derniere: t - 3000, canaux: [{ index: 0, nom: 'Principal' }] }];
     case '/admin-api/radio': return [200, radioAdmin()];
     case '/admin-api/mesh/schema': return [200, SCHEMA];
+    case '/admin-api/mesh/trajet': return [200, { places: 2, nommes: 2, km: 210, station: null, liste: { quand: t - 3600, nombre: 38591 }, etapes: [
+      { id: 'ec46', nom: 'Relais <b>Cap</b>', lat: 48.42, lon: 2.1, source: 'public', certitude: 'sur', km: null },
+      { id: 'd45c', nom: '', lat: null, lon: null, source: '', certitude: '', km: null },
+      { id: '2667', nom: 'Relais-Ville', lat: 46.67, lon: 4.6, source: 'entendu', certitude: 'probable', km: 210 }] }];
     case '/admin-api/mesh/resultats': return [200, { resultats: [] }];
     case '/admin-api/mesh/sauvegardes': return [200, { sauvegardes: [{ reseau: 'meshtastic', fichier: 'meshtastic-2026-11-26-1200.yaml', raison: 'avant : région', heure: t - 86400 }] }];
     case '/admin-api/mesh/atelier': return [200, { maintenant: t, ports: ['/dev/ttyACM0'], station: '/dev/ttyACM0', atelier: { radios: [], disques: [], vues: {} },
@@ -338,7 +343,16 @@ const PAGES = [
     verifs: [vrai(`/rebranchez-la/.test(${txt('#garde-fou')}) && document.getElementById('garde-fou').className === 'avertir' && !document.getElementById('garde-fou').hidden`, 'abandon : la consigne, en orange'),
       vrai(`/ne revient pas/.test(${txt('#reseau')})`, 'la ligne du haut le dit')] },
   { nom: 'mesh noeuds', url: '/parametres/mesh/noeuds.html', attente: 1500, verifs: [vrai(`document.querySelectorAll('#liste .ligne-m').length === 2`, '2 radios')] },
-  { nom: 'mesh messages', url: '/parametres/mesh/messages.html', attente: 1500, verifs: [vrai(`/Bonjour la station/.test(${txt('#journal')})`, 'le journal radio')] },
+  { nom: 'mesh messages', url: '/parametres/mesh/messages.html', attente: 1500,
+    verifs: [vrai(`/Bonjour la station/.test(${txt('#journal')})`, 'le journal radio'),
+      vrai(`document.querySelectorAll('#journal .plus').length === 1`, 'un seul bouton « + trajet » (le message passé par des relais)')],
+    gestes: async p => {
+      await p.eval(`document.querySelector('#journal .plus').click()`); await attendre(800);
+      return [await p.verif(vrai(`document.querySelectorAll('.trajet .etapes li').length === 4`, 'trajet : 3 relais + la station')),
+        await p.verif(vrai(`/Relais <b>Cap<\\/b>/.test(${txt('.trajet .etapes')}) && !document.querySelector('.trajet .etapes b b')`, 'un nom de radio reste du texte')),
+        await p.verif(vrai(`document.querySelectorAll('.trajet svg circle').length === 2 && document.querySelectorAll('.trajet svg .trou').length === 1`, 'carte : 2 relais situés, pointillés sur le trou')),
+        await p.verif(vrai(`/au moins 210 km/.test(${txt('.trajet .titre')})`, 'le total des kilomètres'))];
+    } },
   { nom: 'mesh canaux', url: '/parametres/mesh/canaux.html', attente: 1500, verifs: [vrai(`/Famille/.test(${txt('#contenu')})`, 'les canaux')],
     gestes: async p => {
       const b = `[...document.querySelectorAll('.lien.danger')][0]`;

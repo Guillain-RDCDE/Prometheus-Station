@@ -144,6 +144,32 @@ table.tableau th { text-align: left; font-weight: 600; color: var(--gris); borde
 table.tableau td { border-bottom: 1px solid var(--trait); padding: 7px 4px; overflow-wrap: anywhere; }
 table.tableau td.n, table.tableau th.n { text-align: right; }
 
+/* Messages : trajet d'un message MeshCore (Parametres > Mesh > Trajet des messages) */
+.plus { font: inherit; font-size: .75rem; color: var(--gris); background: none; border: 1px solid var(--trait); border-radius: 4px; padding: 0 6px; margin-left: 8px; cursor: pointer; }
+.plus:hover, .plus[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+.trajet { margin-top: 10px; border: 1px solid var(--trait); border-radius: 8px; padding: 14px; display: grid; grid-template-columns: minmax(0, 300px) 1fr; gap: 14px 18px; }
+.trajet .titre { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: .95rem; }
+.trajet .titre span { color: var(--gris); font-size: .85rem; }
+.trajet .aide { grid-column: 1 / -1; margin: 0; font-size: .85rem; }
+.trajet svg { display: block; width: 100%; height: auto; background: var(--fond); border-radius: 6px; }
+.trajet svg text { font-size: 9px; fill: var(--gris); }
+.trajet svg .ligne-trajet { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+.trajet svg .trou { fill: none; stroke: var(--pale); stroke-width: 1.2; stroke-dasharray: 3 3; }
+.trajet svg .relais { fill: var(--carte); stroke: var(--accent); stroke-width: 1.5; }
+.trajet svg .dernier { fill: var(--accent); }
+.trajet svg .echelle { stroke: var(--gris); stroke-width: 1; }
+.etapes { list-style: none; margin: 0; padding: 0; font-size: .86rem; }
+.etapes li { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--trait); align-items: baseline; }
+.etapes li:last-child { border-bottom: 0; }
+.etapes .n { color: var(--pale); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.etapes .km { color: var(--gris); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.etapes .inconnu { color: var(--pale); }
+.etapes .ident { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .74rem; color: var(--pale); margin-left: 6px; }
+.etapes .mot { margin-left: 6px; }
+.etapes .fin b { color: var(--accent); }
+.trajet .note { grid-column: 1 / -1; color: var(--pale); font-size: .78rem; margin: 0; display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: baseline; }
+@media (max-width: 640px) { .trajet { grid-template-columns: 1fr; } }
+
 /* Journal technique */
 .paquet { padding: 7px 2px; border-bottom: 1px solid var(--trait); font-size: .84rem; }
 .paquet .haut { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }

@@ -109,6 +109,18 @@ Turn it on in **Settings › Radio › Remote administration**.
 - **Meshtastic.** The other radio must trust the station: put the station's public key (shown on the page) in that radio's **Admin keys** (Security section), once, by cable or with the phone app. Then choose it, *Read* any section, change it and *Write to this radio* within 5 minutes of reading (the radio requires a recent read). Its information, name, restart, clock, forgetting its node list are also there. Every exchange goes over the radio network: from a few seconds to a minute.
 - **MeshCore.** Choose a repeater or room server among the contacts, **log in** with its password (empty for guest), then *Status*, *Neighbours*, *Access list*, *Metrics*, and as administrator its **command line** (`get radio`, `set tx 20`, `advert`, `reboot`…), the answer coming back by radio.
 
+## Route of a message (MeshCore, off by default)
+
+Turn it on in **Settings › Radio › Route of messages**. In **Messages**, every MeshCore message that came through relays gets a small **+ route** button next to its signal and hop count. It opens:
+
+- the **relays in order**, from the sender to the station, with the distance between each one and the total;
+- a **small map** of them, with no background so it works offline: the relays are joined in order, dotted where some are missing, with a scale and north;
+- the reminder that the signal (SNR) only covers the **last hop**, from the last relay to the station.
+
+How the station knows: every MeshCore relay adds the first 1, 2 or 3 bytes of its identity to a message sent to everyone, so the packet carries the list of relays it went through. The station looks for them among the radios it has **heard announcing themselves** (with their position), its contacts, and the **public list of MeshCore relays** ([map.meshcore.dev](https://map.meshcore.dev)). With internet, that list is downloaded when you turn the option on, then once a week by the daily software search (about 60 MB downloaded, 2.7 MB kept: only relays with a position heard in the last 60 days). A short identifier can belong to several relays in the world: the station keeps the **shortest chain** from the sender to itself (a relay it heard itself gets a small advantage), never takes a hop longer than 300 km, and marks a relay **likely** when another one was possible at that step. A relay found nowhere stays *unknown*, with its identifier.
+
+Direct messages routed along a known path, and every Meshtastic message, do not carry their relays: there is no button on them.
+
 ## Technical log (Full)
 
 Every packet the station's radio heard or sent in the last six hours, newest first, refreshed every three seconds: time, heard/sent, kind, from and to, signal, hops, relaying radio, and its decoded content (text, position, card, metrics, route, neighbours, advert). Filter by kind or radio, *Pause*, *Export the last 24 h (JSON)*. Below, the details of the radio tool's last operation.
@@ -120,8 +132,9 @@ The pages never talk to the radio themselves. They send **orders** to `prometheu
 | Part | Role |
 |---|---|
 | `prometheus-radio` | holds the radio. Besides the message board: the Mesh orders (read and write the configuration in one transaction, channels, nodes, requests by radio, remote administration), the history, the backups before each change, the safety net |
-| `prometheus-radio-outil` | adds `restaurer` (put a backup back, reinstalling the software if the radio no longer answers), `identifier` (recognise every plugged radio and update drive), `carte` (install or update any board); `chercher` also builds the board catalogue and keeps the followed boards' software |
-| `prometheus-admin` | `POST /mesh/ordre`, `GET /mesh/reponse`, `/mesh/resultats`, `/mesh/historique`, `/mesh/schema`, `/mesh/sauvegardes`, `/mesh/atelier`, `POST /mesh/atelier/suivies` |
+| `prometheus-radio-outil` | adds `restaurer` (put a backup back, reinstalling the software if the radio no longer answers), `identifier` (recognise every plugged radio and update drive), `carte` (install or update any board), `relais` (download the public list of MeshCore relays); `chercher` also builds the board catalogue and keeps the followed boards' software, and the relay list when *Route of messages* is on |
+| `radio_trajet.py` | finds the relays of a message's route and where they are (shortest chain, distances) |
+| `prometheus-admin` | `POST /mesh/ordre`, `GET /mesh/reponse`, `/mesh/resultats`, `/mesh/historique`, `/mesh/schema`, `/mesh/sauvegardes`, `/mesh/atelier`, `/mesh/trajet` (route of a message), `POST /mesh/atelier/suivies` |
 
 | Path | Content |
 |---|---|
@@ -132,6 +145,7 @@ The pages never talk to the radio themselves. They send **orders** to `prometheu
 | `/srv/prometheus/radio/mesh-sauvegardes/` | the settings saved before each change, keys included: readable by the station only |
 | `/srv/prometheus/radio/garde-fou.json` | present while the safety net is watching after a risky setting; its `etat` says where it is: `surveille` (watching), `restauration-demandee` (putting the previous settings back), `abandon` (gave up, a person must act) |
 | `/srv/prometheus/radio/ordres/`, `reponses/` | the orders of the Mesh pages and their answers; they can hold keys (settings read, channels): readable by the station only |
+| `/srv/prometheus/radio/relais-publics.json` | the public list of MeshCore relays with a position (name, place, last heard), for the route of messages |
 | `/srv/prometheus/radio/catalogue.json`, `atelier.json`, `cartes-suivies.json` | the boards known, the radios recognised, *My boards* (also filled from `installation/cartes.txt`) |
 | `/srv/prometheus/radio/logiciels/meshtastic/<version>/archives/`, `…/meshcore/<version>/cartes/` | the Workshop's software, by chip family (Meshtastic) and by board (MeshCore) |
 
@@ -149,7 +163,8 @@ The pages are in `/var/www/prometheus/parametres/mesh/`: `champs.js` holds the p
 - remote administration of a T-Echo: its information, name and screen section read over the air, a setting written over the air (acknowledged, then checked on the T-Echo by cable), its clock set;
 - MeshCore: every setting read (40 channels on this firmware, all of them now saved), a `#channel` created and a setting changed, statistics every minute, an advert, a contact card exported; the switch Meshtastic → MeshCore → Meshtastic without anyone, both identities kept;
 - the Workshop: every plugged radio recognised, the catalogue built (129 Meshtastic and 105 MeshCore boards), and a T-Echo **updated through the general path** (update mode by command, its drive found, the firmware copied, the T-Echo back with **its identity unchanged**); the files and offsets prepared for ESP32 boards (full image, OTA part at 0x260000, file system at 0x300000, as in Meshtastic's own installer);
-- statistics and the technical log filling up; every page in English and French, light and full, at phone width.
+- statistics and the technical log filling up; every page in English and French, light and full, at phone width;
+- the route of messages (27 November 2026): the public list downloaded (38,573 relays kept), and a message that had crossed 14 relays found **relay by relay, 14 out of 14, 480 km** to the station; with 1-byte identifiers, a coherent chain without zigzags, marked *likely*.
 
 **Not tested for lack of hardware:** installing an ESP32 board other than the station's (the T-Beam is deliberately refused by the Workshop), an RP2040 board, a MeshCore repeater or room server set up through its serial console, logging in to a MeshCore repeater and the *Radios waiting* list (no other MeshCore radio in range with the antenna indoors). **Not tested on purpose:** keeping the software of every board (about 830 MB per version), MQTT. *My boards* and `cartes.txt` were tested (a list saved and the download run; the file read with comments, blank lines and a wrong name), without adding boards to the test station.
 

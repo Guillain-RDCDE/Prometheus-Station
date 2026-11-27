@@ -30,6 +30,7 @@ ADMIN = os.path.join(SRV, '.admin')
 COMMUNAUTE = os.path.join(SRV, 'communaute')
 REGLAGES = os.path.join(COMMUNAUTE, 'reglages.json')
 RADIO = os.path.join(SRV, 'radio')
+RELAIS_PUBLICS = os.path.join(RADIO, 'relais-publics.json')   # liste publique des relais MeshCore (radio_trajet)
 COMMANDE = os.path.join(SRV, 'commande')
 THEMES = os.path.join(WEB, 'themes')
 THEME_ACTIF = os.path.join(WEB, 'theme.css')
@@ -49,8 +50,9 @@ DEFAUT = {
     # Radio reliee au tableau des messages (programme prometheus-radio)
     'radio': {'active': False, 'qui': 'tous', 'delai': 60, 'ecran_minutes': 0},   # ecran : 0 = pas sur l'ecran e-ink
     # Section Mesh : duree de l'historique (jours, 0 = toujours), administration a distance des autres radios,
-    # logiciels de toutes les cartes gardes sur la station (sinon : seulement les cartes deja vues ou cochees)
-    'mesh': {'historique_jours': 90, 'distance': False, 'toutes_cartes': False},
+    # logiciels de toutes les cartes gardes sur la station (sinon : seulement les cartes deja vues ou cochees),
+    # trajet des messages MeshCore (bouton « + trajet » dans Messages ; liste publique des relais par internet)
+    'mesh': {'historique_jours': 90, 'distance': False, 'toutes_cartes': False, 'trajet': False},
     # Ecran et clavier branches sur la station (etape 11, la « mallette ») : veille en minutes, 0 = jamais
     'ecran': {'active': False, 'veille': 5},
     # Petit ecran e-ink pose sur le Pi (etape 6) : a desactiver s'il n'est pas branche

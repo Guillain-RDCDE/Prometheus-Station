@@ -16,6 +16,7 @@
 #   prometheus-radio-outil restaurer '<json>'        {fichier} : remet une sauvegarde de la section Mesh (garde-fou compris)
 #   prometheus-radio-outil identifier                atelier : reconnait toute radio branchee et les disques UF2
 #   prometheus-radio-outil carte '<json>'            atelier : installe Meshtastic ou MeshCore sur une carte (voir action_carte)
+#   prometheus-radio-outil relais                    liste publique des relais MeshCore (internet), pour le trajet des messages
 #
 # Ce qu'il garde, dans /srv/prometheus/radio :
 #   reseau.json      {reseau: meshtastic|meshcore, puce: SX1276|SX1262, mac, ble}  (lu par prometheus-radio)
@@ -33,6 +34,7 @@ import radio_gardefou as gf
 import radio_limites as lim
 import radio_materiel as mat
 import radio_sauvegarde as sauv
+import radio_trajet as traj
 import radio_surete as sur
 
 RADIO = pc.RADIO
@@ -896,11 +898,42 @@ def action_chercher(_):
         chercher_catalogue()
     except Exception as e:
         dire('!! Catalogue de l’atelier non mis à jour :', e)
+    # Trajet des messages : la liste publique des relais, rafraichie chaque semaine (une panne n'empeche pas le reste)
+    try:
+        if trajet_voulu() and time.time() - os.path.getmtime(pc.RELAIS_PUBLICS) > 6 * 86400:
+            action_relais('')
+    except FileNotFoundError:
+        try:
+            action_relais('')
+        except Exception as e:
+            dire('!! Liste publique des relais non mise à jour :', e)
+    except Exception as e:
+        dire('!! Liste publique des relais non mise à jour :', e)
     # On garde les deux dernieres versions de chaque reseau
     for reseau in ('meshtastic', 'meshcore'):
         for vieux in versions(reseau)[GARDER_VERSIONS:]:
             shutil.rmtree(os.path.join(LOGICIELS, reseau, vieux))
             dire('   ancienne version retirée :', reseau, vieux)
+
+
+def trajet_voulu():
+    """Parametres > Mesh > Trajet des messages : la station garde alors la liste publique des relais."""
+    try:
+        return json.load(open(pc.REGLAGES)).get('mesh', {}).get('trajet') is True
+    except (OSError, ValueError):
+        return False
+
+
+def action_relais(_):
+    """La liste publique des relais MeshCore (map.meshcore.dev) : nom et position, pour le trajet des messages."""
+    dire('== Liste publique des relais MeshCore (internet)')
+    noeuds = json.loads(telecharger(traj.URL_PUBLIQUE))
+    relais = traj.compacter_publics(noeuds)
+    if not relais:
+        raise Echec('Liste publique vide ou illisible : l’ancienne est gardée.')
+    pc.ecrire_json(pc.RELAIS_PUBLICS, {'source': traj.URL_PUBLIQUE, 'quand': time.time(), 'relais': relais}, 0o644)
+    dire('   %d radios dans la liste, %d relais placés et entendus ces %d derniers jours : gardés'
+         % (len(noeuds), len(relais), traj.FRAICHEUR_JOURS))
 
 
 # ---------------------------------------------------------------- les T-Echo branches en USB
@@ -1796,7 +1829,7 @@ def resumer():
 ACTIONS = {'sauvegarder': action_sauvegarder, 'regler': action_regler, 'reseau': action_reseau,
            'chercher': action_chercher, 'chercher-auto': action_chercher, 'installer': action_installer,
            't-echo': action_t_echo, 'detecter': action_detecter, 'restaurer': action_restaurer,
-           'identifier': action_identifier, 'carte': action_carte, 'resumer': None}
+           'identifier': action_identifier, 'carte': action_carte, 'relais': action_relais, 'resumer': None}
 
 if __name__ == '__main__':
     action = sys.argv[1] if len(sys.argv) > 1 else ''
@@ -1814,7 +1847,7 @@ if __name__ == '__main__':
          'chercher-auto': 'recherche quotidienne des logiciels des radios', 'installer': 'mise à jour d’une radio',
          't-echo': 'T-Echo : installation', 'detecter': 'reconnaissance des radios branchées',
          'restaurer': 'remise d’une sauvegarde des réglages', 'identifier': 'atelier : reconnaissance des radios branchées',
-         'carte': 'atelier : installation d’une carte'}[action]))
+         'carte': 'atelier : installation d’une carte', 'relais': 'liste publique des relais MeshCore'}[action]))
     code = 0
     try:
         if action == 'chercher-auto':

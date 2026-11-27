@@ -57,6 +57,7 @@ ECART = 15            # secondes au moins entre deux emissions (temps d'emission
 SILENCE = 600         # sans nouvelles de la radio depuis 10 min : on verifie qu'elle repond encore
 MAX_TEXTE = lim.MAX_TEXTE
 MAX_JOURNAL = 300
+ECART_CHEMIN = 10       # MeshCore : secondes au plus entre un message et le paquet qui porte son chemin de relais
 PHOTO = 30            # secondes entre deux mises a jour de details.json
 RELEVE = 60           # secondes entre deux releves des statistiques dans l'historique
 MAX_MESHTASTIC = lim.MAX_MESHTASTIC   # octets par message (radio_limites.py)
@@ -153,6 +154,22 @@ def statut(ident, valeur, raison=''):
             ecrire(JOURNAL, journal)
         except OSError:
             pass
+
+
+def noter_chemin(brut):
+    """MeshCore : le paquet d'un message est arrive APRES le message lui-meme ; on lui donne son chemin de relais
+    (le message recu juste avant, du meme genre et avec le meme nombre de relais). Vrai si un message l'a pris."""
+    with VERROU_JOURNAL:
+        for e in reversed(journal[-20:]):
+            if e.get('sens') == 'recu' and not e.get('chemin') and e.get('sauts') == brut['sauts'] \
+                    and bool(e.get('direct')) == brut['direct'] and abs(e.get('heure', 0) - brut['heure']) <= ECART_CHEMIN:
+                e['chemin'] = brut['chemin']
+                try:
+                    ecrire(JOURNAL, journal)
+                except OSError:
+                    pass
+                return True
+    return False
 
 
 def heure_sure():
@@ -1487,6 +1504,7 @@ class StationMeshCore(Pilote):
         self.acks = {}        # code d'accuse attendu -> (id du message, heure limite)
         self.nom = ''
         self.taches = set()
+        self.bruts = []          # derniers paquets de messages entendus : leur chemin de relais (voir recu, entendu)
 
     def maxi(self):
         # Sur un canal, MeshCore met « Nom: » devant le texte, dans la meme limite
@@ -1595,9 +1613,16 @@ class StationMeshCore(Pilote):
             return
         nom = nettoyer(nom, 40)
         sauts = p.get('path_len')
-        noter_journal({'heure': time.time(), 'sens': 'recu', 'de': de, 'nom': nom, 'a': 'moi' if direct else '^all',
-                       'direct': direct, 'canal': p.get('channel_idx', 0), 'texte': reste, 'snr': p.get('SNR'),
-                       'rssi': None, 'sauts': None if sauts in (None, 255, -1) else sauts})
+        entree = {'heure': time.time(), 'sens': 'recu', 'de': de, 'nom': nom, 'a': 'moi' if direct else '^all',
+                  'direct': direct, 'canal': p.get('channel_idx', 0), 'texte': reste, 'snr': p.get('SNR'),
+                  'rssi': None, 'sauts': None if sauts in (None, 255, -1) else sauts}
+        # Le chemin de relais n'est que dans le paquet (journal du logiciel MeshCore, voir entendu) : s'il est deja la
+        for b in reversed(self.bruts):
+            if b['sauts'] == entree['sauts'] and b['direct'] == direct and abs(b['heure'] - entree['heure']) <= ECART_CHEMIN:
+                entree['chemin'] = b['chemin']
+                self.bruts.remove(b)
+                break
+        noter_journal(entree)
         deposer_pour_tableau(nom, reste)
 
     async def entendu(self, ev):
@@ -1616,6 +1641,14 @@ class StationMeshCore(Pilote):
                 resume['texte'] = nettoyer(p['message'], MAX_TEXTE)   # message d'un canal que la station sait lire
             HISTO.paquet('meshcore', 'recu', de, nom, '', type_, None, p.get('snr'), p.get('rssi'),
                          p.get('path_len') if isinstance(p.get('path_len'), int) else None, None, resume)
+            # Message (canal ou direct) passe par des relais : son chemin, pour le trajet affiche dans Messages
+            chemin = p.get('path')
+            # (seulement « par inondation » : un paquet achemine en direct ne garde pas les relais passes)
+            if type_ in ('GRP_TXT', 'TXT_MSG') and 'FLOOD' in str(p.get('route_typename', '')) \
+                    and isinstance(p.get('path_len'), int) and p['path_len'] > 0 and isinstance(chemin, str) and chemin:
+                brut = {'heure': time.time(), 'sauts': p['path_len'], 'direct': type_ == 'TXT_MSG', 'chemin': chemin[:200]}
+                if not noter_chemin(brut):
+                    self.bruts = [b for b in self.bruts if brut['heure'] - b['heure'] <= ECART_CHEMIN][-19:] + [brut]
         except Exception as e:
             dire('MeshCore : paquet illisible :', e)
 

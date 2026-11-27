@@ -111,6 +111,13 @@
    "scenario": "GET /mesh/atelier (sans connexion)"
   },
   {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /mesh/trajet?sauts=2&chemin=ec462667 (sans connexion)"
+  },
+  {
    "code": 200,
    "reponse": {
     "admin": false,
@@ -194,7 +201,8 @@
     "mesh": {
      "distance": false,
      "historique_jours": 90,
-     "toutes_cartes": false
+     "toutes_cartes": false,
+     "trajet": false
     },
     "radio": {
      "active": false,
@@ -476,7 +484,8 @@
     "mesh": {
      "distance": false,
      "historique_jours": 90,
-     "toutes_cartes": false
+     "toutes_cartes": false,
+     "trajet": false
     },
     "outil": {
      "radios": []
@@ -550,6 +559,11 @@
     "toutes_cartes": false
    },
    "scenario": "GET /mesh/atelier"
+  },
+  {
+   "code": 404,
+   "reponse": {},
+   "scenario": "GET /mesh/trajet?sauts=2&chemin=ec462667"
   },
   {
    "code": 200,
@@ -635,7 +649,8 @@
     "mesh": {
      "distance": false,
      "historique_jours": 90,
-     "toutes_cartes": false
+     "toutes_cartes": false,
+     "trajet": false
     },
     "radio": {
      "active": false,
@@ -1077,7 +1092,8 @@
     "mesh": {
      "distance": false,
      "historique_jours": 90,
-     "toutes_cartes": false
+     "toutes_cartes": false,
+     "trajet": false
     },
     "radio": {
      "active": true,

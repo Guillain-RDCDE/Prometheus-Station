@@ -8,6 +8,7 @@ import radio_limites as lim
 import radio_materiel as mat
 import radio_sauvegarde as sauv
 import radio_surete as sur
+import radio_trajet as traj
 
 PAR_ID = '/dev/serial/by-id/'
 TBEAM = PAR_ID + 'usb-1a86_USB_Single_Serial_5A7B012345-if00'
@@ -308,3 +309,88 @@ class GardeFou(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class Trajet(unittest.TestCase):
+    # Positions fictives (une region de 400 km de large) et deux homonymes lointains
+    CONNUS = [{'cle': '8784aa', 'nom': 'Relais-Nord', 'lat': 47.579, 'lon': 1.342, 'source': 'entendu'},
+              {'cle': '2667bb', 'nom': 'Relais-Ville', 'lat': 46.669, 'lon': 1.568, 'source': 'entendu'},
+              {'cle': 'a204cc', 'nom': 'Relais-Est', 'lat': 46.793, 'lon': 2.153, 'source': 'entendu'},
+              {'cle': 'd45cdd', 'nom': 'Sans position', 'lat': None, 'lon': None, 'source': 'entendu'}]
+    PUBLICS = [['ec4611', 'Relais-Cap', 48.4237, -1.481, '2026-11-27'],
+               ['984022', 'Relais-Mont', 48.4214, -0.84729, '2026-11-27'],
+               ['8784ee', 'Homonyme-Loin', 45.9281, 9.0188, '2026-11-26'],     # meme debut que Relais-Nord, a 600 km
+               ['2667ff', 'Homonyme-Tres-Loin', 37.7736, -81.2187, '2026-11-15']]  # meme debut que Relais-Ville, sur un autre continent
+
+    def test_decouper(self):
+        self.assertEqual(traj.decouper('95a28226', 4), ['95', 'a2', '82', '26'])
+        self.assertEqual(traj.decouper('9547873887', 5), ['95', '47', '87', '38', '87'])
+        self.assertEqual(traj.decouper('95478738', 2), ['9547', '8738'])
+        self.assertEqual(traj.decouper('954787', 1), ['954787'])          # 3 octets par relais
+        self.assertEqual(traj.decouper('', 3), [])
+        self.assertEqual(traj.decouper('95a2', 0), [])
+        self.assertEqual(traj.decouper('95a28', 2), [])          # longueur impossible
+        self.assertEqual(traj.decouper('zz', 1), [])            # pas de l'hexadecimal
+        self.assertEqual(traj.decouper('9547873887', 1), [])    # 5 octets par relais : impossible
+
+    def test_retrouve_le_plus_proche_et_le_dit(self):
+        r = traj.retrouver('ec469840d45c8784a2042667', 6, self.CONNUS, self.PUBLICS)
+        noms = [e['nom'] for e in r['etapes']]
+        self.assertEqual(noms, ['Relais-Cap', 'Relais-Mont', 'Sans position', 'Relais-Nord', 'Relais-Est', 'Relais-Ville'])
+        e = {x['nom']: x for x in r['etapes']}
+        self.assertEqual(e['Relais-Nord']['source'], 'entendu')        # pas l'homonyme lointain
+        self.assertEqual(e['Relais-Nord']['certitude'], 'sur')         # l'homonyme est a plus de 300 km
+        self.assertEqual(e['Relais-Mont']['source'], 'public')
+        self.assertIsNone(e['Sans position']['lat'])
+        self.assertEqual(r['places'], 5)
+        self.assertEqual(r['nommes'], 6)
+        self.assertIsNone(r['etapes'][0]['km'])                      # le premier : pas de distance
+        self.assertAlmostEqual(e['Relais-Mont']['km'], 47, delta=2)
+        self.assertGreater(r['km'], 250)
+
+    def test_homonymes_proches_probable(self):
+        publics = self.PUBLICS + [['2667ab', 'Autre relais proche', 46.70, 1.6, '2026-11-27']]
+        r = traj.retrouver('2667', 1, self.CONNUS, publics)
+        self.assertEqual(r['etapes'][0]['nom'], 'Relais-Ville')     # le plus proche du centre des radios entendues
+        self.assertEqual(r['etapes'][0]['certitude'], 'probable')
+
+    def test_pas_de_zigzag(self):
+        # Identifiants d'un octet : « b8 » est une radio entendue a 150 km de la route, ou un relais public sur la route
+        connus = self.CONNUS + [{'cle': 'b8aa', 'nom': 'Entendu loin', 'lat': 47.9, 'lon': 3.4, 'source': 'entendu'}]
+        r = traj.retrouver('87b826', 3, connus, [['b8bb', 'Sur la route', 47.15, 1.45, '2026-11-27']])
+        self.assertEqual([e['nom'] for e in r['etapes']], ['Relais-Nord', 'Sur la route', 'Relais-Ville'])
+        self.assertEqual(r['etapes'][1]['certitude'], 'probable')   # l'autre restait a portee
+
+    def test_inconnu_trop_loin(self):
+        r = traj.retrouver('99', 1, self.CONNUS, [['99aa', 'Tres loin', 10.0, 10.0, '2026-11-27']])
+        self.assertEqual(r['etapes'][0]['nom'], '')
+        self.assertEqual(r['places'], 0)
+
+    def test_position_de_la_station(self):
+        # La station reglee loin de la region : des deux relais « 2667 », c'est celui pres d'elle
+        r = traj.retrouver('2667', 1, [], self.PUBLICS + [['2667cc', 'Pres de la station', 48.4, -1.4, '2026-11-27']],
+                           {'lat': 48.39, 'lon': -1.49})
+        self.assertEqual(r['etapes'][0]['nom'], 'Pres de la station')
+        self.assertEqual(r['station'], {'lat': 48.39, 'lon': -1.49})
+
+    def test_compacter_publics(self):
+        noeuds = [{'public_key': 'AABBCCDDEEFF0011', 'type': 2, 'adv_name': 'Relais', 'adv_lat': 46.1, 'adv_lon': -1.1,
+                   'last_advert': '2026-11-20T10:00:00.000Z'},
+                  {'public_key': 'aabbccdd00', 'type': 1, 'adv_name': 'Compagnon', 'adv_lat': 46.1, 'adv_lon': -1.1,
+                   'last_advert': '2026-11-20T10:00:00.000Z'},                      # ne relaie pas
+                  {'public_key': 'aabbccdd11', 'type': 2, 'adv_name': 'Sans place', 'adv_lat': 0, 'adv_lon': 0,
+                   'last_advert': '2026-11-20T10:00:00.000Z'},
+                  {'public_key': 'aabbccdd22', 'type': 3, 'adv_name': 'Vieux', 'adv_lat': 46.1, 'adv_lon': -1.1,
+                   'last_advert': '2025-01-01T10:00:00.000Z'},
+                  'pas un dict']
+        maintenant = 1795800000   # 27/11/2026
+        self.assertEqual(traj.compacter_publics(noeuds, maintenant), [['aabbccddeeff', 'Relais', 46.1, -1.1, '2026-11-20']])
+        self.assertEqual(traj.compacter_publics({'pas': 'une liste'}), [])
+
+    def test_lire_publics(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, 'relais.json')
+            self.assertEqual(traj.lire_publics(f), {'quand': None, 'relais': []})
+            json.dump({'relais': [['aa', 'x', 1.0, 2.0, '2026-11-27'], ['mauvais']]}, open(f, 'w'))
+            self.assertEqual(traj.lire_publics(f)['relais'], [['aa', 'x', 1.0, 2.0, '2026-11-27']])

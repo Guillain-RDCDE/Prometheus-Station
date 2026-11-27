@@ -305,6 +305,50 @@ def historique(q):
         db.close()
 
 
+def trajet(q):
+    """Section Mesh > Messages : le trajet d'un message MeshCore (radio_trajet), d'apres son chemin de relais.
+    Radios connues : celles entendues s'annoncer (historique), les contacts de la radio, puis la liste publique."""
+    import sqlite3
+    import radio_trajet as traj
+    chemin = q.get('chemin', [''])[0][:200]
+    try:
+        sauts = int(q.get('sauts', ['0'])[0])
+    except ValueError:
+        sauts = 0
+    connus, vus = [], set()
+    base = os.path.join(RADIO, 'historique.db')
+    if os.path.exists(base):
+        db = sqlite3.connect('file:%s?mode=ro' % base, uri=True, timeout=5)
+        try:
+            # La derniere annonce de chaque radio (la plus recente d'abord)
+            for de, nom, resume in db.execute("SELECT de, nom, resume FROM paquets WHERE reseau = 'meshcore' AND port = 'ADVERT' "
+                                              "AND de != '' ORDER BY heure DESC LIMIT 20000"):
+                cle = (de or '').lower()
+                if cle in vus:
+                    continue
+                vus.add(cle)
+                try:
+                    r = json.loads(resume or '{}')
+                except ValueError:
+                    r = {}
+                connus.append({'cle': cle, 'nom': nom or r.get('adv_name') or cle[:8], 'lat': r.get('adv_lat'),
+                               'lon': r.get('adv_lon'), 'source': 'entendu'})
+        finally:
+            db.close()
+    details = lire_json(os.path.join(RADIO, 'details.json'), {}) or {}
+    for n in details.get('noeuds') or []:
+        cle = str(n.get('id') or '').lower()
+        if cle and cle not in vus:
+            vus.add(cle)
+            connus.append({'cle': cle, 'nom': n.get('nom') or cle[:8], 'lat': n.get('lat'), 'lon': n.get('lon'), 'source': 'entendu'})
+    moi = details.get('moi') or {}
+    station = {'lat': moi.get('adv_lat'), 'lon': moi.get('adv_lon')} if traj.bonne_position(moi.get('adv_lat'), moi.get('adv_lon')) else None
+    publics = traj.lire_publics(pc.RELAIS_PUBLICS)
+    res = traj.retrouver(chemin, sauts, connus, publics['relais'], station)
+    res['liste'] = {'quand': publics['quand'], 'nombre': len(publics['relais'])}
+    return res
+
+
 def apercu_balise(texte):
     """Le texte de la balise tel que la radio l'enverra : le meme calcul (radio_limites.rendre_balise)."""
     import radio_limites as lim
@@ -522,6 +566,13 @@ class Admin(BaseHTTPRequestHandler):
                     return self.repondre(200, {'donnees': historique(q), 'maintenant': time.time()})
                 except Exception as e:
                     return self.repondre(500, {'erreur': 'Historique illisible : %s' % e})
+            if u.path == '/mesh/trajet':
+                if reglages()['mesh']['trajet'] is not True:
+                    return self.repondre(404)
+                try:
+                    return self.repondre(200, trajet(q))
+                except Exception as e:
+                    return self.repondre(500, {'erreur': 'Trajet illisible : %s' % e})
             if u.path == '/mesh/schema':
                 return self.repondre(200, lire_json(os.path.join(RADIO, 'schema.json'), {}))
             if u.path == '/mesh/sauvegardes':

@@ -90,8 +90,142 @@ function ligneMessage(m, repondre) {
   if (typeof m.snr === 'number') sig.push('SNR ' + virgule(m.snr) + ' dB');
   if (m.rssi) sig.push('RSSI ' + m.rssi + ' dBm');
   var s = sauts(m.sauts); if (s) sig.push(s);
-  if (sig.length) c.appendChild(el('div', 'signal', sig.join(' · ')));
+  if (sig.length) {
+    var ls = el('div', 'signal', sig.join(' · '));
+    c.appendChild(ls);
+    if (m.chemin && m.sauts > 0 && (station.mesh || {}).trajet) boutonTrajet(c, ls, m);
+  }
   return c;
+}
+
+// ----- Trajet d'un message MeshCore (Parametres > Mesh > Trajet des messages) : les relais, ou ils sont.
+// La station retrouve les relais (/mesh/trajet, radio_trajet.py) ; ici, seulement l'affichage. Un panneau
+// ouvert le reste quand la liste se redessine (toutes les 15 s).
+var trajetsOuverts = {}, trajetsLus = {};
+function boutonTrajet(ligne, ls, m) {
+  var cle = m.sauts + ':' + m.chemin, b = el('button', 'plus');
+  b.type = 'button';
+  var zone = el('div', 'trajet'); zone.hidden = true;
+  function montrer(ouvert) {
+    b.textContent = ouvert ? T('− trajet', '− route') : T('+ trajet', '+ route');
+    b.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+    zone.hidden = !ouvert;
+    if (ouvert) remplirTrajet(zone, cle, m);
+  }
+  b.onclick = function () { trajetsOuverts[cle] = !trajetsOuverts[cle]; montrer(trajetsOuverts[cle]); };
+  ls.appendChild(b); ligne.appendChild(zone);
+  montrer(!!trajetsOuverts[cle]);
+}
+function remplirTrajet(zone, cle, m) {
+  if (trajetsLus[cle]) { dessinerTrajet(zone, trajetsLus[cle], m); return; }
+  zone.innerHTML = ''; zone.appendChild(el('p', 'note', T('Recherche des relais…', 'Looking up the relays…')));
+  api('/mesh/trajet?sauts=' + m.sauts + '&chemin=' + encodeURIComponent(m.chemin)).then(function (r) {
+    trajetsLus[cle] = r; dessinerTrajet(zone, r, m);
+  }).catch(function (e) { zone.innerHTML = ''; zone.appendChild(el('p', 'erreur', e.message)); });
+}
+function svg(tag, attributs, parent) {
+  var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.keys(attributs).forEach(function (k) { e.setAttribute(k, attributs[k]); });
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function dessinerTrajet(zone, r, m) {
+  zone.innerHTML = '';
+  var et = r.etapes || [], titre = el('div', 'titre');
+  titre.appendChild(el('b', '', T('Trajet du message', 'Route of the message')));
+  var resume = [et.length + T(' relais', et.length > 1 ? ' relays' : ' relay')];
+  if (r.places < et.length) resume.push(r.places + T(' situés', ' located'));
+  if (r.places > 1) resume.push((r.places < et.length ? T('au moins ', 'at least ') : '') + r.km + ' km');
+  titre.appendChild(el('span', '', resume.join(' · ')));
+  var q = el('button', 'aide-bouton', '?'); q.type = 'button'; q.setAttribute('aria-expanded', 'false');
+  titre.appendChild(q);
+  zone.appendChild(titre);
+  var aide = el('p', 'aide', T('Chaque relais ajoute au message le début de son identifiant. La station le retrouve parmi les radios qu’elle a entendues, puis dans la liste publique des relais MeshCore.',
+    'Each relay adds the start of its identifier to the message. The station finds it among the radios it has heard, then in the public list of MeshCore relays.'));
+  var ouvrirAide = function (ouvert) { aide.hidden = !ouvert; q.setAttribute('aria-expanded', ouvert ? 'true' : 'false'); };
+  zone.appendChild(aide); ouvrirAide(!!r.aideOuverte);
+  q.onclick = function () { r.aideOuverte = aide.hidden; ouvrirAide(r.aideOuverte); };
+  // Carte sans fond (hors ligne) : les relais situes, relies dans l'ordre ; pointilles la ou des relais manquent
+  var pts = [];
+  et.forEach(function (e, i) { if (typeof e.lat === 'number') pts.push({ lat: e.lat, lon: e.lon, i: i, nom: e.nom }); });
+  if (pts.length) {
+    var lats = pts.map(function (p) { return p.lat; }), lons = pts.map(function (p) { return p.lon; });
+    var la0 = Math.min.apply(0, lats), la1 = Math.max.apply(0, lats), lo0 = Math.min.apply(0, lons), lo1 = Math.max.apply(0, lons);
+    var k = Math.cos((la0 + la1) / 2 * Math.PI / 180), etendue = Math.max((lo1 - lo0) * k, la1 - la0, 0.05);
+    var ech = 220 / etendue;
+    var xy = function (p) { return [40 + ((p.lon - lo0) * k + (etendue - (lo1 - lo0) * k) / 2) * ech, 40 + ((la1 - p.lat) + (etendue - (la1 - la0)) / 2) * ech]; };
+    var c = svg('svg', { viewBox: '0 0 300 300', role: 'img', 'aria-label': T('Carte du trajet', 'Map of the route') });
+    for (var j = 1; j < pts.length; j++) {
+      var a = xy(pts[j - 1]), b = xy(pts[j]);
+      svg('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'class': pts[j].i - pts[j - 1].i > 1 ? 'trou' : 'ligne-trajet' }, c);
+    }
+    pts.forEach(function (p, j) {
+      var a = xy(p), dernier = j === pts.length - 1;
+      var rond = svg('circle', { cx: a[0], cy: a[1], r: dernier ? 4.5 : 3, 'class': 'relais' + (dernier ? ' dernier' : '') }, c);
+      svg('title', {}, rond).textContent = (p.i + 1) + '. ' + p.nom;
+      if (j === 0 || dernier) {
+        // Le nom ne doit pas sortir de la carte : cale a gauche ou a droite pres d'un bord
+        var cote = a[0] < 90 ? 'start' : a[0] > 210 ? 'end' : 'middle';
+        var t = svg('text', { x: cote === 'start' ? Math.max(4, a[0] - 6) : cote === 'end' ? Math.min(296, a[0] + 6) : a[0],
+                              y: a[1] + (dernier ? 16 : -9), 'text-anchor': cote }, c);
+        t.textContent = p.nom.length > 22 ? p.nom.slice(0, 21) + '…' : p.nom;
+      }
+    });
+    // Echelle : un nombre rond de kilometres, environ un quart de la largeur
+    var kmParPx = etendue * 111.2 / 220, pas = [1, 2, 5, 10, 20, 50, 100, 200, 500].filter(function (x) { return x / kmParPx <= 80; }).pop() || 1;
+    svg('line', { x1: 14, y1: 286, x2: 14 + pas / kmParPx, y2: 286, 'class': 'echelle' }, c);
+    svg('text', { x: 14, y: 280 }, c).textContent = pas + ' km';
+    var n = svg('text', { x: 286, y: 20, 'text-anchor': 'end' }, c); n.textContent = T('N ↑', 'N ↑');
+    zone.appendChild(c);
+  }
+  // Les etapes : les relais inconnus qui se suivent sont regroupes
+  var ol = el('ol', 'etapes'), i = 0;
+  while (i < et.length) {
+    var e = et[i], li = el('li');
+    if (!e.nom) {
+      var fin = i; while (fin + 1 < et.length && !et[fin + 1].nom) fin++;
+      var nb = fin - i + 1;
+      li.appendChild(el('span', 'n', nb > 1 ? (i + 1) + '–' + (fin + 1) : String(i + 1)));
+      var t = el('span', 'inconnu', nb > 1 ? nb + T(' relais inconnus', ' unknown relays') : T('relais inconnu', 'unknown relay'));
+      t.appendChild(el('span', 'ident', et.slice(i, fin + 1).map(function (x) { return x.id; }).join(' ')));
+      li.appendChild(t); li.appendChild(el('span', 'km', ''));
+      i = fin + 1;
+    } else {
+      li.appendChild(el('span', 'n', String(i + 1)));
+      var nomz = el('span'); nomz.appendChild(el('b', '', e.nom));
+      if (e.lat === null) nomz.appendChild(el('span', 'ident', T('position inconnue', 'position unknown')));
+      if (e.certitude === 'probable') nomz.appendChild(el('span', 'mot', T('probable', 'likely')));
+      if (e.source === 'public') nomz.appendChild(el('span', 'ident', T('liste publique', 'public list')));
+      li.appendChild(nomz);
+      li.appendChild(el('span', 'km', typeof e.km === 'number' ? '+' + Math.round(e.km) + ' km' : ''));
+      if (i === et.length - 1) li.className = 'fin';
+      i++;
+    }
+    ol.appendChild(li);
+  }
+  var arrivee = el('li', 'fin');
+  arrivee.appendChild(el('span', 'n', '→')); var st = el('span'); st.appendChild(el('b', '', T('La station', 'The station'))); arrivee.appendChild(st);
+  arrivee.appendChild(el('span', 'km', typeof m.snr === 'number' ? 'SNR ' + virgule(m.snr) + ' dB' : ''));
+  ol.appendChild(arrivee);
+  zone.appendChild(ol);
+  // Pied : le signal, et la liste publique (date, ou bouton pour la telecharger)
+  var note = el('p', 'note');
+  note.appendChild(el('span', '', T('Le signal (SNR) ne concerne que le dernier saut, du dernier relais à la station.', 'The signal (SNR) only covers the last hop, from the last relay to the station.')));
+  var l = r.liste || {};
+  if (l.quand) note.appendChild(el('span', '', T('Liste publique du ', 'Public list of ') + dateCourte(l.quand) + ' · ' + l.nombre + T(' relais', ' relays')));
+  if (!l.quand || Date.now() / 1000 - l.quand > 7 * 86400) {
+    var tel = el('button', 'lien', l.quand ? T('Mettre à jour la liste publique (internet)', 'Update the public list (internet)')
+      : T('Télécharger la liste publique des relais (internet)', 'Download the public list of relays (internet)'));
+    tel.type = 'button';
+    tel.onclick = function () {
+      tel.disabled = true; tel.textContent = T('Téléchargement lancé : environ une minute…', 'Download started: about a minute…');
+      commander('radio-relais', '').then(function () {
+        setTimeout(function () { trajetsLus = {}; afficherJournal(); }, 75000);
+      });
+    };
+    note.appendChild(tel);
+  }
+  zone.appendChild(note);
 }
 
 // ----- Ecrire

@@ -92,7 +92,7 @@ for F in "$DOSSIER"/*; do
         resultat refuse "Une mise à jour tourne déjà."
       fi
       sleep 3 ;;
-    radio-sauvegarder|radio-regler|radio-reseau|radio-chercher|radio-installer|radio-t-echo|radio-detecter|radio-restaurer|radio-identifier|radio-carte)
+    radio-sauvegarder|radio-regler|radio-reseau|radio-chercher|radio-installer|radio-t-echo|radio-detecter|radio-restaurer|radio-identifier|radio-carte|radio-relais)
       # Page Radio (plan radio R3 a R5) et section Mesh (restaurer, atelier) : prometheus-radio-outil, a part, un seul a la fois ;
       # son detail s'ecrit dans ajouter/radio-outil.txt (le contenu de l'ordre = ses reglages, verifies par l'outil)
       echo "Radio : ${ORDRE#radio-} demande depuis la page"

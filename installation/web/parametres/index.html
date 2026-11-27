@@ -500,6 +500,8 @@ addEventListener('pageshow', function (e) { if (e.persisted) document.querySelec
     <div class="aide" id="aide-mesh-distance"><div><p data-en="From the Mesh section, read and change the settings of another radio, or log in to a MeshCore repeater. That radio must have given the station the right to do so (its admin key or password).">Depuis la section Mesh, lire et changer les réglages d’une autre radio, ou se connecter à un répéteur MeshCore. Il faut que cette radio en ait donné le droit à la station (sa clé admin ou son mot de passe).</p></div></div>
     <div class="ligne"><label class="nom" for="mesh-toutes"><span data-en="Software of every board">Logiciels de toutes les cartes</span><span class="sous valeur" data-en="About 1 GB per version" style="max-width:none">Environ 1 Go par version</span></label><button class="aide-bouton" aria-controls="aide-mesh-toutes" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button><input type="checkbox" class="interrupteur" id="mesh-toutes"></div>
     <div class="aide" id="aide-mesh-toutes"><div><p data-en="With internet, the station keeps the Meshtastic and MeshCore software of every known board, not only those it follows. Then any radio brought by a neighbour can be installed without internet.">Avec internet, la station garde les logiciels Meshtastic et MeshCore de toutes les cartes connues, pas seulement celles qu’elle suit. N’importe quelle radio apportée par un voisin pourra alors être installée sans internet.</p></div></div>
+    <div class="ligne"><label class="nom" for="mesh-trajet"><span data-en="Route of messages">Trajet des messages</span><span class="sous valeur" data-en="Which relays a MeshCore message went through" style="max-width:none">Par quels relais un message MeshCore est passé</span></label><button class="aide-bouton" aria-controls="aide-mesh-trajet" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button><input type="checkbox" class="interrupteur" id="mesh-trajet"></div>
+    <div class="aide" id="aide-mesh-trajet"><div><p data-en="In Mesh › Messages, a « + route » button shows the relays a message went through, on a small map with the distances. With internet, the station downloads the public list of MeshCore relays (about 60 MB once a week) to place the far ones.">Dans Mesh › Messages, un bouton « + trajet » montre les relais par lesquels un message est passé, sur une petite carte avec les distances. Avec internet, la station télécharge la liste publique des relais MeshCore (environ 60 Mo une fois par semaine) pour situer les plus lointains.</p></div></div>
   </div>
   <!-- Balise : un message tout fait envoye seul par radio (desactivee au depart ; au depart seulement en urgence) -->
   <h2 class="avec-aide"><span data-en="Beacon">Balise</span><button class="aide-bouton" aria-controls="aide-balise" aria-expanded="false" aria-label="Explication" data-en-aria="Explanation">?</button></h2>
@@ -1262,11 +1264,12 @@ function afficherCommunaute() {
   puces($('ecran-veille'), [[2, '2 min'], [5, '5 min'], [15, '15 min'], [60, '1 h'], [0, T('Jamais', 'Never')]],
     function (v) { return v === ec.veille; }, function (v) { regler('ecran', { veille: v }); });
   afficherBalise();
-  var me = reg.mesh || { historique_jours: 90, distance: false, toutes_cartes: false };
+  var me = reg.mesh || { historique_jours: 90, distance: false, toutes_cartes: false, trajet: false };
   puces($('mesh-histo'), [[30, T('30 jours', '30 days')], [90, T('90 jours', '90 days')], [365, T('1 an', '1 year')], [0, T('Toujours', 'Forever')]],
     function (v) { return v === me.historique_jours; }, function (v) { regler('mesh', { historique_jours: v }); });
   $('mesh-distance').checked = me.distance;
   $('mesh-toutes').checked = me.toutes_cartes;
+  $('mesh-trajet').checked = me.trajet === true;
   etatRadio();
 }
 // ----- Balise : texte avec des cases remplies par la station, apercu exact (calcule par la station elle-meme)
@@ -1354,6 +1357,11 @@ function communaute() {
  ['eink-active', 'eink', 'active'], ['balise-active', 'balise', 'active'], ['balise-urgence', 'balise', 'urgence_seulement']].forEach(function (x) {
   $(x[0]).onchange = function () { var v = {}; v[x[2]] = this.checked; regler(x[1], v); };
 });
+// Trajet des messages : en l'allumant, la station telecharge tout de suite la liste publique des relais (internet)
+$('mesh-trajet').onchange = function () {
+  var oui = this.checked;
+  regler('mesh', { trajet: oui }).then(function (r) { if (r && r.ok && oui) commander('radio-relais', ''); });
+};
 // Texte de l'annonce : bouton Enregistrer
 $('annonce-texte').addEventListener('input', function () {
   this.dataset.touche = '1';

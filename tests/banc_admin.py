@@ -95,6 +95,7 @@ def fichiers():
 
 GET = ['/verif', '/etat', '/energie', '/sante', '/recherches', '/radio', '/balise', '/mesh/reponse?id=abc',
        '/mesh/resultats?depuis=0', '/mesh/historique?quoi=stats', '/mesh/schema', '/mesh/sauvegardes', '/mesh/atelier',
+       '/mesh/trajet?sauts=2&chemin=ec462667',
        '/api/messages', '/api/radio', '/api/panneau', '/api/reglages', '/api/registre', '/api/entraide', '/inconnue']
 POST = ['/api/messages/effacer', '/api/messages/vider', '/api/registre/vider', '/api/entraide/vider',
         '/changer', '/theme', '/wifi', '/adresse', '/recherches/epingler', '/recherches/vider', '/radio/envoyer',

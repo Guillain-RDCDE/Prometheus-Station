@@ -129,6 +129,74 @@ function svg(tag, attributs, parent) {
   if (parent) parent.appendChild(e);
   return e;
 }
+// Projection de Mercator (comme les cartes du web) : x, y dans [0, 1]
+function mercator(lat, lon) {
+  var s = Math.sin(Math.max(-85, Math.min(85, lat)) * Math.PI / 180);
+  return [(lon + 180) / 360, 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)];
+}
+function latDeY(y) { return Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180 / Math.PI; }
+// Carte du trajet : fond hors ligne dessine par la station (Natural Earth : /mesh/fond), puis les relais situes,
+// relies dans l'ordre (pointilles la ou des relais manquent). Sans fond telecharge : le trajet seul.
+function carteTrajet(pts, cache) {
+  var L = 300, H = 300, MARGE = 36;
+  var px = pts.map(function (q) { return mercator(q.lat, q.lon); });
+  var x0 = Math.min.apply(0, px.map(function (q) { return q[0]; })), x1 = Math.max.apply(0, px.map(function (q) { return q[0]; }));
+  var y0 = Math.min.apply(0, px.map(function (q) { return q[1]; })), y1 = Math.max.apply(0, px.map(function (q) { return q[1]; }));
+  var mini = 30 / 40075 / Math.cos(pts[0].lat * Math.PI / 180);      // au moins 30 km de large
+  var ech = (L - 2 * MARGE) / Math.max(x1 - x0, y1 - y0, mini);       // pixels par unite de Mercator
+  var ox = (x0 + x1) / 2 - L / 2 / ech, oy = (y0 + y1) / 2 - H / 2 / ech;
+  var xy = function (lat, lon) { var m = mercator(lat, lon); return [(m[0] - ox) * ech, (m[1] - oy) * ech]; };
+  var c = svg('svg', { viewBox: '0 0 ' + L + ' ' + H, role: 'img', 'aria-label': T('Carte du trajet', 'Map of the route') });
+  var fond = svg('g', { 'class': 'fond' }, c);
+  // Le cadre en degres, pour demander le fond a la station ; tol = un pixel en degres
+  var cadre = { o: ox * 360 - 180, e: (ox + L / ech) * 360 - 180, n: latDeY(oy), s: latDeY(oy + H / ech) };
+  var tol = (cadre.e - cadre.o) / L * Math.cos(pts[0].lat * Math.PI / 180);
+  var dessinerFond = function (f) {
+    if (!f || f.absent || f.erreur) {
+      if (f && f.absent) svg('text', { x: 296, y: 14, 'text-anchor': 'end', 'class': 'attribution' }, fond).textContent = T('fond de carte pas encore téléchargé', 'map background not downloaded yet');
+      return;
+    }
+    ['regions', 'frontieres', 'lacs', 'fleuves', 'routes', 'cotes'].forEach(function (couche) {
+      (f[couche] || []).forEach(function (ligne) {
+        var d = ligne.map(function (p, i) { var a = xy(p[1], p[0]); return (i ? 'L' : 'M') + a[0].toFixed(1) + ' ' + a[1].toFixed(1); }).join('');
+        svg('path', { d: d, 'class': 'c-' + couche, fill: 'none' }, fond);   // jamais rempli, meme avec une vieille feuille de style
+      });
+    });
+    (f.villes || []).forEach(function (v) {
+      var a = xy(v.lat, v.lon);
+      if (a[0] < 0 || a[0] > L || a[1] < 0 || a[1] > H) return;
+      svg('circle', { cx: a[0], cy: a[1], r: 1.6, 'class': 'ville' }, fond);
+      var droite = a[0] > L - 70;     // pres du bord droit : le nom part vers la gauche
+      svg('text', { x: droite ? a[0] - 4 : a[0] + 4, y: a[1] - 3, 'text-anchor': droite ? 'end' : 'start', 'class': 'nom-ville' }, fond).textContent = v.nom;
+    });
+    svg('text', { x: 296, y: 296, 'text-anchor': 'end', 'class': 'attribution' }, fond).textContent = 'Natural Earth';
+  };
+  if (cache.fond) dessinerFond(cache.fond);
+  else api('/mesh/fond?o=' + cadre.o.toFixed(4) + '&s=' + cadre.s.toFixed(4) + '&e=' + cadre.e.toFixed(4) + '&n=' + cadre.n.toFixed(4) + '&tol=' + tol.toFixed(5))
+    .then(function (f) { cache.fond = f; dessinerFond(f); }).catch(function () {});
+  for (var j = 1; j < pts.length; j++) {
+    var a = xy(pts[j - 1].lat, pts[j - 1].lon), b = xy(pts[j].lat, pts[j].lon);
+    svg('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'class': pts[j].i - pts[j - 1].i > 1 ? 'trou' : 'ligne-trajet' }, c);
+  }
+  pts.forEach(function (q, j) {
+    var a = xy(q.lat, q.lon), dernier = j === pts.length - 1;
+    var rond = svg('circle', { cx: a[0], cy: a[1], r: dernier ? 4.5 : 3, 'class': 'relais' + (dernier ? ' dernier' : '') }, c);
+    svg('title', {}, rond).textContent = (q.i + 1) + '. ' + q.nom;
+    if (j === 0 || dernier) {
+      // Le nom ne doit pas sortir de la carte : cale a gauche ou a droite pres d'un bord
+      var cote = a[0] < 90 ? 'start' : a[0] > 210 ? 'end' : 'middle';
+      var t = svg('text', { x: cote === 'start' ? Math.max(4, a[0] - 6) : cote === 'end' ? Math.min(296, a[0] + 6) : a[0],
+                            y: a[1] + (dernier ? 16 : -9), 'text-anchor': cote, 'class': 'nom-relais' }, c);
+      t.textContent = q.nom.length > 22 ? q.nom.slice(0, 21) + '…' : q.nom;
+    }
+  });
+  // Echelle : un nombre rond de kilometres, au plus 80 px (Mercator : l'echelle depend de la latitude)
+  var kmParPx = 40075 * Math.cos(pts[0].lat * Math.PI / 180) / ech;
+  var pas = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].filter(function (x) { return x / kmParPx <= 80; }).pop() || 0.5;
+  svg('line', { x1: 14, y1: 286, x2: 14 + pas / kmParPx, y2: 286, 'class': 'echelle' }, c);
+  svg('text', { x: 14, y: 281, 'class': 'nom-relais' }, c).textContent = virgule(pas, pas < 1 ? 1 : 0) + ' km';
+  return c;
+}
 function dessinerTrajet(zone, r, m) {
   zone.innerHTML = '';
   var et = r.etapes || [], titre = el('div', 'titre');
@@ -145,39 +213,10 @@ function dessinerTrajet(zone, r, m) {
   var ouvrirAide = function (ouvert) { aide.hidden = !ouvert; q.setAttribute('aria-expanded', ouvert ? 'true' : 'false'); };
   zone.appendChild(aide); ouvrirAide(!!r.aideOuverte);
   q.onclick = function () { r.aideOuverte = aide.hidden; ouvrirAide(r.aideOuverte); };
-  // Carte sans fond (hors ligne) : les relais situes, relies dans l'ordre ; pointilles la ou des relais manquent
+  // Carte : fond hors ligne, relais situes (voir carteTrajet)
   var pts = [];
   et.forEach(function (e, i) { if (typeof e.lat === 'number') pts.push({ lat: e.lat, lon: e.lon, i: i, nom: e.nom }); });
-  if (pts.length) {
-    var lats = pts.map(function (p) { return p.lat; }), lons = pts.map(function (p) { return p.lon; });
-    var la0 = Math.min.apply(0, lats), la1 = Math.max.apply(0, lats), lo0 = Math.min.apply(0, lons), lo1 = Math.max.apply(0, lons);
-    var k = Math.cos((la0 + la1) / 2 * Math.PI / 180), etendue = Math.max((lo1 - lo0) * k, la1 - la0, 0.05);
-    var ech = 220 / etendue;
-    var xy = function (p) { return [40 + ((p.lon - lo0) * k + (etendue - (lo1 - lo0) * k) / 2) * ech, 40 + ((la1 - p.lat) + (etendue - (la1 - la0)) / 2) * ech]; };
-    var c = svg('svg', { viewBox: '0 0 300 300', role: 'img', 'aria-label': T('Carte du trajet', 'Map of the route') });
-    for (var j = 1; j < pts.length; j++) {
-      var a = xy(pts[j - 1]), b = xy(pts[j]);
-      svg('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'class': pts[j].i - pts[j - 1].i > 1 ? 'trou' : 'ligne-trajet' }, c);
-    }
-    pts.forEach(function (p, j) {
-      var a = xy(p), dernier = j === pts.length - 1;
-      var rond = svg('circle', { cx: a[0], cy: a[1], r: dernier ? 4.5 : 3, 'class': 'relais' + (dernier ? ' dernier' : '') }, c);
-      svg('title', {}, rond).textContent = (p.i + 1) + '. ' + p.nom;
-      if (j === 0 || dernier) {
-        // Le nom ne doit pas sortir de la carte : cale a gauche ou a droite pres d'un bord
-        var cote = a[0] < 90 ? 'start' : a[0] > 210 ? 'end' : 'middle';
-        var t = svg('text', { x: cote === 'start' ? Math.max(4, a[0] - 6) : cote === 'end' ? Math.min(296, a[0] + 6) : a[0],
-                              y: a[1] + (dernier ? 16 : -9), 'text-anchor': cote }, c);
-        t.textContent = p.nom.length > 22 ? p.nom.slice(0, 21) + '…' : p.nom;
-      }
-    });
-    // Echelle : un nombre rond de kilometres, environ un quart de la largeur
-    var kmParPx = etendue * 111.2 / 220, pas = [1, 2, 5, 10, 20, 50, 100, 200, 500].filter(function (x) { return x / kmParPx <= 80; }).pop() || 1;
-    svg('line', { x1: 14, y1: 286, x2: 14 + pas / kmParPx, y2: 286, 'class': 'echelle' }, c);
-    svg('text', { x: 14, y: 280 }, c).textContent = pas + ' km';
-    var n = svg('text', { x: 286, y: 20, 'text-anchor': 'end' }, c); n.textContent = T('N ↑', 'N ↑');
-    zone.appendChild(c);
-  }
+  if (pts.length) zone.appendChild(carteTrajet(pts, r));
   // Les etapes : les relais inconnus qui se suivent sont regroupes
   var ol = el('ol', 'etapes'), i = 0;
   while (i < et.length) {

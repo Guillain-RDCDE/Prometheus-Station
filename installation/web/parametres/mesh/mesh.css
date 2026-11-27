@@ -147,7 +147,7 @@ table.tableau td.n, table.tableau th.n { text-align: right; }
 /* Messages : trajet d'un message MeshCore (Parametres > Mesh > Trajet des messages) */
 .plus { font: inherit; font-size: .75rem; color: var(--gris); background: none; border: 1px solid var(--trait); border-radius: 4px; padding: 0 6px; margin-left: 8px; cursor: pointer; }
 .plus:hover, .plus[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
-.trajet { margin-top: 10px; border: 1px solid var(--trait); border-radius: 8px; padding: 14px; display: grid; grid-template-columns: minmax(0, 300px) 1fr; gap: 14px 18px; }
+.trajet { margin-top: 10px; border: 1px solid var(--trait); border-radius: 8px; padding: 14px; display: grid; grid-template-columns: minmax(0, 380px) 1fr; gap: 14px 18px; }
 .trajet .titre { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: .95rem; }
 .trajet .titre span { color: var(--gris); font-size: .85rem; }
 .trajet .aide { grid-column: 1 / -1; margin: 0; font-size: .85rem; }
@@ -157,7 +157,17 @@ table.tableau td.n, table.tableau th.n { text-align: right; }
 .trajet svg .trou { fill: none; stroke: var(--pale); stroke-width: 1.2; stroke-dasharray: 3 3; }
 .trajet svg .relais { fill: var(--carte); stroke: var(--accent); stroke-width: 1.5; }
 .trajet svg .dernier { fill: var(--accent); }
-.trajet svg .echelle { stroke: var(--gris); stroke-width: 1; }
+.trajet svg .echelle { stroke: var(--encre); stroke-width: 1.5; }
+.trajet svg .fond path { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.trajet svg .c-cotes { stroke: var(--gris); stroke-width: .9; }
+.trajet svg .c-frontieres { stroke: var(--gris); stroke-width: .8; stroke-dasharray: 4 2 1 2; }
+.trajet svg .c-regions { stroke: var(--trait); stroke-width: .7; }
+.trajet svg .c-fleuves, .trajet svg .c-lacs { stroke: #7aa6cf; stroke-width: .8; opacity: .8; }
+.trajet svg .c-routes { stroke: #c9a36a; stroke-width: .8; opacity: .7; }
+.trajet svg .ville { fill: var(--gris); }
+.trajet svg .nom-ville { font-size: 8.5px; fill: var(--gris); paint-order: stroke; stroke: var(--fond); stroke-width: 2.5px; stroke-linejoin: round; }
+.trajet svg .nom-relais { fill: var(--encre); font-weight: 600; paint-order: stroke; stroke: var(--carte); stroke-width: 3px; stroke-linejoin: round; }
+.trajet svg .attribution { font-size: 7.5px; fill: var(--pale); }
 .etapes { list-style: none; margin: 0; padding: 0; font-size: .86rem; }
 .etapes li { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--trait); align-items: baseline; }
 .etapes li:last-child { border-bottom: 0; }

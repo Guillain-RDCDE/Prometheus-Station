@@ -9,6 +9,7 @@ import radio_materiel as mat
 import radio_sauvegarde as sauv
 import radio_surete as sur
 import radio_trajet as traj
+import radio_fond as rf
 
 PAR_ID = '/dev/serial/by-id/'
 TBEAM = PAR_ID + 'usb-1a86_USB_Single_Serial_5A7B012345-if00'
@@ -394,3 +395,41 @@ class Trajet(unittest.TestCase):
             self.assertEqual(traj.lire_publics(f), {'quand': None, 'relais': []})
             json.dump({'relais': [['aa', 'x', 1.0, 2.0, '2026-11-27'], ['mauvais']]}, open(f, 'w'))
             self.assertEqual(traj.lire_publics(f)['relais'], [['aa', 'x', 1.0, 2.0, '2026-11-27']])
+
+
+class FondDeCarte(unittest.TestCase):
+    def test_coder_decoder(self):
+        pts = [[-4.481, 48.424], [-4.5, 48.4], [2.35, 48.857], [-179.999, -89.5], [0.0, 0.0]]
+        self.assertEqual(rf.decoder(rf.coder(pts)), pts)
+        self.assertEqual(rf.decoder(''), [])
+
+    def test_morceaux(self):
+        ligne = [[i / 100, 45 + i / 1000] for i in range(200)]
+        m = rf.morceaux(ligne)
+        self.assertEqual(len(m), 4)                                   # 64 points par morceau, le dernier repris
+        tous = [p for x in m for p in rf.decoder(x[4])]
+        self.assertEqual(len(tous), 200 + 3)
+        self.assertEqual(m[0][:4], [0.0, 45.0, 0.63, 45.063])
+        self.assertEqual(rf.morceaux([[1, 2]]), [])                   # un point seul : pas un trait
+
+    def test_compacter(self):
+        geo = {'features': [
+            {'properties': {'scalerank': 3}, 'geometry': {'type': 'LineString', 'coordinates': [[0, 0], [1, 1]]}},
+            {'properties': {'scalerank': 9}, 'geometry': {'type': 'LineString', 'coordinates': [[0, 0], [1, 1]]}},
+            {'properties': {}, 'geometry': {'type': 'MultiPolygon', 'coordinates': [[[[0, 0], [1, 0], [1, 1], [0, 0]]]]}},
+            {'properties': {}, 'geometry': None}]}
+        self.assertEqual(len(rf.compacter('routes', geo)), 1)          # la petite route (rang 9) n'est pas gardee
+        self.assertEqual(len(rf.compacter('cotes', geo)), 3)           # ligne, ligne, contour du polygone
+        villes = {'features': [{'properties': {'name': 'A', 'scalerank': 2, 'pop_max': 5000}, 'geometry': {'type': 'Point', 'coordinates': [1.23456, 2.5]}},
+                               {'properties': {'name': ''}, 'geometry': {'type': 'Point', 'coordinates': [0, 0]}}]}
+        self.assertEqual(rf.compacter_villes(villes), [['A', 1.235, 2.5, 2, 5000]])
+
+    def test_extraire_et_simplifier(self):
+        fond = {'cotes': rf.morceaux([[i / 1000, 45.0] for i in range(1000)]),        # 1 degre, un point tous les 1/1000
+                'villes': [['Grande', 0.5, 45.0, 1, 1000000], ['Collee', 0.501, 45.0, 2, 100], ['Loin', 10, 45, 1, 9]]}
+        r = rf.extraire(fond, 0, 44, 1, 46, 0.01)
+        n = sum(len(l) for l in r['cotes'])
+        self.assertLess(n, 200)                                        # simplifie au pixel
+        self.assertEqual([v['nom'] for v in r['villes']], ['Grande'])  # « Collee » serait sur « Grande » ; « Loin » hors cadre
+        self.assertEqual(rf.extraire(fond, 5, 44, 6, 46, 0.01)['cotes'], [])
+        self.assertEqual(rf.simplifier([[0, 0], [0.001, 0], [1, 0]], 0.01), [[0, 0], [1, 0]])

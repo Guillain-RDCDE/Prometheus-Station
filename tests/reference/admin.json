@@ -118,6 +118,13 @@
    "scenario": "GET /mesh/trajet?sauts=2&chemin=ec462667 (sans connexion)"
   },
   {
+   "code": 401,
+   "reponse": {
+    "erreur": "Connectez-vous d’abord."
+   },
+   "scenario": "GET /mesh/fond?o=-5&s=46&e=0&n=49&tol=0.02 (sans connexion)"
+  },
+  {
    "code": 200,
    "reponse": {
     "admin": false,
@@ -564,6 +571,11 @@
    "code": 404,
    "reponse": {},
    "scenario": "GET /mesh/trajet?sauts=2&chemin=ec462667"
+  },
+  {
+   "code": 404,
+   "reponse": {},
+   "scenario": "GET /mesh/fond?o=-5&s=46&e=0&n=49&tol=0.02"
   },
   {
    "code": 200,

@@ -349,6 +349,21 @@ def trajet(q):
     return res
 
 
+def fond_carte(q):
+    """Section Mesh > Messages : le fond de carte (Natural Earth, garde sur la station : radio_fond) dans un cadre."""
+    import radio_fond as rf
+    try:
+        o, s_, e, n, tol = (float(q.get(k, [''])[0]) for k in ('o', 's', 'e', 'n', 'tol'))
+    except ValueError:
+        return {'erreur': 'cadre illisible'}
+    if not (-180 <= o < e <= 180 and -90 <= s_ < n <= 90 and e - o <= 60 and n - s_ <= 40):
+        return {'erreur': 'cadre trop grand'}
+    fond = rf.lire_fond(pc.FOND_CARTE)
+    if not fond:
+        return {'absent': True}
+    return rf.extraire(fond, o, s_, e, n, max(tol, 0.0005))
+
+
 def apercu_balise(texte):
     """Le texte de la balise tel que la radio l'enverra : le meme calcul (radio_limites.rendre_balise)."""
     import radio_limites as lim
@@ -573,6 +588,11 @@ class Admin(BaseHTTPRequestHandler):
                     return self.repondre(200, trajet(q))
                 except Exception as e:
                     return self.repondre(500, {'erreur': 'Trajet illisible : %s' % e})
+            if u.path == '/mesh/fond':
+                if reglages()['mesh']['trajet'] is not True:
+                    return self.repondre(404)
+                r = fond_carte(q)
+                return self.repondre(400 if 'erreur' in r else 200, r)
             if u.path == '/mesh/schema':
                 return self.repondre(200, lire_json(os.path.join(RADIO, 'schema.json'), {}))
             if u.path == '/mesh/sauvegardes':

@@ -107,6 +107,8 @@ function api(meth, u, corps) {
     case '/admin-api/balise': return [200, { apercu: 'Prometheus · wifi Prometheus-Station', octets: 36, max: 228, coupe: false, position: false, derniere: t - 3000, canaux: [{ index: 0, nom: 'Principal' }] }];
     case '/admin-api/radio': return [200, radioAdmin()];
     case '/admin-api/mesh/schema': return [200, SCHEMA];
+    case '/admin-api/mesh/fond': return [200, { cotes: [[[1.5, 48.5], [3, 47.5], [4.5, 46.5]]], frontieres: [], regions: [], fleuves: [[[2, 47], [3, 47.2]]], lacs: [], routes: [],
+      villes: [{ nom: 'Villeneuve', lon: 3.2, lat: 47.6 }] }];
     case '/admin-api/mesh/trajet': return [200, { places: 2, nommes: 2, km: 210, station: null, liste: { quand: t - 3600, nombre: 38591 }, etapes: [
       { id: 'ec46', nom: 'Relais <b>Cap</b>', lat: 48.42, lon: 2.1, source: 'public', certitude: 'sur', km: null },
       { id: 'd45c', nom: '', lat: null, lon: null, source: '', certitude: '', km: null },
@@ -350,7 +352,8 @@ const PAGES = [
       await p.eval(`document.querySelector('#journal .plus').click()`); await attendre(800);
       return [await p.verif(vrai(`document.querySelectorAll('.trajet .etapes li').length === 4`, 'trajet : 3 relais + la station')),
         await p.verif(vrai(`/Relais <b>Cap<\\/b>/.test(${txt('.trajet .etapes')}) && !document.querySelector('.trajet .etapes b b')`, 'un nom de radio reste du texte')),
-        await p.verif(vrai(`document.querySelectorAll('.trajet svg circle').length === 2 && document.querySelectorAll('.trajet svg .trou').length === 1`, 'carte : 2 relais situés, pointillés sur le trou')),
+        await p.verif(vrai(`document.querySelectorAll('.trajet svg circle.relais').length === 2 && document.querySelectorAll('.trajet svg .trou').length === 1`, 'carte : 2 relais situés, pointillés sur le trou')),
+        await p.verif(vrai(`document.querySelectorAll('.trajet svg .c-cotes').length === 1 && /Villeneuve/.test(${txt('.trajet svg')}) && /Natural Earth/.test(${txt('.trajet svg')})`, 'carte : le fond (côtes, ville, attribution)')),
         await p.verif(vrai(`/au moins 210 km/.test(${txt('.trajet .titre')})`, 'le total des kilomètres'))];
     } },
   { nom: 'mesh canaux', url: '/parametres/mesh/canaux.html', attente: 1500, verifs: [vrai(`/Famille/.test(${txt('#contenu')})`, 'les canaux')],

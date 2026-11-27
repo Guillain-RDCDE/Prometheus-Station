@@ -38,6 +38,24 @@ class Page(unittest.TestCase):
         rep = c.getresponse()
         return rep.status, rep.read()
 
+    def test_fond_de_carte(self):
+        import radio_fond as rf
+        fichier = admin.pc.FOND_CARTE
+        if os.path.exists(fichier):
+            os.remove(fichier)
+        q = lambda o, s_, e, n: {'o': [str(o)], 's': [str(s_)], 'e': [str(e)], 'n': [str(n)], 'tol': ['0.01']}
+        self.assertEqual(admin.fond_carte(q(0, 40, 5, 45)), {'absent': True})         # pas encore telecharge
+        self.assertIn('erreur', admin.fond_carte(q(0, 40, 90, 45)))                     # cadre trop grand
+        self.assertIn('erreur', admin.fond_carte(q(5, 40, 0, 45)))                      # cadre a l'envers
+        self.assertIn('erreur', admin.fond_carte({'o': ['x']}))
+        os.makedirs(os.path.dirname(fichier), exist_ok=True)
+        with open(fichier, 'w') as f:
+            json.dump({'cotes': rf.morceaux([[1.0, 42.0], [2.0, 43.0]]), 'villes': [['Ville', 1.5, 42.5, 1, 1000]]}, f)
+        r = admin.fond_carte(q(0, 40, 5, 45))
+        self.assertEqual(r['cotes'], [[[1.0, 42.0], [2.0, 43.0]]])
+        self.assertEqual(r['villes'], [{'nom': 'Ville', 'lon': 1.5, 'lat': 42.5}])
+        self.assertEqual(admin.fond_carte(q(10, 40, 15, 45))['cotes'], [])            # hors du cadre
+
     def test_DEFAUT_ordre_lisible_par_tous(self):
         """Un ordre peut porter une cle de canal ou un mot de passe : 0600."""
         with mock.patch.object(admin, 'lire_json', return_value={'id': 'x', 'ok': True}):
